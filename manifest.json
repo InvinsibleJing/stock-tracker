@@ -1,0 +1,24 @@
+{
+  "name": "股票交易记录",
+  "short_name": "交易记录",
+  "description": "收盘前买入·次日开盘卖出·数据云端同步",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#3498db",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%233498db'/><text x='96' y='125' font-size='100' text-anchor='middle' fill='white'>📈</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%233498db'/><text x='256' y='330' font-size='260' text-anchor='middle' fill='white'>📈</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
