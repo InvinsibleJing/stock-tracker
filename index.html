@@ -388,9 +388,13 @@ function saveSettings(){
   closeSettings(); showStatus('load','⏳ 正在连接...'); loadTrades();
 }
 
-// ===== API =====
-function apiCall(params, callback){
+// ===== API（带自动重试） =====
+var MAX_RETRIES = 3;     // 最大重试次数
+var RETRY_DELAY = 2000;  // 重试间隔（毫秒）
+
+function apiCall(params, callback, _retries){
   if(!API_URL){ showStatus('err','⚠️ 未配置云端数据库'); return; }
+  var retries = typeof _retries === 'number' ? _retries : 0;
   var callbackName = 'cb_'+Date.now()+'_'+Math.floor(Math.random()*10000);
   params.callback = callbackName;
   var parts=[];
@@ -400,7 +404,36 @@ function apiCall(params, callback){
   window[callbackName] = function(data){ delete window[callbackName]; document.head.removeChild(script); callback(data); };
   var script = document.createElement('script');
   script.src = url;
-  script.onerror = function(){ delete window[callbackName]; if(script.parentNode) document.head.removeChild(script); showStatus('err','❌ 网络错误'); callback({success:false,error:'网络错误'}); };
+  script.onerror = function(){
+    delete window[callbackName];
+    if(script.parentNode) document.head.removeChild(script);
+    if(retries < MAX_RETRIES - 1){
+      var next = retries + 1;
+      showStatus('load','⏳ 连接失败，第 '+next+'/'+(MAX_RETRIES-1)+' 次重试...');
+      setTimeout(function(){ apiCall(params, callback, next); }, RETRY_DELAY);
+    } else {
+      showStatus('err','❌ 网络错误（已重试 '+(MAX_RETRIES-1)+' 次）');
+      callback({success:false,error:'网络错误'});
+    }
+  };
+  // 超时处理：15秒无响应则判定失败
+  var timer = setTimeout(function(){
+    if(window[callbackName]){
+      delete window[callbackName];
+      if(script.parentNode) document.head.removeChild(script);
+      if(retries < MAX_RETRIES - 1){
+        var next = retries + 1;
+        showStatus('load','⏳ 响应超时，第 '+next+'/'+(MAX_RETRIES-1)+' 次重试...');
+        setTimeout(function(){ apiCall(params, callback, next); }, RETRY_DELAY);
+      } else {
+        showStatus('err','❌ 请求超时（已重试 '+(MAX_RETRIES-1)+' 次）');
+        callback({success:false,error:'请求超时'});
+      }
+    }
+  }, 15000);
+  // 成功回调时清除超时定时器
+  var origCb = window[callbackName];
+  window[callbackName] = function(data){ clearTimeout(timer); origCb(data); };
   document.head.appendChild(script);
 }
 
