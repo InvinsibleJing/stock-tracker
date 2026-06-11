@@ -178,7 +178,7 @@ tbody tr:hover { background:#f8f9fa; }
       <div class="field"><label>交易日期</label><input type="date" id="inpDate" onkeydown="if(event.key==='Enter')addTrade()"></div>
       <div class="field"><label>股票代码/首字母</label>
         <div class="autocomplete-wrap">
-          <input type="text" id="inpCode" placeholder="输入代码或首字母如 xycz" autocomplete="off" oninput="onCodeInput()" onfocus="onCodeInput()" onkeydown="onCodeKeydown(event)">
+          <input type="text" id="inpCode" placeholder="输入代码或首字母如 xycz" autocomplete="off" oninput="onCodeInput();autoDetectTag(this.value)" onfocus="onCodeInput()" onkeydown="onCodeKeydown(event)">
           <div class="autocomplete-list" id="acList"></div>
         </div>
       </div>
@@ -467,9 +467,21 @@ function renderAcList() {
   list.innerHTML = html;
 }
 
+// 根据股票代码自动识别板块
+function autoDetectTag(code) {
+  if (!code) return;
+  var c = code.replace(/\s/g, '');
+  var tag = '';
+  if (c.indexOf('30') === 0) tag = '创业板';
+  else if (c.indexOf('68') === 0) tag = '科创板';
+  else if (c.indexOf('60') === 0 || c.indexOf('00') === 0) tag = '主板';
+  if (tag) document.getElementById('inpTag').value = tag;
+}
+
 function selectAcItem(index) {
   var r = acResults[index];
   document.getElementById('inpCode').value = r.code;
+  autoDetectTag(r.code);
   document.getElementById('acList').classList.remove('show');
   acSelectedIndex = -1;
   acResults = [];
