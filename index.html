@@ -228,6 +228,15 @@ tbody tr:hover { background:#f8f9fa; }
       <div class="cat-stats" id="catStats"></div>
     </div>
 
+    <!-- 股票综合盈亏 -->
+    <div class="analysis-box">
+      <h2>💼 股票综合盈亏</h2>
+      <p style="font-size:12px;color:#999;margin-bottom:10px">按股票合并计算，同一只股票的多笔交易汇总为一个结果</p>
+      <div class="table-wrap">
+        <table class="period-table" id="stockSummaryTable"></table>
+      </div>
+    </div>
+
     <!-- 周月统计 -->
     <div class="analysis-box">
       <h2>📅 周期统计</h2>
@@ -761,16 +770,25 @@ function updateStats(){
 function renderAnalysis(){
   renderTrendChart();
   renderCatStats();
+  renderStockSummary();
   renderPeriodTable();
 }
 
 // 趋势图
 function renderTrendChart(){
   var sorted=trades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
-  var labels=[], data=[], cum=0;
+  // 按天汇总盈亏
+  var dayMap={};
+  var dayOrder=[];
   for(var i=0;i<sorted.length;i++){
-    cum+=sorted[i].amount;
-    labels.push(formatDate(sorted[i].date));
+    var d=sorted[i].date;
+    if(!dayMap[d]){ dayMap[d]=0; dayOrder.push(d); }
+    dayMap[d]+=sorted[i].amount;
+  }
+  var labels=[], data=[], cum=0;
+  for(var i=0;i<dayOrder.length;i++){
+    cum+=dayMap[dayOrder[i]];
+    labels.push(formatDate(dayOrder[i]));
     data.push(parseFloat(cum.toFixed(2)));
   }
 
@@ -845,6 +863,68 @@ function renderCatStats(){
   });
 
   document.getElementById('catStats').innerHTML=html;
+}
+
+// 股票综合盈亏
+function renderStockSummary(){
+  if(trades.length===0){
+    document.getElementById('stockSummaryTable').innerHTML='<tr><td style="padding:20px;color:#999">暂无数据</td></tr>';
+    return;
+  }
+
+  // 按股票代码分组
+  var groups={};
+  for(var i=0;i<trades.length;i++){
+    var code=trades[i].code||'';
+    if(!groups[code]) groups[code]={trades:0,success:0,profit:0,firstDate:trades[i].date};
+    groups[code].trades++;
+    if(trades[i].amount>0) groups[code].success++;
+    groups[code].profit+=trades[i].amount;
+    if(trades[i].date<groups[code].firstDate) groups[code].firstDate=trades[i].date;
+  }
+
+  // 按净盈亏排序（从高到低）
+  var keys=Object.keys(groups).sort(function(a,b){ return groups[b].profit-groups[a].profit; });
+
+  var totalStocks=keys.length;
+  var profitStocks=0, lossStocks=0, totalProfit=0;
+  for(var i=0;i<keys.length;i++){
+    if(groups[keys[i]].profit>0) profitStocks++;
+    else if(groups[keys[i]].profit<0) lossStocks++;
+    totalProfit+=groups[keys[i]].profit;
+  }
+
+  var html='<thead><tr><th>股票名称</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
+
+  // 汇总行
+  var stockRate=totalStocks>0?(profitStocks/totalStocks*100).toFixed(1):0;
+  html+='<tr style="background:#f0f4f8;font-weight:bold">';
+  html+='<td>📊 合计（'+totalStocks+'只股票）</td>';
+  html+='<td>-</td><td>-</td><td>-</td>';
+  html+='<td class="'+(totalProfit>=0?'profit':'loss')+'">'+(totalProfit>=0?'+':'')+totalProfit.toFixed(2)+'</td>';
+  html+='<td style="color:'+(stockRate>=50?'#e74c3c':'#27ae60')+'">选股成功率 '+stockRate+'%</td>';
+  html+='</tr>';
+
+  // 每只股票
+  for(var i=0;i<keys.length;i++){
+    var g=groups[keys[i]];
+    var name=getStockName(keys[i]);
+    var opRate=g.trades>0?(g.success/g.trades*100).toFixed(1):0;
+    var cls=g.profit>=0?'profit':'loss';
+    var result=g.profit>0?'✅ 盈利':g.profit<0?'❌ 亏损':'➖ 持平';
+    var resultColor=g.profit>0?'#e74c3c':g.profit<0?'#27ae60':'#999';
+    html+='<tr>';
+    html+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+keys[i]+'</span></td>';
+    html+='<td>'+g.trades+'</td>';
+    html+='<td>'+g.success+'</td>';
+    html+='<td>'+opRate+'%</td>';
+    html+='<td class="'+cls+'">'+(g.profit>=0?'+':'')+g.profit.toFixed(2)+'</td>';
+    html+='<td style="color:'+resultColor+'">'+result+'</td>';
+    html+='</tr>';
+  }
+
+  html+='</tbody>';
+  document.getElementById('stockSummaryTable').innerHTML=html;
 }
 
 // 周期统计
