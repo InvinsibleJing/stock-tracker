@@ -10,6 +10,7 @@
 <link rel="manifest" href="./manifest.json">
 <title>股票交易记录</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="./stock_dict.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: "Microsoft YaHei", sans-serif; background:#f5f7fa; color:#333; padding:20px; }
@@ -128,6 +129,15 @@ tbody tr:hover { background:#f8f9fa; }
 .gear-btn { position:fixed; bottom:20px; right:20px; width:44px; height:44px; border-radius:50%; background:#34495e; color:white; border:none; font-size:20px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
 .gear-btn:hover { background:#2c3e50; }
 
+/* 股票联想下拉 */
+.autocomplete-wrap { position:relative; }
+.autocomplete-list { position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #ddd; border-top:none; border-radius:0 0 7px 7px; max-height:220px; overflow-y:auto; z-index:100; box-shadow:0 4px 8px rgba(0,0,0,0.1); display:none; }
+.autocomplete-list.show { display:block; }
+.autocomplete-item { padding:8px 11px; cursor:pointer; font-size:13px; border-bottom:1px solid #f0f0f0; }
+.autocomplete-item:hover { background:#f0f7ff; }
+.autocomplete-item .ac-code { color:#999; font-size:11px; margin-left:6px; }
+.autocomplete-item .ac-name { font-weight:500; }
+
 @media(max-width:700px) {
   .row { flex-direction:column; }
   .stats { gap:10px; }
@@ -166,7 +176,12 @@ tbody tr:hover { background:#f8f9fa; }
     <h2>添加记录</h2>
     <div class="row">
       <div class="field"><label>交易日期</label><input type="date" id="inpDate" onkeydown="if(event.key==='Enter')addTrade()"></div>
-      <div class="field"><label>股票代码</label><input type="text" id="inpCode" placeholder="如 600519" onkeydown="if(event.key==='Enter')addTrade()"></div>
+      <div class="field"><label>股票代码/首字母</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="inpCode" placeholder="输入代码或首字母如 xycz" autocomplete="off" oninput="onCodeInput()" onfocus="onCodeInput()" onkeydown="onCodeKeydown(event)">
+          <div class="autocomplete-list" id="acList"></div>
+        </div>
+      </div>
       <div class="field"><label>板块分类</label>
         <select id="inpTag">
           <option value="主板">主板</option>
@@ -177,7 +192,7 @@ tbody tr:hover { background:#f8f9fa; }
       <div class="field"><label>盈利金额（¥）</label><input type="number" id="inpAmount" step="0.01" placeholder="正=盈利，负=亏损" onkeydown="if(event.key==='Enter')addTrade()"></div>
     </div>
     <div class="row">
-      <div class="field" style="flex:3"><label>备注（可选）</label><input type="text" id="inpNote" placeholder="股票名称或其他备注" onkeydown="if(event.key==='Enter')addTrade()"></div>
+      <div class="field" style="flex:3"><label>备注（可选）</label><input type="text" id="inpNote" placeholder="其他备注" onkeydown="if(event.key==='Enter')addTrade()"></div>
     </div>
     <div class="btns">
       <button class="btn btn-blue" onclick="addTrade()">添 加</button>
@@ -190,7 +205,7 @@ tbody tr:hover { background:#f8f9fa; }
     <h2>交易记录</h2>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>序号</th><th>交易日期</th><th>股票代码</th><th>板块</th><th>盈利金额</th><th>是否成功</th><th>累计成功率</th><th>备注</th><th>操作</th></tr></thead>
+        <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>盈利金额</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
         <tbody id="tbBody"></tbody>
       </table>
     </div>
@@ -260,6 +275,8 @@ var trendChart = null;
 var currentPeriod = 'week';
 var isOnline = navigator.onLine;
 var deferredPrompt = null; // PWA 安装事件
+var acSelectedIndex = -1; // 联想下拉选中索引
+var acResults = []; // 当前联想结果
 
 // ===== PWA 注册 =====
 if('serviceWorker' in navigator){
@@ -316,6 +333,13 @@ window.addEventListener('offline', function(){
 // ===== 初始化 =====
 window.addEventListener('DOMContentLoaded', function(){
   document.getElementById('inpDate').value = new Date().toISOString().slice(0,10);
+
+  // 点击页面其他地方关闭联想下拉
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('.autocomplete-wrap')){
+      document.getElementById('acList').classList.remove('show');
+    }
+  });
 
   if(!isOnline){
     document.getElementById('offlineTip').classList.add('show');
@@ -376,6 +400,99 @@ function switchTab(name){
 
   if(name==='analysis') renderAnalysis();
   if(name==='table') renderTable();
+}
+
+// ===== 股票联想搜索 =====
+function getStockName(code) {
+  if (!code || typeof STOCK_DICT === 'undefined') return code || '';
+  var entry = STOCK_DICT[code];
+  return entry ? entry[0] : code;
+}
+
+function onCodeInput() {
+  var input = document.getElementById('inpCode');
+  var val = input.value.trim().toLowerCase();
+  var list = document.getElementById('acList');
+
+  if (!val || typeof STOCK_DICT === 'undefined') {
+    list.classList.remove('show');
+    acResults = [];
+    acSelectedIndex = -1;
+    return;
+  }
+
+  acResults = [];
+  var count = 0;
+  for (var code in STOCK_DICT) {
+    if (count >= 30) break;
+    var name = STOCK_DICT[code][0];
+    var py = STOCK_DICT[code][1];
+    if (code.indexOf(val) === 0 || py.indexOf(val) === 0) {
+      acResults.push({ code: code, name: name, pinyin: py });
+      count++;
+    }
+  }
+
+  if (acResults.length === 0) {
+    list.classList.remove('show');
+    acSelectedIndex = -1;
+    return;
+  }
+
+  acSelectedIndex = -1;
+  renderAcList();
+  list.classList.add('show');
+}
+
+function renderAcList() {
+  var list = document.getElementById('acList');
+  var html = '';
+  for (var i = 0; i < acResults.length; i++) {
+    var r = acResults[i];
+    var selected = i === acSelectedIndex ? ' style="background:#f0f7ff"' : '';
+    html += '<div class="autocomplete-item"' + selected + ' onclick="selectAcItem(' + i + ')" data-index="' + i + '">';
+    html += '<span class="ac-name">' + escapeHtml(r.name) + '</span>';
+    html += '<span class="ac-code">' + r.code + '</span>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function selectAcItem(index) {
+  var r = acResults[index];
+  document.getElementById('inpCode').value = r.code;
+  document.getElementById('acList').classList.remove('show');
+  acSelectedIndex = -1;
+  acResults = [];
+}
+
+function onCodeKeydown(e) {
+  var list = document.getElementById('acList');
+  if (!list.classList.contains('show') || acResults.length === 0) {
+    if (e.key === 'Enter') addTrade();
+    return;
+  }
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acSelectedIndex = Math.min(acSelectedIndex + 1, acResults.length - 1);
+    renderAcList();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acSelectedIndex = Math.max(acSelectedIndex - 1, -1);
+    renderAcList();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acSelectedIndex >= 0) {
+      selectAcItem(acSelectedIndex);
+    } else {
+      document.getElementById('acList').classList.remove('show');
+      addTrade();
+    }
+  } else if (e.key === 'Escape') {
+    list.classList.remove('show');
+    acSelectedIndex = -1;
+  }
 }
 
 // ===== 设置 =====
@@ -520,6 +637,41 @@ function beginEdit(cell, id, field){
   } else if(field==='code'){
     input=document.createElement('input'); input.type='text';
     input.value=trade.code||'';
+    input.placeholder='输入代码或首字母';
+    // 行内编辑时的联想支持
+    var editAc=document.createElement('div');
+    editAc.className='autocomplete-list';
+    editAc.style.position='absolute';
+    var editAcResults=[];
+    var editAcIndex=-1;
+    input.addEventListener('input',function(){
+      var v=input.value.trim().toLowerCase();
+      if(!v||typeof STOCK_DICT==='undefined'){editAc.classList.remove('show');editAcResults=[];return;}
+      editAcResults=[];editAcIndex=-1;var cnt=0;
+      for(var c in STOCK_DICT){
+        if(cnt>=15)break;
+        var n=STOCK_DICT[c][0],py=STOCK_DICT[c][1];
+        if(c.indexOf(v)===0||py.indexOf(v)===0){editAcResults.push({code:c,name:n});cnt++;}
+      }
+      if(editAcResults.length===0){editAc.classList.remove('show');return;}
+      var ah='';
+      for(var j=0;j<editAcResults.length;j++){
+        ah+='<div class="autocomplete-item" data-idx="'+j+'"><span class="ac-name">'+escapeHtml(editAcResults[j].name)+'</span><span class="ac-code">'+editAcResults[j].code+'</span></div>';
+      }
+      editAc.innerHTML=ah;
+      editAc.classList.add('show');
+      editAc.querySelectorAll('.autocomplete-item').forEach(function(item){
+        item.addEventListener('mousedown',function(ev){
+          ev.preventDefault();
+          var idx=parseInt(item.getAttribute('data-idx'));
+          input.value=editAcResults[idx].code;
+          editAc.classList.remove('show');
+        });
+      });
+    });
+    cell.style.position='relative';
+    cell.appendChild(editAc);
+    input.addEventListener('blur',function(){ setTimeout(function(){editAc.classList.remove('show');},150); });
   } else if(field==='tag'){
     input=document.createElement('select'); input.className='editor-select';
     ['主板','创业板','科创板'].forEach(function(t){
@@ -563,14 +715,7 @@ function renderTable(){
   if(trades.length===0){ tbody.innerHTML=''; msg.style.display='block'; return; }
   msg.style.display='none';
 
-  trades.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
-
-  var sorted=trades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
-  var sc=0,rm={};
-  for(var i=0;i<sorted.length;i++){
-    if(sorted[i].amount>0) sc++;
-    rm[sorted[i].id]=((sc/(i+1))*100).toFixed(1);
-  }
+  trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
   var html='';
   for(var i=0;i<trades.length;i++){
@@ -582,11 +727,10 @@ function renderTable(){
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'date\')">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'code\')">'+(escapeHtml(t.code)||'-')+'</td>';
+    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'code\')">'+(escapeHtml(getStockName(t.code))||'-')+'</td>';
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'tag\')"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable '+cls+'" onclick="beginEdit(this,\''+t.id+'\',\'amount\')">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
-    html+='<td>'+(rm[t.id]||'0.0')+'%</td>';
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'note\',\''+noteForOnclick+'\')">'+noteShow+'</td>';
     html+='<td><button class="del-btn" onclick="deleteTrade(\''+t.id+'\')">删除</button></td>';
     html+='</tr>';
@@ -721,18 +865,22 @@ function renderPeriodTable(){
 
   // 按周期分组
   var groups={};
+  var keyLabels={}; // 排序key -> 显示标签
   for(var i=0;i<trades.length;i++){
     var d=new Date(trades[i].date);
-    var key;
+    var key, label;
     if(currentPeriod==='week'){
-      // 获取所在周的周一日期
-      var day=d.getDay()||7;
-      var monday=new Date(d);
-      monday.setDate(d.getDate()-(day-1));
-      key=monday.toISOString().slice(0,10)+' 周';
+      // 计算是当月第几周（周一作为每周起始）
+      var firstDayOfMon=new Date(d.getFullYear(), d.getMonth(), 1);
+      var firstDayWeekday=firstDayOfMon.getDay()||7; // 1=周一, 7=周日
+      var weekNum=Math.ceil((d.getDate()+firstDayWeekday-1)/7);
+      key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+weekNum;
+      label=d.getFullYear()+'年'+(d.getMonth()+1)+'月份第'+weekNum+'周';
     } else {
-      key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+' 月';
+      key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      label=d.getFullYear()+'年'+(d.getMonth()+1)+'月份';
     }
+    keyLabels[key]=label;
     if(!groups[key]) groups[key]={total:0,success:0,profit:0};
     groups[key].total++;
     if(trades[i].amount>0) groups[key].success++;
@@ -748,7 +896,7 @@ function renderPeriodTable(){
     var rate=g.total>0?(g.success/g.total*100).toFixed(1):0;
     var cls=g.profit>=0?'profit':'loss';
     html+='<tr>';
-    html+='<td>'+keys[i]+'</td>';
+    html+='<td>'+keyLabels[keys[i]]+'</td>';
     html+='<td>'+g.total+'</td>';
     html+='<td>'+g.success+'</td>';
     html+='<td>'+rate+'%</td>';
