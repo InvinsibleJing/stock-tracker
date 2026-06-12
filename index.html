@@ -80,6 +80,19 @@ tbody tr:hover { background:#f8f9fa; }
 .del-btn { padding:4px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; }
 .del-btn:hover { background:#c0392b; }
 
+/* 持仓操作按钮 */
+.op-btn { padding:4px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px; margin:0 2px; }
+.btn-clear { background:#e67e22; color:white; }
+.btn-clear:hover { background:#d35400; }
+.btn-dot { background:#8e44ad; color:white; }
+.btn-dot:hover { background:#7d3c98; }
+.btn-del-h { background:#e74c3c; color:white; }
+.btn-del-h:hover { background:#c0392b; }
+
+/* 持仓模块间距 */
+.holding-box { background:white; border-radius:12px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; }
+.holding-box h2 { color:#2c3e50; margin-bottom:16px; font-size:17px; }
+
 .empty { text-align:center; padding:36px; color:#999; }
 
 /* 分析面板 */
@@ -107,7 +120,7 @@ tbody tr:hover { background:#f8f9fa; }
 .modal-bg.active { display:flex; }
 .modal { background:white; border-radius:12px; padding:30px; width:90%; max-width:500px; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
 .modal h2 { color:#2c3e50; margin-bottom:16px; }
-.modal input { width:100%; padding:10px; border:1px solid #ddd; border-radius:7px; font-size:14px; margin-bottom:12px; }
+.modal input, .modal select { width:100%; padding:10px; border:1px solid #ddd; border-radius:7px; font-size:14px; margin-bottom:12px; }
 .modal p { font-size:13px; color:#666; margin-bottom:8px; line-height:1.6; }
 
 .status-bar { text-align:center; padding:8px; font-size:12px; margin-bottom:10px; border-radius:6px; }
@@ -201,15 +214,34 @@ tbody tr:hover { background:#f8f9fa; }
   </div>
 
   <!-- 交易列表 -->
-  <div id="tabTable" class="table-box" style="display:none">
-    <h2>交易记录</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>盈利金额</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
-        <tbody id="tbBody"></tbody>
-      </table>
+  <div id="tabTable" style="display:none">
+
+    <!-- 当前持仓 -->
+    <div class="holding-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin-bottom:0">📌 当前持仓</h2>
+        <button class="btn btn-green" onclick="openAddHolding()" style="font-size:13px;padding:6px 16px">+ 添加持仓</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead style="background:#2c6e49"><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>买入数量</th><th>买入逻辑</th><th>操作</th></tr></thead>
+          <tbody id="holdBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="holdEmpty">暂无持仓</div>
     </div>
-    <div class="empty" id="emptyMsg">暂无交易记录</div>
+
+    <!-- 交易记录 -->
+    <div class="table-box">
+      <h2>📋 交易记录</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>盈利金额</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
+          <tbody id="tbBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyMsg">暂无交易记录</div>
+    </div>
   </div>
 
   <!-- 数据分析 -->
@@ -275,17 +307,118 @@ tbody tr:hover { background:#f8f9fa; }
   </div>
 </div>
 
+<!-- 添加持仓弹窗 -->
+<div class="modal-bg" id="addHoldingModal">
+  <div class="modal">
+    <h2>📌 添加持仓</h2>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>交易日期</label><input type="date" id="holdDate"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>股票代码/首字母</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="holdCode" placeholder="输入代码或首字母" autocomplete="off" oninput="onHoldCodeInput();autoDetectTagHold(this.value)" onfocus="onHoldCodeInput()" onkeydown="onHoldCodeKeydown(event)">
+          <div class="autocomplete-list" id="holdAcList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>板块分类</label>
+        <select id="holdTag">
+          <option value="主板">主板</option>
+          <option value="创业板">创业板</option>
+          <option value="科创板">科创板</option>
+        </select>
+      </div>
+      <div class="field"><label>买入数量（股）</label><input type="number" id="holdQty" placeholder="如 1000" step="100"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="flex:3"><label>买入逻辑（可选）</label><input type="text" id="holdNote" placeholder="如：突破均线买入"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-green" onclick="submitAddHolding()">确认添加</button>
+      <button class="btn btn-red" onclick="closeAddHolding()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 清仓弹窗 -->
+<div class="modal-bg" id="clearHoldingModal">
+  <div class="modal">
+    <h2>🎯 清仓 - <span id="clearStockName"></span></h2>
+    <p>将该持仓清仓，盈亏将记录到交易记录中。</p>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>盈亏金额（¥）</label><input type="number" id="clearAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="flex:3"><label>清仓逻辑（可选）</label><input type="text" id="clearNote" placeholder="如：触及止损"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-green" onclick="submitClearHolding()">确认清仓</button>
+      <button class="btn btn-red" onclick="closeClearHolding()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 做T弹窗 -->
+<div class="modal-bg" id="doTModal">
+  <div class="modal">
+    <h2>🔄 做T - <span id="doTStockName"></span></h2>
+    <p>记录本次做T的盈亏，持仓保留。交易记录中备注将标记"T"。</p>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>做T盈亏（¥）</label><input type="number" id="doTAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="flex:3"><label>做T逻辑（可选）</label><input type="text" id="doTNote" placeholder="如：高开回落卖出"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-blue" onclick="submitDoT()">确认做T</button>
+      <button class="btn btn-red" onclick="closeDoT()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除持仓确认弹窗 -->
+<div class="modal-bg" id="deleteHoldingModal">
+  <div class="modal">
+    <h2>🗑 删除持仓 - <span id="delHoldStockName"></span></h2>
+    <p>确定删除这条持仓记录吗？此操作不可撤销。</p>
+    <div class="btns">
+      <button class="btn btn-red" onclick="submitDeleteHolding()">确认删除</button>
+      <button class="btn" style="background:#999;color:white" onclick="closeDeleteHolding()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除交易记录确认弹窗 -->
+<div class="modal-bg" id="deleteTradeModal">
+  <div class="modal">
+    <h2>🗑 删除记录 - <span id="delTradeStockName"></span></h2>
+    <p>确定删除这条交易记录吗？此操作不可撤销。</p>
+    <div class="btns">
+      <button class="btn btn-red" onclick="submitDeleteTrade()">确认删除</button>
+      <button class="btn" style="background:#999;color:white" onclick="closeDeleteTrade()">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== 配置 =====
-var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbyLndX9dsHbBLrKwsRSxc-MYqrwn7p_Gvi_m3jg0NNzq_Ey3vghZf9xC8ivQt3TkkAAIA/exec';
+var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbxO6RT-nY6OX9OcO7cjJ90A-wa5zoozgXSurWLAyB64wag7DvB41QzPb_R1RETjgZravg/exec';
 var trades = [];
+var holdings = [];
 var isLoading = false;
+var isLoadingHoldings = false;
 var trendChart = null;
 var currentPeriod = 'week';
 var isOnline = navigator.onLine;
 var deferredPrompt = null; // PWA 安装事件
 var acSelectedIndex = -1; // 联想下拉选中索引
 var acResults = []; // 当前联想结果
+var holdAcSelectedIndex = -1; // 持仓联想下拉选中索引
+var holdAcResults = []; // 持仓联想结果
+var pendingClearId = ''; // 待清仓的持仓ID
+var pendingDoTId = ''; // 待做T的持仓ID
 
 // ===== PWA 注册 =====
 if('serviceWorker' in navigator){
@@ -330,7 +463,7 @@ window.addEventListener('appinstalled', function(){
 window.addEventListener('online', function(){
   isOnline = true;
   document.getElementById('offlineTip').classList.remove('show');
-  loadTrades(); // 恢复联网时自动同步
+  loadAll(); // 恢复联网时自动同步
 });
 
 window.addEventListener('offline', function(){
@@ -347,6 +480,7 @@ window.addEventListener('DOMContentLoaded', function(){
   document.addEventListener('click', function(e){
     if(!e.target.closest('.autocomplete-wrap')){
       document.getElementById('acList').classList.remove('show');
+      document.getElementById('holdAcList').classList.remove('show');
     }
   });
 
@@ -354,7 +488,7 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('offlineTip').classList.add('show');
     loadCachedData();
   } else if(API_URL){
-    loadTrades();
+    loadAll();
   } else {
     showStatus('err','⚠️ 未配置云端数据库');
     openSettings();
@@ -408,7 +542,7 @@ function switchTab(name){
   if(name==='analysis') tabBtns[2].classList.add('active');
 
   if(name==='analysis') renderAnalysis();
-  if(name==='table') renderTable();
+  if(name==='table'){ renderTable(); renderHoldings(); }
 }
 
 // ===== 股票联想搜索 =====
@@ -576,6 +710,11 @@ function apiCall(params, callback, _retries){
 }
 
 // ===== 加载 =====
+function loadAll(){
+  loadTrades();
+  loadHoldings();
+}
+
 function loadTrades(){
   isLoading=true; showStatus('load','⏳ 正在同步数据...');
   apiCall({action:'list'}, function(res){
@@ -595,6 +734,27 @@ function loadTrades(){
       } else {
         showStatus('err','❌ 同步失败：'+(res.error||'未知错误'));
       }
+    }
+  });
+}
+
+function loadHoldings(){
+  isLoadingHoldings=true;
+  showStatus('load','⏳ 正在同步数据...');
+  apiCall({action:'listHoldings'}, function(res){
+    isLoadingHoldings=false;
+    if(res && res.success){
+      holdings=res.data||[];
+      try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+      renderHoldings();
+      showStatus('ok','✅ 云端同步成功 | '+holdings.length+' 条持仓');
+    } else {
+      var cached = localStorage.getItem('stock_holdings_cache');
+      if(cached){
+        holdings = JSON.parse(cached);
+        renderHoldings();
+      }
+      showStatus('err','⚠️ 持仓同步失败');
     }
   });
 }
@@ -623,8 +783,19 @@ function addTrade(){
 // ===== 删除 =====
 function deleteTrade(id){
   if(isLoading) return;
-  if(!confirm('确定删除这条记录吗？')) return;
+  var t=null;
+  for(var i=0;i<trades.length;i++){ if(String(trades[i].id)===String(id)){ t=trades[i]; break; } }
+  if(!t) return;
+  pendingDeleteTradeId=id;
+  document.getElementById('delTradeStockName').textContent=escapeHtml(getStockName(t.code))||t.code;
+  document.getElementById('deleteTradeModal').classList.add('active');
+}
+function closeDeleteTrade(){ document.getElementById('deleteTradeModal').classList.remove('active'); pendingDeleteTradeId=''; }
+
+function submitDeleteTrade(){
+  var id = pendingDeleteTradeId;
   showStatus('load','⏳ 正在删除...');
+  closeDeleteTrade();
   apiCall({action:'delete',id:id}, function(res){ if(res&&res.success) loadTrades(); else showStatus('err','❌ 删除失败'); });
 }
 
@@ -997,6 +1168,340 @@ function renderPeriodTable(){
   }
   html+='</tbody>';
   document.getElementById('periodTable').innerHTML=html;
+}
+
+// ===== 持仓联想搜索 =====
+function onHoldCodeInput() {
+  var input = document.getElementById('holdCode');
+  var val = input.value.trim().toLowerCase();
+  var list = document.getElementById('holdAcList');
+
+  if (!val || typeof STOCK_DICT === 'undefined') {
+    list.classList.remove('show');
+    holdAcResults = [];
+    holdAcSelectedIndex = -1;
+    return;
+  }
+
+  holdAcResults = [];
+  var count = 0;
+  for (var code in STOCK_DICT) {
+    if (count >= 30) break;
+    var name = STOCK_DICT[code][0];
+    var py = STOCK_DICT[code][1];
+    if (code.indexOf(val) === 0 || py.indexOf(val) === 0) {
+      holdAcResults.push({ code: code, name: name, pinyin: py });
+      count++;
+    }
+  }
+
+  if (holdAcResults.length === 0) {
+    list.classList.remove('show');
+    holdAcSelectedIndex = -1;
+    return;
+  }
+
+  holdAcSelectedIndex = -1;
+  renderHoldAcList();
+  list.classList.add('show');
+}
+
+function renderHoldAcList() {
+  var list = document.getElementById('holdAcList');
+  var html = '';
+  for (var i = 0; i < holdAcResults.length; i++) {
+    var r = holdAcResults[i];
+    var selected = i === holdAcSelectedIndex ? ' style="background:#f0f7ff"' : '';
+    html += '<div class="autocomplete-item"' + selected + ' onclick="selectHoldAcItem(' + i + ')" data-index="' + i + '">';
+    html += '<span class="ac-name">' + escapeHtml(r.name) + '</span>';
+    html += '<span class="ac-code">' + r.code + '</span>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function selectHoldAcItem(index) {
+  var r = holdAcResults[index];
+  document.getElementById('holdCode').value = r.code;
+  autoDetectTagHold(r.code);
+  document.getElementById('holdAcList').classList.remove('show');
+  holdAcSelectedIndex = -1;
+  holdAcResults = [];
+}
+
+function onHoldCodeKeydown(e) {
+  var list = document.getElementById('holdAcList');
+  if (!list.classList.contains('show') || holdAcResults.length === 0) {
+    if (e.key === 'Enter') submitAddHolding();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    holdAcSelectedIndex = Math.min(holdAcSelectedIndex + 1, holdAcResults.length - 1);
+    renderHoldAcList();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    holdAcSelectedIndex = Math.max(holdAcSelectedIndex - 1, -1);
+    renderHoldAcList();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (holdAcSelectedIndex >= 0) {
+      selectHoldAcItem(holdAcSelectedIndex);
+    } else {
+      document.getElementById('holdAcList').classList.remove('show');
+      submitAddHolding();
+    }
+  } else if (e.key === 'Escape') {
+    list.classList.remove('show');
+    holdAcSelectedIndex = -1;
+  }
+}
+
+function autoDetectTagHold(code) {
+  if (!code) return;
+  var c = code.replace(/\s/g, '');
+  var tag = '';
+  if (c.indexOf('30') === 0) tag = '创业板';
+  else if (c.indexOf('68') === 0) tag = '科创板';
+  else if (c.indexOf('60') === 0 || c.indexOf('00') === 0) tag = '主板';
+  if (tag) document.getElementById('holdTag').value = tag;
+}
+
+// ===== 持仓弹窗 =====
+function openAddHolding(){
+  document.getElementById('addHoldingModal').classList.add('active');
+  document.getElementById('holdDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('holdCode').value = '';
+  document.getElementById('holdTag').value = '主板';
+  document.getElementById('holdQty').value = '';
+  document.getElementById('holdNote').value = '';
+  setTimeout(function(){ document.getElementById('holdCode').focus(); },100);
+}
+function closeAddHolding(){ document.getElementById('addHoldingModal').classList.remove('active'); }
+
+function submitAddHolding(){
+  var date=document.getElementById('holdDate').value;
+  var code=document.getElementById('holdCode').value.trim();
+  var tag=document.getElementById('holdTag').value;
+  var quantity=parseInt(document.getElementById('holdQty').value);
+  var note=document.getElementById('holdNote').value.trim();
+  if(!date||!code||isNaN(quantity)||quantity<=0){ alert('请填写交易日期、股票代码和买入数量！'); return; }
+
+  showStatus('load','⏳ 正在添加持仓...');
+  closeAddHolding();
+  apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note}, function(res){
+    if(res&&res.success){
+      loadHoldings();
+      showStatus('ok','✅ 持仓已添加');
+    } else { showStatus('err','❌ 添加持仓失败：'+(res.error||'')); }
+  });
+}
+
+// ===== 清仓弹窗 =====
+function openClearHolding(id){
+  var h=null;
+  for(var i=0;i<holdings.length;i++){ if(String(holdings[i].id)===String(id)){ h=holdings[i]; break; } }
+  if(!h) return;
+  pendingClearId=id;
+  document.getElementById('clearStockName').textContent=escapeHtml(getStockName(h.code))||h.code;
+  document.getElementById('clearAmount').value='';
+  document.getElementById('clearNote').value='';
+  document.getElementById('clearHoldingModal').classList.add('active');
+  setTimeout(function(){ document.getElementById('clearAmount').focus(); },100);
+}
+function closeClearHolding(){ document.getElementById('clearHoldingModal').classList.remove('active'); pendingClearId=''; }
+
+function submitClearHolding(){
+  var amount=parseFloat(document.getElementById('clearAmount').value);
+  var note=document.getElementById('clearNote').value.trim();
+  if(isNaN(amount)){ alert('请填写盈亏金额！'); return; }
+
+  var id = pendingClearId; // 先保存ID再关弹窗
+  showStatus('load','⏳ 正在清仓...');
+  closeClearHolding();
+  apiCall({action:'clearHolding',id:id,amount:amount,note:note}, function(res){
+    if(res&&res.success){
+      loadAll();
+      showStatus('ok','✅ 清仓成功，已记录到交易记录');
+    } else { showStatus('err','❌ 清仓失败：'+(res.error||'')); }
+  });
+}
+
+// ===== 做T弹窗 =====
+function openDoT(id){
+  var h=null;
+  for(var i=0;i<holdings.length;i++){ if(String(holdings[i].id)===String(id)){ h=holdings[i]; break; } }
+  if(!h) return;
+  pendingDoTId=id;
+  document.getElementById('doTStockName').textContent=escapeHtml(getStockName(h.code))||h.code;
+  document.getElementById('doTAmount').value='';
+  document.getElementById('doTNote').value='';
+  document.getElementById('doTModal').classList.add('active');
+  setTimeout(function(){ document.getElementById('doTAmount').focus(); },100);
+}
+function closeDoT(){ document.getElementById('doTModal').classList.remove('active'); pendingDoTId=''; }
+
+function submitDoT(){
+  var amount=parseFloat(document.getElementById('doTAmount').value);
+  var note=document.getElementById('doTNote').value.trim();
+  if(isNaN(amount)){ alert('请填写做T盈亏金额！'); return; }
+
+  var id = pendingDoTId; // 先保存ID再关弹窗
+  showStatus('load','⏳ 正在记录做T...');
+  closeDoT();
+  apiCall({action:'doT',id:id,amount:amount,note:note}, function(res){
+    if(res&&res.success){
+      loadAll();
+      showStatus('ok','✅ 做T已记录');
+    } else { showStatus('err','❌ 做T记录失败：'+(res.error||'')); }
+  });
+}
+
+// ===== 删除持仓 =====
+var pendingDeleteHoldId = ''; // 待删除的持仓ID
+var pendingDeleteTradeId = ''; // 待删除的交易记录ID
+
+function deleteHolding(id){
+  if(isLoadingHoldings) return;
+  var h=null;
+  for(var i=0;i<holdings.length;i++){ if(String(holdings[i].id)===String(id)){ h=holdings[i]; break; } }
+  if(!h) return;
+  pendingDeleteHoldId=id;
+  document.getElementById('delHoldStockName').textContent=escapeHtml(getStockName(h.code))||h.code;
+  document.getElementById('deleteHoldingModal').classList.add('active');
+}
+function closeDeleteHolding(){ document.getElementById('deleteHoldingModal').classList.remove('active'); pendingDeleteHoldId=''; }
+
+function submitDeleteHolding(){
+  var id = pendingDeleteHoldId;
+  showStatus('load','⏳ 正在删除持仓...');
+  closeDeleteHolding();
+  apiCall({action:'deleteHolding',id:id}, function(res){
+    if(res&&res.success) loadHoldings(); else showStatus('err','❌ 删除持仓失败');
+  });
+}
+
+// ===== 持仓行内编辑 =====
+function beginEditHolding(cell, id, field){
+  if(cell.classList.contains('editor')) return;
+  var h=null;
+  for(var i=0;i<holdings.length;i++){ if(String(holdings[i].id)===String(id)){ h=holdings[i]; break; } }
+  if(!h) return;
+
+  var oldHtml=cell.innerHTML;
+  cell.classList.add('editor');
+  cell.innerHTML='';
+
+  var input;
+  if(field==='date'){
+    input=document.createElement('input'); input.type='date';
+    input.value=formatDate(h.date); input.className='editor-date';
+    setTimeout(function(){ if(input.showPicker) try{input.showPicker();}catch(e){} },80);
+  } else if(field==='quantity'){
+    input=document.createElement('input'); input.type='number'; input.step='100';
+    input.value=h.quantity;
+  } else if(field==='code'){
+    input=document.createElement('input'); input.type='text';
+    input.value=h.code||'';
+    input.placeholder='输入代码或首字母';
+    var editAc=document.createElement('div');
+    editAc.className='autocomplete-list';
+    editAc.style.position='absolute';
+    var editAcResults=[];
+    input.addEventListener('input',function(){
+      var v=input.value.trim().toLowerCase();
+      if(!v||typeof STOCK_DICT==='undefined'){editAc.classList.remove('show');editAcResults=[];return;}
+      editAcResults=[];var cnt=0;
+      for(var c in STOCK_DICT){
+        if(cnt>=15)break;
+        var n=STOCK_DICT[c][0],py=STOCK_DICT[c][1];
+        if(c.indexOf(v)===0||py.indexOf(v)===0){editAcResults.push({code:c,name:n});cnt++;}
+      }
+      if(editAcResults.length===0){editAc.classList.remove('show');return;}
+      var ah='';
+      for(var j=0;j<editAcResults.length;j++){
+        ah+='<div class="autocomplete-item" data-idx="'+j+'"><span class="ac-name">'+escapeHtml(editAcResults[j].name)+'</span><span class="ac-code">'+editAcResults[j].code+'</span></div>';
+      }
+      editAc.innerHTML=ah;
+      editAc.classList.add('show');
+      editAc.querySelectorAll('.autocomplete-item').forEach(function(item){
+        item.addEventListener('mousedown',function(ev){
+          ev.preventDefault();
+          var idx=parseInt(item.getAttribute('data-idx'));
+          input.value=editAcResults[idx].code;
+          editAc.classList.remove('show');
+        });
+      });
+    });
+    cell.style.position='relative';
+    cell.appendChild(editAc);
+    input.addEventListener('blur',function(){ setTimeout(function(){editAc.classList.remove('show');},150); });
+  } else if(field==='tag'){
+    input=document.createElement('select'); input.className='editor-select';
+    ['主板','创业板','科创板'].forEach(function(t){
+      var opt=document.createElement('option'); opt.value=t; opt.textContent=t;
+      if((h.tag||'主板')===t) opt.selected=true;
+      input.appendChild(opt);
+    });
+  } else {
+    input=document.createElement('input'); input.type='text';
+    input.value=h.note||'';
+    setTimeout(function(){ input.setSelectionRange(input.value.length,input.value.length); },80);
+  }
+
+  cell.appendChild(input);
+  input.focus();
+
+  function finish(){
+    var v=input.value.trim();
+    if(field==='quantity'&&v===''){ cancel(); return; }
+    showStatus('load','⏳ 正在保存...');
+    apiCall({action:'updateHolding',id:id,field:field,value:v}, function(res){
+      if(res&&res.success) loadHoldings(); else{ showStatus('err','❌ 保存失败'); cancel(); }
+    });
+  }
+  function cancel(){ cell.classList.remove('editor'); cell.innerHTML=oldHtml; }
+
+  input.addEventListener('blur',function(){ setTimeout(finish,120); });
+  input.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){ e.preventDefault(); input.blur(); }
+    if(e.key==='Escape') cancel();
+  });
+  if(input.tagName==='SELECT'){
+    input.addEventListener('change',function(){ input.blur(); });
+  }
+}
+
+// ===== 渲染持仓表格 =====
+function renderHoldings(){
+  var tbody=document.getElementById('holdBody');
+  var msg=document.getElementById('holdEmpty');
+  if(holdings.length===0){ tbody.innerHTML=''; msg.style.display='block'; return; }
+  msg.style.display='none';
+
+  holdings.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
+
+  var html='';
+  for(var i=0;i<holdings.length;i++){
+    var h=holdings[i];
+    var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
+    var noteShow=escapeHtml(h.note||'-');
+
+    html+='<tr>';
+    html+='<td>'+(i+1)+'</td>';
+    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'date\')">'+formatDate(h.date)+'</td>';
+    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'code\')">'+(escapeHtml(getStockName(h.code))||'-')+'</td>';
+    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'tag\')"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
+    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'quantity\')">'+h.quantity+'股</td>';
+    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'note\')">'+noteShow+'</td>';
+    html+='<td>';
+    html+='<button class="op-btn btn-clear" onclick="openClearHolding(\''+h.id+'\')">清仓</button>';
+    html+='<button class="op-btn btn-dot" onclick="openDoT(\''+h.id+'\')">做T</button>';
+    html+='<button class="op-btn btn-del-h" onclick="deleteHolding(\''+h.id+'\')">删除</button>';
+    html+='</td>';
+    html+='</tr>';
+  }
+  tbody.innerHTML=html;
 }
 
 // ===== 工具 =====
