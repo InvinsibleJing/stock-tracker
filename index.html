@@ -824,7 +824,7 @@ function beginEdit(cell, id, field){
     input.value=trade.amount;
   } else if(field==='quantity'){
     input=document.createElement('input'); input.type='number'; input.step='100';
-    input.value=trade.quantity||0;
+    input.value=trade.quantity || '';
   } else if(field==='code'){
     input=document.createElement('input'); input.type='text';
     input.value=trade.code||'';
