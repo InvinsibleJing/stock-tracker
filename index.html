@@ -202,6 +202,7 @@ tbody tr:hover { background:#f8f9fa; }
           <option value="科创板">科创板</option>
         </select>
       </div>
+      <div class="field"><label>数量（股）</label><input type="number" id="inpQuantity" step="100" placeholder="如 1000" onkeydown="if(event.key==='Enter')addTrade()"></div>
       <div class="field"><label>盈利金额（¥）</label><input type="number" id="inpAmount" step="0.01" placeholder="正=盈利，负=亏损" onkeydown="if(event.key==='Enter')addTrade()"></div>
     </div>
     <div class="row">
@@ -235,7 +236,7 @@ tbody tr:hover { background:#f8f9fa; }
       <h2>📋 交易记录</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>盈利金额</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
+          <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>数量</th><th>盈利金额</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
           <tbody id="tbBody"></tbody>
         </table>
       </div>
@@ -403,7 +404,7 @@ tbody tr:hover { background:#f8f9fa; }
 
 <script>
 // ===== 配置 =====
-var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbxO6RT-nY6OX9OcO7cjJ90A-wa5zoozgXSurWLAyB64wag7DvB41QzPb_R1RETjgZravg/exec';
+var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbwe_-pTURErIsOCaB-yjwhjdPTxL2tAvFdnvn0lxml12G75GLYWj1XmtUvXJrvik7fsLA/exec';
 var trades = [];
 var holdings = [];
 var isLoading = false;
@@ -764,14 +765,16 @@ function addTrade(){
   var date=document.getElementById('inpDate').value;
   var code=document.getElementById('inpCode').value.trim();
   var tag=document.getElementById('inpTag').value;
+  var quantity=parseInt(document.getElementById('inpQuantity').value)||0;
   var amount=parseFloat(document.getElementById('inpAmount').value);
   var note=document.getElementById('inpNote').value.trim();
   if(!date||isNaN(amount)){ alert('请填写交易日期和盈利金额！'); return; }
 
   showStatus('load','⏳ 正在添加...');
-  apiCall({action:'add',date:date,code:code,tag:tag,amount:amount,note:note}, function(res){
+  apiCall({action:'add',date:date,code:code,tag:tag,quantity:quantity,amount:amount,note:note}, function(res){
     if(res&&res.success){
       document.getElementById('inpCode').value='';
+      document.getElementById('inpQuantity').value='';
       document.getElementById('inpAmount').value='';
       document.getElementById('inpNote').value='';
       loadTrades();
@@ -819,6 +822,9 @@ function beginEdit(cell, id, field){
   } else if(field==='amount'){
     input=document.createElement('input'); input.type='number'; input.step='0.01';
     input.value=trade.amount;
+  } else if(field==='quantity'){
+    input=document.createElement('input'); input.type='number'; input.step='100';
+    input.value=trade.quantity||0;
   } else if(field==='code'){
     input=document.createElement('input'); input.type='text';
     input.value=trade.code||'';
@@ -876,6 +882,7 @@ function beginEdit(cell, id, field){
   function finish(){
     var v=input.value.trim();
     if(field==='amount'&&v===''){ cancel(); return; }
+    if(field==='quantity'&&v===''){ v='0'; }
     showStatus('load','⏳ 正在保存...');
     apiCall({action:'update',id:id,field:field,value:v}, function(res){
       if(res&&res.success) loadTrades(); else{ showStatus('err','❌ 保存失败'); cancel(); }
@@ -914,6 +921,7 @@ function renderTable(){
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'date\')">'+formatDate(t.date)+'</td>';
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'code\')">'+(escapeHtml(getStockName(t.code))||'-')+'</td>';
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'tag\')"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
+    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'quantity\')">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" onclick="beginEdit(this,\''+t.id+'\',\'amount\')">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
     html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'note\',\''+noteForOnclick+'\')">'+noteShow+'</td>';
