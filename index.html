@@ -32,6 +32,9 @@ h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
 .tab { flex:1; padding:12px; text-align:center; cursor:pointer; font-size:14px; font-weight:500; color:#666; transition:all 0.2s; border-bottom:3px solid transparent; }
 .tab:hover { background:#f0f4f8; }
 .tab.active { color:#3498db; border-bottom-color:#3498db; background:#f0f7ff; }
+.tab.tab-add.active   { color:#27ae60; border-bottom-color:#27ae60; background:#f0fff4; }
+.tab.tab-list.active  { color:#3498db; border-bottom-color:#3498db; background:#f0f7ff; }
+.tab.tab-analysis.active { color:#9b59b6; border-bottom-color:#9b59b6; background:#f5f0ff; }
 
 /* 输入区 */
 .input-box { background:white; border-radius:12px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:28px; }
@@ -179,9 +182,9 @@ tbody tr:hover { background:#f8f9fa; }
 
   <!-- Tab 切换 -->
   <div class="tabs">
-    <div class="tab active" onclick="switchTab('input')">📝 添加记录</div>
-    <div class="tab" onclick="switchTab('table')">📋 交易列表</div>
-    <div class="tab" onclick="switchTab('analysis')">📊 数据分析</div>
+    <div class="tab tab-add active" onclick="switchTab('input')">📝 添加记录</div>
+    <div class="tab tab-list" onclick="switchTab('table')">📋 交易列表</div>
+    <div class="tab tab-analysis" onclick="switchTab('analysis')">📊 数据分析</div>
   </div>
 
   <!-- 添加记录 -->
