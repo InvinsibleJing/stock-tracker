@@ -209,7 +209,6 @@ tbody tr:hover { background:#f8f9fa; }
     </div>
     <div class="btns">
       <button class="btn btn-blue" onclick="addTrade()">添 加</button>
-      <button class="btn btn-red" onclick="clearAll()">清空所有</button>
     </div>
   </div>
 
@@ -800,12 +799,6 @@ function submitDeleteTrade(){
 }
 
 // ===== 清空 =====
-function clearAll(){
-  if(isLoading) return;
-  if(!confirm('确定清空所有记录吗？不可恢复！')) return;
-  showStatus('load','⏳ 正在清空...');
-  apiCall({action:'clear'}, function(res){ if(res&&res.success) loadTrades(); else showStatus('err','❌ 清空失败'); });
-}
 
 // ===== 行内编辑 =====
 function beginEdit(cell, id, field){
