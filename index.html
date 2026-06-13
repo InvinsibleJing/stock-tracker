@@ -468,7 +468,7 @@ tbody tr:hover { background:#f8f9fa; }
 <div class="modal-bg" id="doTModal">
   <div class="modal">
     <h2>🔄 做T - <span id="doTStockName"></span></h2>
-    <p>记录本次做T的盈亏，持仓保留。交易记录中备注将标记"T"。</p>
+    <p>记录本次做T的盈亏，持仓保留。交易记录备注将自动标记为"做T盈利XX元"或"做T亏损XX元"。</p>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>做T盈亏（¥）</label><input type="number" id="doTAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
@@ -1462,10 +1462,15 @@ function submitDoT(){
   var note=document.getElementById('doTNote').value.trim();
   if(isNaN(amount)){ alert('请填写做T盈亏金额！'); return; }
 
+  // 构建备注：做T盈利/亏损金额 + 可选逻辑
+  var absAmt = Math.abs(amount).toFixed(2);
+  var doTNote = amount >= 0 ? '做T盈利'+absAmt+'元' : '做T亏损'+absAmt+'元';
+  if(note) doTNote += '（' + note + '）';
+
   var id = pendingDoTId; // 先保存ID再关弹窗
   showStatus('load','⏳ 正在记录做T...');
   closeDoT();
-  apiCall({action:'doT',id:id,amount:amount,note:note}, function(res){
+  apiCall({action:'doT',id:id,amount:amount,note:doTNote}, function(res){
     if(res&&res.success){
       loadAll();
       showStatus('ok','✅ 做T已记录');
