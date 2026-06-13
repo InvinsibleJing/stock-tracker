@@ -961,6 +961,7 @@ function addTrade(){
       }
       cacheData(trades);
       refreshUI();
+      _checkSyncStatus();
     } else {
       rollbackOptimistic(savedTrades, holdings, '❌ 添加失败：'+(res?res.error:''));
     }
@@ -995,6 +996,8 @@ function submitDeleteTrade(){
       trades = savedTrades;
       refreshUI();
       showStatus('err','❌ 删除失败');
+    } else {
+      _checkSyncStatus();
     }
   });
 }
@@ -1113,6 +1116,8 @@ function beginEdit(cell, id, field){
         }
         refreshUI();
         showStatus('err','❌ 保存失败');
+      } else {
+        _checkSyncStatus();
       }
     });
   }
@@ -1532,6 +1537,7 @@ function submitAddHolding(){
       }
       try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
       refreshUI();
+      _checkSyncStatus();
     } else {
       rollbackOptimistic(trades, savedHoldings, '❌ 添加持仓失败：'+(res?res.error:''));
     }
@@ -1590,6 +1596,7 @@ function submitClearHolding(){
         }
         cacheData(trades);
         refreshUI();
+        _checkSyncStatus();
       }
     } else {
       rollbackOptimistic(savedTrades, savedHoldings, '❌ 清仓失败：'+(res?res.error:''));
@@ -1651,6 +1658,7 @@ function submitDoT(){
         }
         cacheData(trades);
         refreshUI();
+        _checkSyncStatus();
       }
     } else {
       rollbackOptimistic(savedTrades, holdings, '❌ 做T记录失败：'+(res?res.error:''));
@@ -1689,6 +1697,8 @@ function submitDeleteHolding(){
       holdings = savedHoldings;
       refreshUI();
       showStatus('err','❌ 删除持仓失败');
+    } else {
+      _checkSyncStatus();
     }
   });
 }
@@ -1798,6 +1808,8 @@ function beginEditHolding(cell, id, field){
         }
         refreshUI();
         showStatus('err','❌ 保存失败');
+      } else {
+        _checkSyncStatus();
       }
     });
   }
