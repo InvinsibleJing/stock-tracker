@@ -588,6 +588,40 @@ window.addEventListener('DOMContentLoaded', function(){
     }
   });
 
+  // ===== 事件委托：交易记录表 =====
+  document.getElementById('tbBody').addEventListener('click', function(e){
+    var target = e.target;
+    if(target.classList.contains('del-btn') && target.getAttribute('data-action')==='deleteTrade'){
+      deleteTrade(target.getAttribute('data-id'));
+      return;
+    }
+    var td = target.closest('.editable');
+    if(td && td.getAttribute('data-id') && td.getAttribute('data-field')){
+      beginEdit(td, td.getAttribute('data-id'), td.getAttribute('data-field'));
+    }
+  });
+
+  // ===== 事件委托：持仓表 =====
+  document.getElementById('holdBody').addEventListener('click', function(e){
+    var target = e.target;
+    if(target.classList.contains('btn-clear') && target.getAttribute('data-action')==='clearHolding'){
+      openClearHolding(target.getAttribute('data-id'));
+      return;
+    }
+    if(target.classList.contains('btn-dot') && target.getAttribute('data-action')==='doT'){
+      openDoT(target.getAttribute('data-id'));
+      return;
+    }
+    if(target.classList.contains('btn-del-h') && target.getAttribute('data-action')==='deleteHolding'){
+      deleteHolding(target.getAttribute('data-id'));
+      return;
+    }
+    var td = target.closest('.editable');
+    if(td && td.getAttribute('data-id') && td.getAttribute('data-field')){
+      beginEditHolding(td, td.getAttribute('data-id'), td.getAttribute('data-field'));
+    }
+  });
+
   if(!isOnline){
     document.getElementById('offlineTip').classList.add('show');
     loadCachedData();
@@ -1112,14 +1146,14 @@ function renderTable(){
 
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
-    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'date\')">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'code\')">'+(escapeHtml(getStockName(t.code))||'-')+'</td>';
-    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'tag\')"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
-    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'quantity\')">'+(t.quantity?t.quantity+'股':'-')+'</td>';
-    html+='<td class="editable '+cls+'" onclick="beginEdit(this,\''+t.id+'\',\'amount\')">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+(escapeHtml(getStockName(t.code))||'-')+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
+    html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
-    html+='<td class="editable" onclick="beginEdit(this,\''+t.id+'\',\'note\',\''+noteForOnclick+'\')">'+noteShow+'</td>';
-    html+='<td><button class="del-btn" onclick="deleteTrade(\''+t.id+'\')">删除</button></td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
+    html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
     html+='</tr>';
   }
   tbody.innerHTML=html;
@@ -1796,15 +1830,15 @@ function renderHoldings(){
 
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
-    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'date\')">'+formatDate(h.date)+'</td>';
-    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'code\')">'+(escapeHtml(getStockName(h.code))||'-')+'</td>';
-    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'tag\')"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
-    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'quantity\')">'+h.quantity+'股</td>';
-    html+='<td class="editable" onclick="beginEditHolding(this,\''+h.id+'\',\'note\')">'+noteShow+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+(escapeHtml(getStockName(h.code))||'-')+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td>';
-    html+='<button class="op-btn btn-clear" onclick="openClearHolding(\''+h.id+'\')">清仓</button>';
-    html+='<button class="op-btn btn-dot" onclick="openDoT(\''+h.id+'\')">做T</button>';
-    html+='<button class="op-btn btn-del-h" onclick="deleteHolding(\''+h.id+'\')">删除</button>';
+    html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
+    html+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
+    html+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding">删除</button>';
     html+='</td>';
     html+='</tr>';
   }
