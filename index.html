@@ -283,13 +283,13 @@ tbody tr:hover { background:#f8f9fa; }
 
   <!-- Tab 切换 -->
   <div class="tabs">
-    <div class="tab tab-add active" onclick="switchTab('input')">📝 添加记录</div>
-    <div class="tab tab-list" onclick="switchTab('table')">📋 交易列表</div>
+    <div class="tab tab-add" onclick="switchTab('input')">📝 添加记录</div>
+    <div class="tab tab-list active" onclick="switchTab('table')">📋 交易列表</div>
     <div class="tab tab-analysis" onclick="switchTab('analysis')">📊 数据分析</div>
   </div>
 
   <!-- 添加记录 -->
-  <div id="tabInput" class="input-box">
+  <div id="tabInput" style="display:none">
     <h2>添加记录</h2>
     <div class="row">
       <div class="field"><label>交易日期</label><input type="date" id="inpDate" oninput="onDateInputChange()" onkeydown="if(event.key==='Enter')addTrade()"></div>
@@ -318,7 +318,7 @@ tbody tr:hover { background:#f8f9fa; }
   </div>
 
   <!-- 交易列表 -->
-  <div id="tabTable" style="display:none">
+  <div id="tabTable">
 
     <!-- 当前持仓 -->
     <div class="holding-box">
