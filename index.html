@@ -823,6 +823,28 @@ function loadAll(){
   loadHoldings();
 }
 
+// ===== 乐观更新辅助函数 =====
+// 生成临时ID（以 tmp_ 开头，云端同步成功后会被真ID替换）
+var _tmpIdCounter = 0;
+function genTempId(){ return 'tmp_' + Date.now() + '_' + (++_tmpIdCounter); }
+
+// 刷新界面（交易记录表 + 统计 + 持仓表）
+function refreshUI(){
+  renderTable(); updateStats(); renderHoldings();
+  cacheData(trades);
+  try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+}
+
+// 乐观更新失败时的回滚处理
+function rollbackOptimistic(savedTrades, savedHoldings, msg){
+  trades = savedTrades;
+  holdings = savedHoldings;
+  refreshUI();
+  showStatus('err', msg || '❌ 操作失败，已回滚');
+}
+
+
+
 function _checkSyncStatus(){
   // 等两者都加载完再显示合并状态
   if(_tradesLoaded && _holdingsLoaded){
@@ -885,15 +907,28 @@ function addTrade(){
   var note=document.getElementById('inpNote').value.trim();
   if(!date||isNaN(amount)){ alert('请填写交易日期和盈利金额！'); return; }
 
-  showStatus('load','⏳ 正在添加...');
+  // 乐观更新：先在前端添加
+  var tmpId = genTempId();
+  var savedTrades = trades.slice();
+  trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note});
+  refreshUI();
+  showStatus('ok','✅ 已添加');
+
+  // 后台同步
   apiCall({action:'add',date:date,code:code,tag:tag,quantity:quantity,amount:amount,note:note}, function(res){
     if(res&&res.success){
       document.getElementById('inpCode').value='';
       document.getElementById('inpQuantity').value='';
       document.getElementById('inpAmount').value='';
       document.getElementById('inpNote').value='';
-      loadTrades();
-    } else { showStatus('err','❌ 添加失败：'+(res.error||'')); }
+      // 用云端真ID替换临时ID
+      for(var i=0;i<trades.length;i++){
+        if(trades[i].id===tmpId){ trades[i].id=res.id; break; }
+      }
+      cacheData(trades);
+    } else {
+      rollbackOptimistic(savedTrades, holdings, '❌ 添加失败：'+(res?res.error:''));
+    }
   });
 }
 
@@ -911,9 +946,22 @@ function closeDeleteTrade(){ document.getElementById('deleteTradeModal').classLi
 
 function submitDeleteTrade(){
   var id = pendingDeleteTradeId;
-  showStatus('load','⏳ 正在删除...');
   closeDeleteTrade();
-  apiCall({action:'delete',id:id}, function(res){ if(res&&res.success) loadTrades(); else showStatus('err','❌ 删除失败'); });
+
+  // 乐观更新：先从前端删除
+  var savedTrades = trades.slice();
+  trades = trades.filter(function(t){ return String(t.id) !== String(id); });
+  refreshUI();
+  showStatus('ok','✅ 已删除');
+
+  // 后台同步
+  apiCall({action:'delete',id:id}, function(res){
+    if(!res||!res.success){
+      trades = savedTrades;
+      refreshUI();
+      showStatus('err','❌ 删除失败');
+    }
+  });
 }
 
 // ===== 清空 =====
@@ -998,9 +1046,39 @@ function beginEdit(cell, id, field){
     var v=input.value.trim();
     if(field==='amount'&&v===''){ cancel(); return; }
     if(field==='quantity'&&v===''){ v='0'; }
-    showStatus('load','⏳ 正在保存...');
+
+    // 乐观更新：先在前端修改
+    var savedTrades = trades.slice();
+    var oldVal;
+    for(var i=0;i<trades.length;i++){
+      if(String(trades[i].id)===String(id)){
+        oldVal = trades[i][field];
+        if(field==='amount') trades[i].amount = parseFloat(v);
+        else if(field==='quantity') trades[i].quantity = parseInt(v)||0;
+        else if(field==='code') trades[i].code = v;
+        else if(field==='tag') trades[i].tag = v;
+        else if(field==='date') trades[i].date = v;
+        else if(field==='note') trades[i].note = v;
+        break;
+      }
+    }
+    cell.classList.remove('editor');
+    refreshUI();
+    showStatus('ok','✅ 已保存');
+
+    // 后台同步
     apiCall({action:'update',id:id,field:field,value:v}, function(res){
-      if(res&&res.success) loadTrades(); else{ showStatus('err','❌ 保存失败'); cancel(); }
+      if(!res||!res.success){
+        // 回滚
+        for(var j=0;j<trades.length;j++){
+          if(String(trades[j].id)===String(id)){
+            trades[j][field] = oldVal;
+            break;
+          }
+        }
+        refreshUI();
+        showStatus('err','❌ 保存失败');
+      }
     });
   }
   function cancel(){ cell.classList.remove('editor'); cell.innerHTML=oldHtml; }
@@ -1403,13 +1481,24 @@ function submitAddHolding(){
   var note=document.getElementById('holdNote').value.trim();
   if(!date||!code||isNaN(quantity)||quantity<=0){ alert('请填写交易日期、股票代码和买入数量！'); return; }
 
-  showStatus('load','⏳ 正在添加持仓...');
+  // 乐观更新：先在前端添加持仓
+  var tmpId = genTempId();
+  var savedHoldings = holdings.slice();
+  holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note});
   closeAddHolding();
+  refreshUI();
+  showStatus('ok','✅ 持仓已添加');
+
+  // 后台同步
   apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note}, function(res){
     if(res&&res.success){
-      loadHoldings();
-      showStatus('ok','✅ 持仓已添加');
-    } else { showStatus('err','❌ 添加持仓失败：'+(res.error||'')); }
+      for(var i=0;i<holdings.length;i++){
+        if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
+      }
+      try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+    } else {
+      rollbackOptimistic(trades, savedHoldings, '❌ 添加持仓失败：'+(res?res.error:''));
+    }
   });
 }
 
@@ -1432,14 +1521,42 @@ function submitClearHolding(){
   var note=document.getElementById('clearNote').value.trim();
   if(isNaN(amount)){ alert('请填写盈亏金额！'); return; }
 
-  var id = pendingClearId; // 先保存ID再关弹窗
-  showStatus('load','⏳ 正在清仓...');
+  var id = pendingClearId;
+
+  // 乐观更新：先从前端操作
+  var savedTrades = trades.slice();
+  var savedHoldings = holdings.slice();
+  var holding = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
+  }
+
+  if(holding){
+    // 从持仓中移除
+    holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
+    // 添加到交易记录
+    var tmpTradeId = genTempId();
+    var finalNote = note || holding.note || '';
+    trades.push({id:tmpTradeId, date:holding.date, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote});
+  }
+
   closeClearHolding();
+  refreshUI();
+  showStatus('ok','✅ 清仓成功，已记录到交易记录');
+
+  // 后台同步
   apiCall({action:'clearHolding',id:id,amount:amount,note:note}, function(res){
     if(res&&res.success){
-      loadAll();
-      showStatus('ok','✅ 清仓成功，已记录到交易记录');
-    } else { showStatus('err','❌ 清仓失败：'+(res.error||'')); }
+      // 用云端真ID替换临时ID
+      if(res.tradeId){
+        for(var j=0;j<trades.length;j++){
+          if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
+        }
+        cacheData(trades);
+      }
+    } else {
+      rollbackOptimistic(savedTrades, savedHoldings, '❌ 清仓失败：'+(res?res.error:''));
+    }
   });
 }
 
@@ -1467,14 +1584,39 @@ function submitDoT(){
   var doTNote = amount >= 0 ? '做T盈利'+absAmt+'元' : '做T亏损'+absAmt+'元';
   if(note) doTNote += '（' + note + '）';
 
-  var id = pendingDoTId; // 先保存ID再关弹窗
-  showStatus('load','⏳ 正在记录做T...');
+  var id = pendingDoTId;
+
+  // 乐观更新：先在前端添加交易记录（持仓不变）
+  var savedTrades = trades.slice();
+  var holding = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
+  }
+
+  if(holding){
+    var tmpTradeId = genTempId();
+    var today = new Date();
+    var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:doTNote});
+  }
+
   closeDoT();
+  refreshUI();
+  showStatus('ok','✅ 做T已记录');
+
+  // 后台同步
   apiCall({action:'doT',id:id,amount:amount,note:doTNote}, function(res){
     if(res&&res.success){
-      loadAll();
-      showStatus('ok','✅ 做T已记录');
-    } else { showStatus('err','❌ 做T记录失败：'+(res.error||'')); }
+      // 用云端真ID替换临时ID
+      if(res.tradeId){
+        for(var j=0;j<trades.length;j++){
+          if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
+        }
+        cacheData(trades);
+      }
+    } else {
+      rollbackOptimistic(savedTrades, holdings, '❌ 做T记录失败：'+(res?res.error:''));
+    }
   });
 }
 
@@ -1495,10 +1637,21 @@ function closeDeleteHolding(){ document.getElementById('deleteHoldingModal').cla
 
 function submitDeleteHolding(){
   var id = pendingDeleteHoldId;
-  showStatus('load','⏳ 正在删除持仓...');
+
+  // 乐观更新：先从前端删除
+  var savedHoldings = holdings.slice();
+  holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
   closeDeleteHolding();
+  refreshUI();
+  showStatus('ok','✅ 持仓已删除');
+
+  // 后台同步
   apiCall({action:'deleteHolding',id:id}, function(res){
-    if(res&&res.success) loadHoldings(); else showStatus('err','❌ 删除持仓失败');
+    if(!res||!res.success){
+      holdings = savedHoldings;
+      refreshUI();
+      showStatus('err','❌ 删除持仓失败');
+    }
   });
 }
 
@@ -1576,9 +1729,38 @@ function beginEditHolding(cell, id, field){
   function finish(){
     var v=input.value.trim();
     if(field==='quantity'&&v===''){ cancel(); return; }
-    showStatus('load','⏳ 正在保存...');
+
+    // 乐观更新：先在前端修改
+    var savedHoldings = holdings.slice();
+    var oldVal;
+    for(var i=0;i<holdings.length;i++){
+      if(String(holdings[i].id)===String(id)){
+        oldVal = holdings[i][field];
+        if(field==='quantity') holdings[i].quantity = parseInt(v)||0;
+        else if(field==='code') holdings[i].code = v;
+        else if(field==='tag') holdings[i].tag = v;
+        else if(field==='date') holdings[i].date = v;
+        else if(field==='note') holdings[i].note = v;
+        break;
+      }
+    }
+    cell.classList.remove('editor');
+    refreshUI();
+    showStatus('ok','✅ 已保存');
+
+    // 后台同步
     apiCall({action:'updateHolding',id:id,field:field,value:v}, function(res){
-      if(res&&res.success) loadHoldings(); else{ showStatus('err','❌ 保存失败'); cancel(); }
+      if(!res||!res.success){
+        // 回滚
+        for(var j=0;j<holdings.length;j++){
+          if(String(holdings[j].id)===String(id)){
+            holdings[j][field] = oldVal;
+            break;
+          }
+        }
+        refreshUI();
+        showStatus('err','❌ 保存失败');
+      }
     });
   }
   function cancel(){ cell.classList.remove('editor'); cell.innerHTML=oldHtml; }
