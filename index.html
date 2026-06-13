@@ -632,9 +632,7 @@ window.addEventListener('DOMContentLoaded', function(){
     openSettings();
   }
 
-  // 启动跨终端自动同步
-  startAutoSync();
-  // 页面从不可见变为可见时，立即同步一次
+  // 跨终端同步：页面从不可见变为可见时，立即同步一次（零配额消耗）
   document.addEventListener('visibilitychange', function(){
     if(!document.hidden && isOnline) _silentSync();
   });
@@ -864,9 +862,7 @@ function loadAll(){
   loadHoldings();
 }
 
-// ===== 跨终端自动同步（静默轮询） =====
-var _autoSyncTimer = null;
-var _autoSyncInterval = 30000; // 30秒检查一次
+// ===== 跨终端自动同步（页面可见时触发） =====
 
 // 检查是否有未同步的乐观更新（tmp_ 开头的ID）
 function _hasPendingOptimistic(){
@@ -913,19 +909,6 @@ function _silentSync(){
       });
     }
   });
-}
-
-function startAutoSync(){
-  if(_autoSyncTimer) return; // 已在运行
-  _autoSyncTimer = setInterval(function(){
-    // 页面不可见时跳过（节省GAS配额）
-    if(document.hidden) return;
-    _silentSync();
-  }, _autoSyncInterval);
-}
-
-function stopAutoSync(){
-  if(_autoSyncTimer){ clearInterval(_autoSyncTimer); _autoSyncTimer = null; }
 }
 
 // ===== 乐观更新辅助函数 =====
