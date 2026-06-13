@@ -75,6 +75,8 @@ tbody tr:hover { background:#f8f9fa; }
 .editable:hover { background:#eef5fb; border-radius:4px; }
 .editable::after { content:"✎"; font-size:9px; color:#bdc3c7; margin-left:2px; opacity:0; transition:opacity 0.2s; }
 .editable:hover::after { opacity:1; }
+/* 卡片模式下 editable 是 span，不需要 table-cell 样式 */
+.trade-card .editable, .hold-card .editable { display:inline; padding:1px 4px; border-radius:3px; }
 
 .editor input, .editor select { width:100%; padding:5px 7px; border:2px solid #3498db; border-radius:4px; font-size:13px; text-align:center; outline:none; box-sizing:border-box; }
 .editor-date input { width:130px; }
@@ -154,11 +156,44 @@ tbody tr:hover { background:#f8f9fa; }
 .autocomplete-item .ac-code { color:#999; font-size:11px; margin-left:6px; }
 .autocomplete-item .ac-name { font-weight:500; }
 
+/* 移动端卡片模式 */
+.trade-card { display:none; }
+.trade-card-item { background:white; border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.trade-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.trade-card-name { font-size:15px; font-weight:600; color:#2c3e50; }
+.trade-card-amount { font-size:16px; font-weight:bold; }
+.trade-card-row { display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:3px; }
+.trade-card-row .label { color:#999; }
+.trade-card-footer { display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:8px; border-top:1px solid #f0f0f0; }
+.trade-card-footer .tag { font-size:11px; }
+.trade-card-del { padding:4px 12px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; }
+
+.hold-card { display:none; }
+.hold-card-item { background:white; border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.hold-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.hold-card-name { font-size:15px; font-weight:600; color:#2c3e50; }
+.hold-card-row { display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:3px; }
+.hold-card-row .label { color:#999; }
+.hold-card-footer { display:flex; gap:8px; margin-top:10px; padding-top:8px; border-top:1px solid #f0f0f0; }
+.hold-card-footer button { flex:1; padding:7px 0; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; }
+
 @media(max-width:700px) {
   .row { flex-direction:column; }
   .stats { gap:10px; }
   .card { min-width:90px; padding:12px 16px; }
+  .card-val { font-size:18px; }
   .cat-stats { flex-direction:column; }
+  body { padding:12px; }
+  h1 { font-size:20px; }
+  .input-box, .table-box, .holding-box, .analysis-box { padding:14px 16px; }
+  .table-wrap { display:none; }
+  .trade-card { display:block; }
+  .hold-card { display:block; }
+  .modal { padding:20px; width:95%; }
+  .gear-btn { width:40px; height:40px; font-size:18px; bottom:14px; right:14px; }
+  .calendar-bar { padding:12px 14px; }
+  .cal-ganzhi-line { font-size:14px !important; }
+  .tab { font-size:13px; padding:10px 8px; }
 }
 
 /* 中国日历 */
@@ -332,6 +367,7 @@ tbody tr:hover { background:#f8f9fa; }
           <tbody id="holdBody"></tbody>
         </table>
       </div>
+      <div class="hold-card" id="holdCard"></div>
       <div class="empty" id="holdEmpty">暂无持仓</div>
     </div>
 
@@ -344,6 +380,7 @@ tbody tr:hover { background:#f8f9fa; }
           <tbody id="tbBody"></tbody>
         </table>
       </div>
+      <div class="trade-card" id="tradeCard"></div>
       <div class="empty" id="emptyMsg">暂无交易记录</div>
     </div>
   </div>
@@ -601,6 +638,19 @@ window.addEventListener('DOMContentLoaded', function(){
     }
   });
 
+  // ===== 事件委托：交易记录卡片（移动端） =====
+  document.getElementById('tradeCard').addEventListener('click', function(e){
+    var target = e.target;
+    if((target.classList.contains('trade-card-del') || target.classList.contains('del-btn')) && target.getAttribute('data-action')==='deleteTrade'){
+      deleteTrade(target.getAttribute('data-id'));
+      return;
+    }
+    var span = target.closest('.editable');
+    if(span && span.getAttribute('data-id') && span.getAttribute('data-field')){
+      beginEdit(span, span.getAttribute('data-id'), span.getAttribute('data-field'));
+    }
+  });
+
   // ===== 事件委托：持仓表 =====
   document.getElementById('holdBody').addEventListener('click', function(e){
     var target = e.target;
@@ -619,6 +669,27 @@ window.addEventListener('DOMContentLoaded', function(){
     var td = target.closest('.editable');
     if(td && td.getAttribute('data-id') && td.getAttribute('data-field')){
       beginEditHolding(td, td.getAttribute('data-id'), td.getAttribute('data-field'));
+    }
+  });
+
+  // ===== 事件委托：持仓卡片（移动端） =====
+  document.getElementById('holdCard').addEventListener('click', function(e){
+    var target = e.target;
+    if(target.getAttribute('data-action')==='clearHolding'){
+      openClearHolding(target.getAttribute('data-id'));
+      return;
+    }
+    if(target.getAttribute('data-action')==='doT'){
+      openDoT(target.getAttribute('data-id'));
+      return;
+    }
+    if(target.getAttribute('data-action')==='deleteHolding'){
+      deleteHolding(target.getAttribute('data-id'));
+      return;
+    }
+    var span = target.closest('.editable');
+    if(span && span.getAttribute('data-id') && span.getAttribute('data-field')){
+      beginEditHolding(span, span.getAttribute('data-id'), span.getAttribute('data-field'));
     }
   });
 
@@ -1190,23 +1261,27 @@ function beginEdit(cell, id, field){
 // ===== 渲染表格 =====
 function renderTable(){
   var tbody=document.getElementById('tbBody');
+  var cardEl=document.getElementById('tradeCard');
   var msg=document.getElementById('emptyMsg');
-  if(trades.length===0){ tbody.innerHTML=''; msg.style.display='block'; return; }
+  if(trades.length===0){ tbody.innerHTML=''; cardEl.innerHTML=''; msg.style.display='block'; return; }
   msg.style.display='none';
 
   trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
   var html='';
+  var cardHtml='';
   for(var i=0;i<trades.length;i++){
     var t=trades[i], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
     var noteShow=escapeHtml(t.note||'-');
     var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
+    var stockName=escapeHtml(getStockName(t.code))||'-';
 
+    // 桌面端表格行
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+(escapeHtml(getStockName(t.code))||'-')+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
@@ -1214,8 +1289,25 @@ function renderTable(){
     html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
     html+='</tr>';
+
+    // 移动端卡片
+    cardHtml+='<div class="trade-card-item">';
+    cardHtml+='<div class="trade-card-header">';
+    cardHtml+='<span class="trade-card-name">'+stockName+'</span>';
+    cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
+    cardHtml+='</div>';
+    cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
+    cardHtml+='<div class="trade-card-row"><span class="label">数量</span><span class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</span></div>';
+    cardHtml+='<div class="trade-card-row"><span class="label">备注</span><span class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</span></div>';
+    cardHtml+='<div class="trade-card-footer">';
+    cardHtml+='<span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span>';
+    cardHtml+='<span class="'+(ip?'red':'green')+'" style="font-size:12px;font-weight:500">'+(ip?'✅ 成功':'❌ 失败')+'</span>';
+    cardHtml+='<button class="trade-card-del" data-id="'+t.id+'" data-action="deleteTrade">删除</button>';
+    cardHtml+='</div>';
+    cardHtml+='</div>';
   }
   tbody.innerHTML=html;
+  cardEl.innerHTML=cardHtml;
 }
 
 // ===== 统计 =====
@@ -1884,22 +1976,26 @@ function beginEditHolding(cell, id, field){
 // ===== 渲染持仓表格 =====
 function renderHoldings(){
   var tbody=document.getElementById('holdBody');
+  var cardEl=document.getElementById('holdCard');
   var msg=document.getElementById('holdEmpty');
-  if(holdings.length===0){ tbody.innerHTML=''; msg.style.display='block'; return; }
+  if(holdings.length===0){ tbody.innerHTML=''; cardEl.innerHTML=''; msg.style.display='block'; return; }
   msg.style.display='none';
 
   holdings.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
   var html='';
+  var cardHtml='';
   for(var i=0;i<holdings.length;i++){
     var h=holdings[i];
     var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
     var noteShow=escapeHtml(h.note||'-');
+    var stockName=escapeHtml(getStockName(h.code))||'-';
 
+    // 桌面端表格行
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+(escapeHtml(getStockName(h.code))||'-')+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</td>';
@@ -1909,8 +2005,25 @@ function renderHoldings(){
     html+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding">删除</button>';
     html+='</td>';
     html+='</tr>';
+
+    // 移动端卡片
+    cardHtml+='<div class="hold-card-item">';
+    cardHtml+='<div class="hold-card-header">';
+    cardHtml+='<span class="hold-card-name">'+stockName+'</span>';
+    cardHtml+='<span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span>';
+    cardHtml+='</div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">买入逻辑</span><span class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</span></div>';
+    cardHtml+='<div class="hold-card-footer">';
+    cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
+    cardHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT" style="background:#8e44ad;color:white">做T</button>';
+    cardHtml+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding" style="background:#e74c3c;color:white">删除</button>';
+    cardHtml+='</div>';
+    cardHtml+='</div>';
   }
   tbody.innerHTML=html;
+  cardEl.innerHTML=cardHtml;
 }
 
 // ===== 工具 =====
