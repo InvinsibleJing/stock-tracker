@@ -921,11 +921,12 @@ function addTrade(){
       document.getElementById('inpQuantity').value='';
       document.getElementById('inpAmount').value='';
       document.getElementById('inpNote').value='';
-      // 用云端真ID替换临时ID
+      // 用云端真ID替换临时ID，并重新渲染UI（更新onclick中的ID引用）
       for(var i=0;i<trades.length;i++){
         if(trades[i].id===tmpId){ trades[i].id=res.id; break; }
       }
       cacheData(trades);
+      refreshUI();
     } else {
       rollbackOptimistic(savedTrades, holdings, '❌ 添加失败：'+(res?res.error:''));
     }
@@ -1496,6 +1497,7 @@ function submitAddHolding(){
         if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
       }
       try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+      refreshUI();
     } else {
       rollbackOptimistic(trades, savedHoldings, '❌ 添加持仓失败：'+(res?res.error:''));
     }
@@ -1553,6 +1555,7 @@ function submitClearHolding(){
           if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
         }
         cacheData(trades);
+        refreshUI();
       }
     } else {
       rollbackOptimistic(savedTrades, savedHoldings, '❌ 清仓失败：'+(res?res.error:''));
@@ -1613,6 +1616,7 @@ function submitDoT(){
           if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
         }
         cacheData(trades);
+        refreshUI();
       }
     } else {
       rollbackOptimistic(savedTrades, holdings, '❌ 做T记录失败：'+(res?res.error:''));
