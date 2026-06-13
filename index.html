@@ -189,6 +189,7 @@ tbody tr:hover { background:#f8f9fa; }
   h1 { font-size:20px; }
   .input-box, .table-box, .holding-box, .analysis-box { padding:14px 16px; margin-bottom:14px; }
   .table-wrap { display:none; }
+  .analysis-wrap { display:block !important; overflow-x:auto; }
   .trade-card { display:block; }
   .hold-card { display:block; }
   .modal { padding:20px; width:95%; }
@@ -407,7 +408,7 @@ tbody tr:hover { background:#f8f9fa; }
     <div class="analysis-box">
       <h2>💼 股票综合盈亏</h2>
       <p style="font-size:12px;color:#999;margin-bottom:10px">按股票合并计算，同一只股票的多笔交易汇总为一个结果</p>
-      <div class="table-wrap">
+      <div class="table-wrap analysis-wrap">
         <table class="period-table" id="stockSummaryTable"></table>
       </div>
     </div>
@@ -419,7 +420,7 @@ tbody tr:hover { background:#f8f9fa; }
         <div class="tab active" onclick="switchPeriod('week',this)">按周</div>
         <div class="tab" onclick="switchPeriod('month',this)">按月</div>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap analysis-wrap">
         <table class="period-table" id="periodTable"></table>
       </div>
     </div>
