@@ -631,6 +631,13 @@ window.addEventListener('DOMContentLoaded', function(){
     showStatus('err','⚠️ 未配置云端数据库');
     openSettings();
   }
+
+  // 启动跨终端自动同步
+  startAutoSync();
+  // 页面从不可见变为可见时，立即同步一次
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && isOnline) _silentSync();
+  });
 });
 
 // ===== 本地缓存数据（离线兜底） =====
@@ -855,6 +862,70 @@ function loadAll(){
   _tradesLoaded=false; _holdingsLoaded=false;
   loadTrades();
   loadHoldings();
+}
+
+// ===== 跨终端自动同步（静默轮询） =====
+var _autoSyncTimer = null;
+var _autoSyncInterval = 30000; // 30秒检查一次
+
+// 检查是否有未同步的乐观更新（tmp_ 开头的ID）
+function _hasPendingOptimistic(){
+  for(var i=0;i<trades.length;i++){ if(trades[i].id && trades[i].id.indexOf('tmp_')===0) return true; }
+  for(var i=0;i<holdings.length;i++){ if(holdings[i].id && holdings[i].id.indexOf('tmp_')===0) return true; }
+  return false;
+}
+
+// 简单比较两个数据数组是否相同（比ID和长度）
+function _dataChanged(oldArr, newArr, idField){
+  if(oldArr.length !== newArr.length) return true;
+  var oldIds = {};
+  for(var i=0;i<oldArr.length;i++) oldIds[oldArr[i].id] = true;
+  for(var i=0;i<newArr.length;i++){
+    if(!oldIds[newArr[i].id]) return true;
+  }
+  return false;
+}
+
+// 静默同步：后台拉取数据，有变化才刷新UI
+function _silentSync(){
+  // 有未同步的乐观更新时跳过，避免覆盖
+  if(_hasPendingOptimistic()) return;
+  // 离线时跳过
+  if(!isOnline) return;
+
+  apiCall({action:'list'}, function(res){
+    if(res && res.success && res.data){
+      var newTrades = res.data;
+      apiCall({action:'listHoldings'}, function(res2){
+        if(res2 && res2.success && res2.data){
+          var newHoldings = res2.data;
+          var tradesChanged = _dataChanged(trades, newTrades);
+          var holdingsChanged = _dataChanged(holdings, newHoldings);
+          if(tradesChanged || holdingsChanged){
+            trades = newTrades;
+            holdings = newHoldings;
+            cacheData(trades);
+            try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+            refreshUI();
+            _checkSyncStatus();
+          }
+        }
+      });
+    }
+  });
+}
+
+function startAutoSync(){
+  if(_autoSyncTimer) return; // 已在运行
+  _autoSyncTimer = setInterval(function(){
+    // 页面不可见时跳过（节省GAS配额）
+    if(document.hidden) return;
+    _silentSync();
+  }, _autoSyncInterval);
+}
+
+function stopAutoSync(){
+  if(_autoSyncTimer){ clearInterval(_autoSyncTimer); _autoSyncTimer = null; }
 }
 
 // ===== 乐观更新辅助函数 =====
