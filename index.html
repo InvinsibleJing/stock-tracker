@@ -1630,10 +1630,12 @@ function submitClearHolding(){
   if(holding){
     // 从持仓中移除
     holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
-    // 添加到交易记录
+    // 添加到交易记录（日期用当天，不是买入日期）
     var tmpTradeId = genTempId();
+    var today = new Date();
+    var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     var finalNote = note || holding.note || '';
-    trades.push({id:tmpTradeId, date:holding.date, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote});
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote});
   }
 
   closeClearHolding();
