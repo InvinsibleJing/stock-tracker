@@ -206,6 +206,7 @@ tbody tr:hover { background:#f8f9fa; }
 .cal-left-part .cal-gregorian { text-align:left; }
 .cal-left-part .cal-gregorian .cal-date { font-size:20px; font-weight:700; color:#2c3e50; }
 .cal-left-part .cal-gregorian .cal-weekday { font-size:13px; color:#888; margin-top:3px; }
+.cal-left-part .cal-gregorian .cal-gz-pos { font-size:13px; margin-top:2px; font-weight:500; letter-spacing:0.5px; }
 .cal-lunar-part { text-align:left; }
 .cal-lunar-part .cal-ganzhi-line { font-size:16px; font-weight:600; line-height:1.8; color:#2c3e50; }
 .cal-lunar-part .cal-ganzhi-line .gz-seg { white-space:nowrap; }
@@ -217,9 +218,9 @@ tbody tr:hover { background:#f8f9fa; }
 .cal-lunar-part .cal-info-line .cal-lunar-full { color:#555; }
 .cal-lunar-part .cal-info-line .cal-wuxing-summary { }
 .cal-jieqi-part { text-align:center; min-width:100px; }
-.cal-jieqi-part .cal-jq-current { font-size:14px; font-weight:600; color:#2c3e50; line-height:1.8; }
-.cal-jieqi-part .cal-jq-next { font-size:13px; color:#888; margin-top:6px; }
-.cal-jieqi-part .cal-divider { border:none; border-top:1px solid #eee; margin:6px 0; }
+.cal-jieqi-part .cal-jq-current { font-size:14px; font-weight:600; color:#2c3e50; line-height:1.8; padding-top:3.5px; }
+.cal-jieqi-part .cal-jq-next { font-size:13px; color:#555; margin-top:8px; font-weight:500; }
+.cal-jieqi-part .cal-divider { border:none; border-top:1px solid #eee; margin:5px 0; }
 .cal-right-part { display:flex; flex-direction:column; gap:8px; align-items:flex-start; padding-top:4px; }
 .cal-right-part .cal-row { display:flex; gap:10px; }
 .cal-right-part button { padding:6px 14px; border-radius:7px; border:none; font-size:13px; cursor:pointer; font-weight:500; }
@@ -279,6 +280,7 @@ tbody tr:hover { background:#f8f9fa; }
       <div class="cal-gregorian">
         <div class="cal-date" id="calGregorian"> loading...</div>
         <div class="cal-weekday" id="calWeekday"></div>
+        <div class="cal-gz-pos" id="calGzPos"></div>
       </div>
     </div>
     <div class="cal-lunar-part">
@@ -2537,6 +2539,24 @@ function updateCalendar(){
 
     // 干支行
     document.getElementById('calGanzhi').innerHTML = buildGanzhiHtml(yGz, mGz, dGz);
+
+    // 干支序位（六十甲子中的位置，1-based）+ 天干/地支各按五行着色
+    var yStemIdx = GAN.indexOf(yGz.gan), yBranchIdx = ZHI.indexOf(yGz.zhi);
+    var yGzPos = ((6 * yStemIdx - 5 * yBranchIdx) % 60 + 60) % 60 + 1;
+    var mStemIdx = GAN.indexOf(mGz.gan), mBranchIdx = ZHI.indexOf(mGz.zhi);
+    var mGzPos = ((6 * mStemIdx - 5 * mBranchIdx) % 60 + 60) % 60 + 1;
+    // 年干支颜色
+    var yGanC = ELEM_COLORS[yGz.ganElem] || '#333';
+    var yZhiElem = yBranchIdx >= 0 ? ZHI_ELEM[yBranchIdx] : '';
+    var yZhiC = ELEM_COLORS[yZhiElem] || '#333';
+    // 月干支颜色
+    var mGanC = ELEM_COLORS[mGz.ganElem] || '#333';
+    var mZhiElem = mBranchIdx >= 0 ? ZHI_ELEM[mBranchIdx] : '';
+    var mZhiC = ELEM_COLORS[mZhiElem] || '#333';
+    document.getElementById('calGzPos').innerHTML =
+      '<span style="color:'+yGanC+'">'+yGz.gan+'</span><span style="color:'+yZhiC+'">'+yGz.zhi+'</span><span style="color:'+yGanC+'">·'+yGzPos+'/60</span>' +
+      '<span style="color:#ccc;margin:0 8px">|</span>' +
+      '<span style="color:'+mGanC+'">'+mGz.gan+'</span><span style="color:'+mZhiC+'">'+mGz.zhi+'</span><span style="color:'+mGanC+'">·'+mGzPos+'/60</span>';
 
     // 时辰 + 农历日期 + 五行统计（仅当天显示时辰）
     var now = new Date();
