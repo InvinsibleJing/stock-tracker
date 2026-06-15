@@ -110,6 +110,9 @@ tbody tr:hover { background:#f8f9fa; }
 .status-open { background:#fff3cd; color:#856404; }
 .status-closed { background:#d4edda; color:#155724; }
 
+/* 清仓来源徽章 */
+.source-clear { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:600; margin-left:4px; vertical-align:middle; background:#d1ecf1; color:#0c5460; }
+
 /* 持仓模块间距 */
 .holding-box { background:white; border-radius:12px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; }
 .holding-box h2 { color:#2c3e50; margin-bottom:16px; font-size:17px; }
@@ -1110,7 +1113,7 @@ function addTrade(){
   // 乐观更新：先在前端添加
   var tmpId = genTempId();
   var savedTrades = trades.slice();
-  trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note, tIndex:0, status:'closed'});
+  trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note, tIndex:0, status:'closed', source:'manual'});
   refreshUI();
   showStatus('ok','✅ 已添加');
 
@@ -1336,11 +1339,18 @@ function renderTable(){
       statusHtml = '<span class="status-badge status-closed">已完结</span>';
     }
 
+    // 清仓来源徽章（绿色，标识该记录由清仓操作产生）
+    var sourceHtml = '';
+    var tSource = t.source || '';
+    if(tSource === 'clear'){
+      sourceHtml = '<span class="source-clear">清仓</span>';
+    }
+
     // 桌面端表格行
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+statusHtml+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+sourceHtml+statusHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
@@ -1352,7 +1362,7 @@ function renderTable(){
     // 移动端卡片
     cardHtml+='<div class="trade-card-item">';
     cardHtml+='<div class="trade-card-header">';
-    cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+statusHtml+'</span>';
+    cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+statusHtml+'</span>';
     cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
     cardHtml+='</div>';
     cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
@@ -1832,7 +1842,7 @@ function submitClearHolding(){
     var today = new Date();
     var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     var finalNote = note || holding.note || '';
-    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote, tIndex:0, status:'closed'});
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear'});
 
     // 将该股票所有做T未完结记录标记为已完结
     for(var j=0;j<trades.length;j++){
@@ -1915,7 +1925,7 @@ function submitDoT(){
     var tmpTradeId = genTempId();
     var today = new Date();
     var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open'});
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open', source:'doT'});
   }
 
   closeDoT();
