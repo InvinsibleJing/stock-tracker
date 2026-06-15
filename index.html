@@ -391,7 +391,7 @@ tbody tr:hover { background:#f8f9fa; }
       </div>
       <div class="table-wrap">
         <table>
-          <thead style="background:#2c6e49"><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>买入数量</th><th>买入逻辑</th><th>操作</th></tr></thead>
+          <thead style="background:#2c6e49"><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>买入数量</th><th>成本价</th><th>买入逻辑</th><th>操作</th></tr></thead>
           <tbody id="holdBody"></tbody>
         </table>
       </div>
@@ -493,6 +493,7 @@ tbody tr:hover { background:#f8f9fa; }
     </div>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>买入数量（股）</label><input type="number" id="holdQty" placeholder="如 1000" step="100"></div>
+      <div class="field"><label>买入价格（元）</label><input type="number" id="holdBuyPrice" placeholder="如 10.50" step="0.001"></div>
       <div class="field"><label>板块分类</label>
         <select id="holdTag">
           <option value="主板">主板</option>
@@ -517,8 +518,10 @@ tbody tr:hover { background:#f8f9fa; }
     <h2>🎯 清仓 - <span id="clearStockName"></span></h2>
     <p id="clearDesc">将该持仓清仓，盈亏将记录到交易记录中。<b>请填写本次清仓部分的真实盈亏金额</b>，此金额即为本次操作的结果。</p>
     <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>卖出价格（元）</label><input type="number" id="clearSellPrice" step="0.001" placeholder="如 11.00" oninput="autoCalcClearProfit()"></div>
       <div class="field"><label>盈亏金额（¥）</label><input type="number" id="clearAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
+    <p id="clearAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0">✅ 已根据成本价自动计算盈亏，可手动修改</p>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">清仓仓位</label>
       <div class="pos-group" id="clearPosGroup">
@@ -543,10 +546,15 @@ tbody tr:hover { background:#f8f9fa; }
 <div class="modal-bg" id="doTModal">
   <div class="modal">
     <h2>🔄 做T - <span id="doTStockName"></span></h2>
-    <p>记录本次做T的盈亏，持仓保留。做T盈亏（带T标识）不计入总盈亏统计。</p>
+    <p>记录本次做T的盈亏，持仓保留。做T盈亏（带T标识）不计入总盈亏统计，但会自动降低持仓成本。</p>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>卖出价格（元）</label><input type="number" id="doTSellPrice" step="0.001" placeholder="如 10.50" oninput="autoCalcDoTProfit()"></div>
+      <div class="field"><label>买回价格（元）</label><input type="number" id="doTBuyBackPrice" step="0.001" placeholder="如 10.00" oninput="autoCalcDoTProfit()"></div>
+    </div>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>做T盈亏（¥）</label><input type="number" id="doTAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
+    <p id="doTAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0">✅ 已自动计算做T盈亏，可手动修改</p>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">做T仓位</label>
       <div class="pos-group" id="doTPosGroup">
@@ -1807,6 +1815,7 @@ function openAddHolding(){
   document.getElementById('holdCode').value = '';
   document.getElementById('holdTag').value = '主板';
   document.getElementById('holdQty').value = '';
+  document.getElementById('holdBuyPrice').value = '';
   document.getElementById('holdNote').value = '';
   setTimeout(function(){ document.getElementById('holdCode').focus(); },100);
 }
@@ -1817,19 +1826,20 @@ function submitAddHolding(){
   var code=document.getElementById('holdCode').value.trim();
   var tag=document.getElementById('holdTag').value;
   var quantity=parseInt(document.getElementById('holdQty').value);
+  var buyPrice=parseFloat(document.getElementById('holdBuyPrice').value)||0;
   var note=document.getElementById('holdNote').value.trim();
   if(!date||!code||isNaN(quantity)||quantity<=0){ alert('请填写交易日期、股票代码和买入数量！'); return; }
 
   // 乐观更新：先在前端添加持仓
   var tmpId = genTempId();
   var savedHoldings = holdings.slice();
-  holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note});
+  holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice});
   closeAddHolding();
   refreshUI();
   showStatus('ok','✅ 持仓已添加');
 
   // 后台同步
-  apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note}, function(res){
+  apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice}, function(res){
     if(res&&res.success){
       for(var i=0;i<holdings.length;i++){
         if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
@@ -1872,6 +1882,51 @@ function setupPosGroup(groupId, customInputId, displayId, onPosChange){
       updateQtyDisplay(display, 'full', 0, groupId);
     }
   });
+}
+
+// ===== 自动计算盈亏 =====
+// 清仓：盈亏 = (卖出价 - 成本价) × 清仓数量
+function autoCalcClearProfit(){
+  var sellPrice = parseFloat(document.getElementById('clearSellPrice').value);
+  var id = pendingClearId;
+  var holding = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
+  }
+  if(!holding || !holding.buyPrice || isNaN(sellPrice)) return;
+
+  // 计算实际清仓数量
+  var customQty = parseInt(document.getElementById('clearCustomQty').value) || 0;
+  var actualQty = calcActualQty(holding.quantity, selectedClearPos, customQty);
+  if(actualQty <= 0 || actualQty > holding.quantity) actualQty = holding.quantity;
+
+  var profit = (sellPrice - holding.buyPrice) * actualQty;
+  profit = Math.round(profit * 100) / 100; // 保留2位小数
+  document.getElementById('clearAmount').value = profit;
+  document.getElementById('clearAutoCalcHint').style.display = 'block';
+}
+
+// 做T：盈亏 = (卖出价 - 买回价) × 做T数量
+function autoCalcDoTProfit(){
+  var sellPrice = parseFloat(document.getElementById('doTSellPrice').value);
+  var buyBackPrice = parseFloat(document.getElementById('doTBuyBackPrice').value);
+  if(isNaN(sellPrice) || isNaN(buyBackPrice)) return;
+
+  var id = pendingDoTId;
+  var holding = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
+  }
+
+  // 计算实际做T数量
+  var customQty = parseInt(document.getElementById('doTCustomQty').value) || 0;
+  var actualQty = holding ? calcActualQty(holding.quantity, selectedDoTPos, customQty) : 0;
+  if(actualQty <= 0 || (holding && actualQty > holding.quantity)) actualQty = holding ? holding.quantity : 0;
+
+  var profit = (sellPrice - buyBackPrice) * actualQty;
+  profit = Math.round(profit * 100) / 100;
+  document.getElementById('doTAmount').value = profit;
+  document.getElementById('doTAutoCalcHint').style.display = 'block';
 }
 
 // 根据仓位类型和持仓数量计算实际操作股数
@@ -1917,8 +1972,16 @@ function openClearHolding(id){
   if(!h) return;
   pendingClearId=id;
   document.getElementById('clearStockName').textContent=escapeHtml(getStockName(h.code))||h.code;
+  document.getElementById('clearSellPrice').value='';
   document.getElementById('clearAmount').value='';
   document.getElementById('clearNote').value='';
+  document.getElementById('clearAutoCalcHint').style.display='none';
+  // 显示成本价提示
+  if(h.buyPrice){
+    document.getElementById('clearDesc').innerHTML='持仓成本价：<b style="color:#e74c3c">'+parseFloat(h.buyPrice).toFixed(3)+'</b> 元。选择仓位并输入卖出价格后，盈亏将自动计算。';
+  } else {
+    document.getElementById('clearDesc').innerHTML='将该持仓清仓，盈亏将记录到交易记录中。未设置成本价，请手动填写盈亏金额。';
+  }
   // 重置仓位选择为"全部"
   selectedClearPos = 'full';
   document.querySelectorAll('#clearPosGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-pos')==='full'); });
@@ -2002,12 +2065,13 @@ function submitClearHolding(){
               holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
               showStatus('err','⚠️ 检测到云端持仓已被清除，数据已自动同步');
             } else {
-              // 后端还有该持仓，更新本地数量为后端实际值
+              // 后端还有该持仓，更新本地数量和成本价为后端实际值
               for(var m=0;m<holdings.length;m++){
                 if(String(holdings[m].id)===String(id)){
                   for(var n=0;n<hRes.data.length;n++){
                     if(String(hRes.data[n].id)===String(id)){
                       holdings[m].quantity = hRes.data[n].quantity;
+                      if(hRes.data[n].buyPrice) holdings[m].buyPrice = hRes.data[n].buyPrice;
                       break;
                     }
                   }
@@ -2049,8 +2113,11 @@ function openDoT(id){
   if(!h) return;
   pendingDoTId=id;
   document.getElementById('doTStockName').textContent=escapeHtml(getStockName(h.code))||h.code;
+  document.getElementById('doTSellPrice').value='';
+  document.getElementById('doTBuyBackPrice').value='';
   document.getElementById('doTAmount').value='';
   document.getElementById('doTNote').value='';
+  document.getElementById('doTAutoCalcHint').style.display='none';
   // 重置仓位选择为"全部"
   selectedDoTPos = 'full';
   document.querySelectorAll('#doTPosGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-pos')==='full'); });
@@ -2110,6 +2177,15 @@ function submitDoT(){
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open', source:'doT'});
 
+  // 乐观更新：做T后自动更新持仓成本价
+  if(holding.buyPrice > 0 && holding.quantity > 0){
+    var totalCost = holding.buyPrice * holding.quantity;
+    var newTotalCost = totalCost - amount;
+    var newBuyPrice = newTotalCost / holding.quantity;
+    if(newBuyPrice < 0) newBuyPrice = 0;
+    holding.buyPrice = Math.round(newBuyPrice * 1000) / 1000;
+  }
+
   closeDoT();
   refreshUI();
   showStatus('ok','✅ 做T'+selectedTIndex+'已记录（'+actualQty+'股）');
@@ -2123,9 +2199,19 @@ function submitDoT(){
           if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
         }
         cacheData(trades);
-        refreshUI();
-        _checkSyncStatus();
       }
+      // 后端返回新的成本价，同步到前端
+      if(res.newBuyPrice !== undefined){
+        for(var k=0;k<holdings.length;k++){
+          if(String(holdings[k].id)===String(id)){
+            holdings[k].buyPrice = res.newBuyPrice;
+            break;
+          }
+        }
+      }
+      try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+      refreshUI();
+      _checkSyncStatus();
     } else {
       rollbackOptimistic(savedTrades, holdings, '❌ 做T记录失败：'+(res?res.error:''));
     }
@@ -2188,6 +2274,10 @@ function beginEditHolding(cell, id, field){
   } else if(field==='quantity'){
     input=document.createElement('input'); input.type='number'; input.step='100';
     input.value=h.quantity;
+  } else if(field==='buyPrice'){
+    input=document.createElement('input'); input.type='number'; input.step='0.001';
+    input.value=h.buyPrice||'';
+    input.placeholder='输入成本价';
   } else if(field==='code'){
     input=document.createElement('input'); input.type='text';
     input.value=h.code||'';
@@ -2251,6 +2341,7 @@ function beginEditHolding(cell, id, field){
       if(String(holdings[i].id)===String(id)){
         oldVal = holdings[i][field];
         if(field==='quantity') holdings[i].quantity = parseInt(v)||0;
+        else if(field==='buyPrice') holdings[i].buyPrice = parseFloat(v)||0;
         else if(field==='code') holdings[i].code = v;
         else if(field==='tag') holdings[i].tag = v;
         else if(field==='date') holdings[i].date = v;
@@ -2308,6 +2399,7 @@ function renderHoldings(){
     var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
     var noteShow=escapeHtml(h.note||'-');
     var stockName=escapeHtml(getStockName(h.code))||'-';
+    var buyPriceShow = h.buyPrice ? (parseFloat(h.buyPrice).toFixed(3)) : '-';
 
     // 桌面端表格行
     html+='<tr>';
@@ -2316,6 +2408,7 @@ function renderHoldings(){
     html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td>';
     html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
@@ -2332,6 +2425,7 @@ function renderHoldings(){
     cardHtml+='</div>';
     cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'</span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">买入逻辑</span><span class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</span></div>';
     cardHtml+='<div class="hold-card-footer">';
     cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
