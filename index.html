@@ -94,6 +94,22 @@ tbody tr:hover { background:#f8f9fa; }
 .btn-del-h { background:#e74c3c; color:white; }
 .btn-del-h:hover { background:#c0392b; }
 
+/* T1~T5 选择按钮组 */
+.t-index-group { display:flex; gap:8px; }
+.t-index-btn { padding:8px 18px; border:2px solid #ddd; border-radius:8px; background:white; cursor:pointer; font-size:14px; font-weight:600; color:#666; transition:all 0.15s; }
+.t-index-btn:hover { border-color:#8e44ad; color:#8e44ad; background:#f9f0ff; }
+.t-index-btn.active { border-color:#8e44ad; background:#8e44ad; color:white; }
+
+/* T 标徽章（交易记录中） */
+.t-badge { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; margin-left:4px; vertical-align:middle; line-height:1.5; }
+.t-badge-profit { background:#fde8e8; color:#e74c3c; }
+.t-badge-loss { background:#e8f8ef; color:#27ae60; }
+
+/* 未完结/已完结标签 */
+.status-badge { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:600; margin-left:4px; vertical-align:middle; }
+.status-open { background:#fff3cd; color:#856404; }
+.status-closed { background:#d4edda; color:#155724; }
+
 /* 持仓模块间距 */
 .holding-box { background:white; border-radius:12px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; }
 .holding-box h2 { color:#2c3e50; margin-bottom:16px; font-size:17px; }
@@ -492,7 +508,7 @@ tbody tr:hover { background:#f8f9fa; }
 <div class="modal-bg" id="clearHoldingModal">
   <div class="modal">
     <h2>🎯 清仓 - <span id="clearStockName"></span></h2>
-    <p>将该持仓清仓，盈亏将记录到交易记录中。</p>
+    <p>将该持仓清仓，盈亏将记录到交易记录中。<b>请填写该股票的真实总盈亏金额</b>（包含此前所有做T的盈亏），此金额即为该股票全周期的最终结果。</p>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>盈亏金额（¥）</label><input type="number" id="clearAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
@@ -510,9 +526,19 @@ tbody tr:hover { background:#f8f9fa; }
 <div class="modal-bg" id="doTModal">
   <div class="modal">
     <h2>🔄 做T - <span id="doTStockName"></span></h2>
-    <p>记录本次做T的盈亏，持仓保留。交易记录备注将自动标记为"做T盈利XX元"或"做T亏损XX元"。</p>
+    <p>记录本次做T的盈亏，持仓保留。做T盈亏属于未完结部分，最终清仓时填写的金额才是该股票的真实总盈亏。</p>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>做T盈亏（¥）</label><input type="number" id="doTAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">第几次做T</label>
+      <div class="t-index-group" id="doTIndexGroup">
+        <button class="t-index-btn active" data-idx="1">T1</button>
+        <button class="t-index-btn" data-idx="2">T2</button>
+        <button class="t-index-btn" data-idx="3">T3</button>
+        <button class="t-index-btn" data-idx="4">T4</button>
+        <button class="t-index-btn" data-idx="5">T5</button>
+      </div>
     </div>
     <div class="row" style="margin-bottom:10px">
       <div class="field" style="flex:3"><label>做T逻辑（可选）</label><input type="text" id="doTNote" placeholder="如：高开回落卖出"></div>
@@ -565,6 +591,7 @@ var holdAcSelectedIndex = -1; // 持仓联想下拉选中索引
 var holdAcResults = []; // 持仓联想结果
 var pendingClearId = ''; // 待清仓的持仓ID
 var pendingDoTId = ''; // 待做T的持仓ID
+var selectedTIndex = 1; // 当前选中的做T序号
 
 // ===== PWA 注册 =====
 if('serviceWorker' in navigator){
@@ -696,6 +723,15 @@ window.addEventListener('DOMContentLoaded', function(){
     if(span && span.getAttribute('data-id') && span.getAttribute('data-field')){
       beginEditHolding(span, span.getAttribute('data-id'), span.getAttribute('data-field'));
     }
+  });
+
+  // ===== 做T弹窗 T1~T5 按钮事件 =====
+  document.getElementById('doTIndexGroup').addEventListener('click', function(e){
+    var btn = e.target.closest('.t-index-btn');
+    if(!btn) return;
+    document.querySelectorAll('#doTIndexGroup .t-index-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedTIndex = parseInt(btn.getAttribute('data-idx')) || 1;
   });
 
   if(!isOnline){
@@ -1074,7 +1110,7 @@ function addTrade(){
   // 乐观更新：先在前端添加
   var tmpId = genTempId();
   var savedTrades = trades.slice();
-  trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note});
+  trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note, tIndex:0, status:'closed'});
   refreshUI();
   showStatus('ok','✅ 已添加');
 
@@ -1282,11 +1318,29 @@ function renderTable(){
     var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
     var stockName=escapeHtml(getStockName(t.code))||'-';
 
+    // T 标徽章：做T记录显示 T1~T5，盈利红色，亏损绿色
+    var tIdx = t.tIndex || 0;
+    var tBadgeHtml = '';
+    if(tIdx > 0){
+      var tBadgeCls = ip ? 't-badge-profit' : 't-badge-loss';
+      tBadgeHtml = '<span class="t-badge '+tBadgeCls+'">T'+tIdx+'</span>';
+    }
+
+    // 未完结/已完结标签
+    var statusHtml = '';
+    var tStatus = t.status || 'closed'; // 兼容旧数据
+    if(tStatus === 'open'){
+      statusHtml = '<span class="status-badge status-open">未完结</span>';
+    } else if(tIdx > 0){
+      // 做T已完结（清仓后）也显示"已完结"
+      statusHtml = '<span class="status-badge status-closed">已完结</span>';
+    }
+
     // 桌面端表格行
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+statusHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
@@ -1298,7 +1352,7 @@ function renderTable(){
     // 移动端卡片
     cardHtml+='<div class="trade-card-item">';
     cardHtml+='<div class="trade-card-header">';
-    cardHtml+='<span class="trade-card-name">'+stockName+'</span>';
+    cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+statusHtml+'</span>';
     cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
     cardHtml+='</div>';
     cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
@@ -1317,12 +1371,14 @@ function renderTable(){
 
 // ===== 统计 =====
 function updateStats(){
-  var total=trades.length,sc=0,tp=0,maxWin=0,maxLoss=0;
-  for(var i=0;i<trades.length;i++){
-    if(trades[i].amount>0) sc++;
-    tp+=trades[i].amount;
-    if(trades[i].amount>maxWin) maxWin=trades[i].amount;
-    if(trades[i].amount<maxLoss) maxLoss=trades[i].amount;
+  // 只统计已完结记录（排除做T未完结），避免做T盈亏与清仓盈亏重复计算
+  var closedTrades = trades.filter(function(t){ return (t.status || 'closed') === 'closed'; });
+  var total=closedTrades.length,sc=0,tp=0,maxWin=0,maxLoss=0;
+  for(var i=0;i<closedTrades.length;i++){
+    if(closedTrades[i].amount>0) sc++;
+    tp+=closedTrades[i].amount;
+    if(closedTrades[i].amount>maxWin) maxWin=closedTrades[i].amount;
+    if(closedTrades[i].amount<maxLoss) maxLoss=closedTrades[i].amount;
   }
   var rate=total>0?(sc/total*100).toFixed(1):0;
   document.getElementById('stTotal').textContent=total;
@@ -1342,9 +1398,10 @@ function renderAnalysis(){
   renderPeriodTable();
 }
 
-// 趋势图
+// 趋势图（排除做T未完结记录）
 function renderTrendChart(){
-  var sorted=trades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  var closedTrades = trades.filter(function(t){ return (t.status || 'closed') === 'closed'; });
+  var sorted=closedTrades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
   // 按天汇总盈亏
   var dayMap={};
   var dayOrder=[];
@@ -1403,10 +1460,11 @@ function renderTrendChart(){
   });
 }
 
-// 分类统计
+// 分类统计（排除做T未完结记录）
 function renderCatStats(){
   var cats={};
   for(var i=0;i<trades.length;i++){
+    if((trades[i].status || 'closed') === 'open') continue; // 跳过做T未完结
     var tag=trades[i].tag||'主板';
     if(!cats[tag]) cats[tag]={total:0,success:0,profit:0};
     cats[tag].total++;
@@ -1433,17 +1491,31 @@ function renderCatStats(){
   document.getElementById('catStats').innerHTML=html;
 }
 
-// 股票综合盈亏
+// 股票综合盈亏（只统计已完结记录，做T未完结不参与计算）
 function renderStockSummary(){
   if(trades.length===0){
     document.getElementById('stockSummaryTable').innerHTML='<tr><td style="padding:20px;color:#999">暂无数据</td></tr>';
     return;
   }
 
-  // 按股票代码分组
+  // 按股票代码分组（只统计已完结记录）
   var groups={};
+  var tGroups={}; // 做T记录分组（用于展示）
   for(var i=0;i<trades.length;i++){
     var code=trades[i].code||'';
+    var tStatus = trades[i].status || 'closed';
+    var tIdx = trades[i].tIndex || 0;
+
+    if(tStatus === 'open'){
+      // 做T未完结记录，单独分组用于展示
+      if(!tGroups[code]) tGroups[code]={trades:0,profit:0,items:[]};
+      tGroups[code].trades++;
+      tGroups[code].profit+=trades[i].amount;
+      tGroups[code].items.push(trades[i]);
+      continue;
+    }
+
+    // 已完结记录（清仓/手动添加）
     if(!groups[code]) groups[code]={trades:0,success:0,profit:0,firstDate:trades[i].date};
     groups[code].trades++;
     if(trades[i].amount>0) groups[code].success++;
@@ -1451,42 +1523,69 @@ function renderStockSummary(){
     if(trades[i].date<groups[code].firstDate) groups[code].firstDate=trades[i].date;
   }
 
-  // 按净盈亏排序（从高到低）
-  var keys=Object.keys(groups).sort(function(a,b){ return groups[b].profit-groups[a].profit; });
+  // 合并：有做T未完结但无清仓的股票也要展示（标记为"持仓中"）
+  var allCodes = {};
+  for(var c in groups) allCodes[c] = true;
+  for(var c in tGroups) allCodes[c] = true;
+
+  // 按净盈亏排序（从高到低），持仓中的排最后
+  var keys=Object.keys(allCodes).sort(function(a,b){
+    var pa = groups[a] ? groups[a].profit : -Infinity;
+    var pb = groups[b] ? groups[b].profit : -Infinity;
+    return pb - pa;
+  });
 
   var totalStocks=keys.length;
   var profitStocks=0, lossStocks=0, totalProfit=0;
   for(var i=0;i<keys.length;i++){
-    if(groups[keys[i]].profit>0) profitStocks++;
-    else if(groups[keys[i]].profit<0) lossStocks++;
-    totalProfit+=groups[keys[i]].profit;
+    var k = keys[i];
+    if(groups[k]){
+      if(groups[k].profit>0) profitStocks++;
+      else if(groups[k].profit<0) lossStocks++;
+      totalProfit+=groups[k].profit;
+    }
   }
 
-  var html='<thead><tr><th>股票名称</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
+  var html='<thead><tr><th>股票名称</th><th>做T次数</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
 
   // 汇总行
   var stockRate=totalStocks>0?(profitStocks/totalStocks*100).toFixed(1):0;
   html+='<tr style="background:#f0f4f8;font-weight:bold">';
   html+='<td>📊 合计（'+totalStocks+'只股票）</td>';
-  html+='<td>-</td><td>-</td><td>-</td>';
+  html+='<td>-</td><td>-</td><td>-</td><td>-</td>';
   html+='<td class="'+(totalProfit>=0?'profit':'loss')+'">'+(totalProfit>=0?'+':'')+totalProfit.toFixed(2)+'</td>';
   html+='<td style="color:'+(stockRate>=50?'#e74c3c':'#27ae60')+'">选股成功率 '+stockRate+'%</td>';
   html+='</tr>';
 
   // 每只股票
   for(var i=0;i<keys.length;i++){
-    var g=groups[keys[i]];
-    var name=getStockName(keys[i]);
+    var k = keys[i];
+    var g = groups[k] || {trades:0,success:0,profit:0};
+    var tg = tGroups[k] || {trades:0,profit:0};
+    var name=getStockName(k);
+    var isHolding = !groups[k] && tGroups[k]; // 仅有做T无清仓=持仓中
     var opRate=g.trades>0?(g.success/g.trades*100).toFixed(1):0;
     var cls=g.profit>=0?'profit':'loss';
-    var result=g.profit>0?'✅ 盈利':g.profit<0?'❌ 亏损':'➖ 持平';
-    var resultColor=g.profit>0?'#e74c3c':g.profit<0?'#27ae60':'#999';
-    html+='<tr>';
-    html+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+keys[i]+'</span></td>';
+    var result, resultColor;
+    if(isHolding){
+      result='🔄 持仓中';
+      resultColor='#856404';
+      cls=''; // 持仓中不加盈亏色
+    } else {
+      result=g.profit>0?'✅ 盈利':g.profit<0?'❌ 亏损':'➖ 持平';
+      resultColor=g.profit>0?'#e74c3c':g.profit<0?'#27ae60':'#999';
+    }
+
+    // 做T次数标签
+    var tCountHtml = tg.trades > 0 ? ('<span style="color:#8e44ad;font-weight:600">T×'+tg.trades+'</span>') : '-';
+
+    html+='<tr'+(isHolding?' style="background:#fffbf0"':'')+'>';
+    html+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span class="status-badge status-open" style="margin-left:4px">持仓中</span>':'')+'</td>';
+    html+='<td>'+tCountHtml+'</td>';
     html+='<td>'+g.trades+'</td>';
     html+='<td>'+g.success+'</td>';
     html+='<td>'+opRate+'%</td>';
-    html+='<td class="'+cls+'">'+(g.profit>=0?'+':'')+g.profit.toFixed(2)+'</td>';
+    html+='<td class="'+cls+'">'+(isHolding?'—':((g.profit>=0?'+':'')+g.profit.toFixed(2)))+'</td>';
     html+='<td style="color:'+resultColor+'">'+result+'</td>';
     html+='</tr>';
   }
@@ -1511,10 +1610,11 @@ function renderPeriodTable(){
     return;
   }
 
-  // 按周期分组
+  // 按周期分组（排除做T未完结记录）
   var groups={};
   var keyLabels={}; // 排序key -> 显示标签
   for(var i=0;i<trades.length;i++){
+    if((trades[i].status || 'closed') === 'open') continue; // 跳过做T未完结
     var d=new Date(trades[i].date);
     var key, label;
     if(currentPeriod==='week'){
@@ -1727,12 +1827,19 @@ function submitClearHolding(){
   if(holding){
     // 从持仓中移除
     holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
-    // 添加到交易记录（日期用当天，不是买入日期）
+    // 添加到交易记录（标记为已完结，这是该股票的真实总盈亏）
     var tmpTradeId = genTempId();
     var today = new Date();
     var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     var finalNote = note || holding.note || '';
-    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote});
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:finalNote, tIndex:0, status:'closed'});
+
+    // 将该股票所有做T未完结记录标记为已完结
+    for(var j=0;j<trades.length;j++){
+      if(trades[j].code === holding.code && (trades[j].status || 'closed') === 'open'){
+        trades[j].status = 'closed';
+      }
+    }
   }
 
   closeClearHolding();
@@ -1766,6 +1873,20 @@ function openDoT(id){
   document.getElementById('doTStockName').textContent=escapeHtml(getStockName(h.code))||h.code;
   document.getElementById('doTAmount').value='';
   document.getElementById('doTNote').value='';
+
+  // 自动检测该持仓已做T次数，默认选中下一个
+  var maxT = 0;
+  for(var i=0;i<trades.length;i++){
+    if(trades[i].code === h.code && trades[i].tIndex > 0){
+      if(trades[i].tIndex > maxT) maxT = trades[i].tIndex;
+    }
+  }
+  var nextT = Math.min(maxT + 1, 5);
+  selectedTIndex = nextT;
+  document.querySelectorAll('#doTIndexGroup .t-index-btn').forEach(function(b){
+    b.classList.toggle('active', parseInt(b.getAttribute('data-idx')) === nextT);
+  });
+
   document.getElementById('doTModal').classList.add('active');
   setTimeout(function(){ document.getElementById('doTAmount').focus(); },100);
 }
@@ -1776,9 +1897,9 @@ function submitDoT(){
   var note=document.getElementById('doTNote').value.trim();
   if(isNaN(amount)){ alert('请填写做T盈亏金额！'); return; }
 
-  // 构建备注：做T盈利/亏损金额 + 可选逻辑
+  // 构建备注：做T盈利/亏损金额 + T序号 + 可选逻辑
   var absAmt = Math.abs(amount).toFixed(2);
-  var doTNote = amount >= 0 ? '做T盈利'+absAmt+'元' : '做T亏损'+absAmt+'元';
+  var doTNote = 'T'+selectedTIndex+' ' + (amount >= 0 ? '盈利'+absAmt+'元' : '亏损'+absAmt+'元');
   if(note) doTNote += '（' + note + '）';
 
   var id = pendingDoTId;
@@ -1794,15 +1915,15 @@ function submitDoT(){
     var tmpTradeId = genTempId();
     var today = new Date();
     var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:doTNote});
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:holding.quantity, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open'});
   }
 
   closeDoT();
   refreshUI();
-  showStatus('ok','✅ 做T已记录');
+  showStatus('ok','✅ 做T'+selectedTIndex+'已记录');
 
   // 后台同步
-  apiCall({action:'doT',id:id,amount:amount,note:doTNote}, function(res){
+  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex}, function(res){
     if(res&&res.success){
       // 用云端真ID替换临时ID
       if(res.tradeId){
