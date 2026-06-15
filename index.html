@@ -1993,11 +1993,56 @@ function submitClearHolding(){
           if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
         }
         cacheData(trades);
+      }
+      // 部分清仓成功后，必须重新从服务器加载持仓列表以确认一致性
+      // 防止后端（可能是旧版代码）将部分清仓当作全仓处理导致前后端不同步
+      if(isPartial){
+        apiCall({action:'listHoldings'}, function(hRes){
+          if(hRes&&hRes.success&&hRes.data){
+            var found=false;
+            for(var k=0;k<hRes.data.length;k++){ if(String(hRes.data[k].id)===String(id)){ found=true; break; } }
+            if(!found){
+              // 后端已经删除了该持仓（说明后端当作全仓处理了）
+              // 前端需要修正：移除本地持仓，提示用户刷新
+              holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
+              showStatus('err','⚠️ 检测到云端持仓已被清除，数据已自动同步');
+            } else {
+              // 后端还有该持仓，更新本地数量为后端实际值
+              for(var m=0;m<holdings.length;m++){
+                if(String(holdings[m].id)===String(id)){
+                  for(var n=0;n<hRes.data.length;n++){
+                    if(String(hRes.data[n].id)===String(id)){
+                      holdings[m].quantity = hRes.data[n].quantity;
+                      break;
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+            cacheData(trades);
+            refreshUI();
+            _checkSyncStatus();
+          }
+        });
+      } else {
         refreshUI();
         _checkSyncStatus();
       }
     } else {
-      rollbackOptimistic(savedTrades, savedHoldings, '❌ 清仓失败：'+(res?res.error:''));
+      var errMsg = res ? (res.error || '') : '';
+      // 特殊处理："持仓记录不存在" 错误
+      // 这通常意味着后端在之前的某次操作中已经删除了该持仓（可能后端是旧版代码，
+      // 将部分清仓误判为全仓清仓并删除了持仓行），而前端乐观更新还保留着本地持仓
+      if(errMsg.indexOf('持仓记录不存在') !== -1 && !isPartial){
+        // 全仓清仓时发现后端没有该持仓 → 说明交易记录可能已经在之前被写入
+        // 策略：保留本次添加的交易记录（乐观更新的trade），移除本地持仓标记，重新加载全部数据
+        showStatus('err','⚠️ 云端持仓记录不存在，正在重新同步数据...');
+        // 保留乐观添加的trade（tmpTradeId），但需要重新加载来获取真ID
+        loadAll(); // 重新从服务器加载所有数据，覆盖本地状态
+      } else {
+        rollbackOptimistic(savedTrades, savedHoldings, '❌ 清仓失败：'+errMsg);
+      }
     }
   });
 }
