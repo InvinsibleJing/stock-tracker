@@ -515,7 +515,7 @@ tbody tr:hover { background:#f8f9fa; }
 <div class="modal-bg" id="clearHoldingModal">
   <div class="modal">
     <h2>🎯 清仓 - <span id="clearStockName"></span></h2>
-    <p>将该持仓清仓，盈亏将记录到交易记录中。<b>请填写该股票的真实总盈亏金额</b>（包含此前所有做T的盈亏），此金额即为该股票全周期的最终结果。</p>
+    <p id="clearDesc">将该持仓清仓，盈亏将记录到交易记录中。<b>请填写本次清仓部分的真实盈亏金额</b>，此金额即为本次操作的结果。</p>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>盈亏金额（¥）</label><input type="number" id="clearAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
@@ -635,9 +635,11 @@ if('serviceWorker' in navigator){
 window.addEventListener('beforeinstallprompt', function(e){
   e.preventDefault();
   deferredPrompt = e;
-  // 延迟3秒显示安装提示
+  // 延迟3秒显示安装提示（如果用户未点击"以后再说"）
   setTimeout(function(){
-    if(deferredPrompt) document.getElementById('installBanner').classList.add('show');
+    if(deferredPrompt && !localStorage.getItem('install_dismissed')){
+      document.getElementById('installBanner').classList.add('show');
+    }
   }, 3000);
 });
 
@@ -764,7 +766,16 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 
   // ===== 清仓弹窗 仓位按钮事件 =====
-  setupPosGroup('clearPosGroup', 'clearCustomQty', 'clearQtyDisplay', function(pos){ selectedClearPos = pos; });
+  setupPosGroup('clearPosGroup', 'clearCustomQty', 'clearQtyDisplay', function(pos){
+    selectedClearPos = pos;
+    // 根据仓位类型更新提示文字
+    var desc = document.getElementById('clearDesc');
+    if(pos === 'full'){
+      desc.innerHTML = '将该持仓清仓，盈亏将记录到交易记录中。<b>请填写该股票的真实总盈亏金额</b>，此金额即为该股票全周期的最终结果。';
+    } else {
+      desc.innerHTML = '部分清仓，盈亏将记录到交易记录中。<b>请填写本次清仓部分的真实盈亏金额</b>（仅本次操作的盈亏，非全部持仓的总盈亏）。';
+    }
+  });
 
   // ===== 做T弹窗 仓位按钮事件 =====
   setupPosGroup('doTPosGroup', 'doTCustomQty', 'doTQtyDisplay', function(pos){ selectedDoTPos = pos; });
@@ -1554,10 +1565,16 @@ function renderStockSummary(){
     if(trades[i].date<groups[code].firstDate) groups[code].firstDate=trades[i].date;
   }
 
-  // 合并：有做T未完结但无清仓的股票也要展示（标记为"持仓中"）
+  // 合并：有做T但无清仓的股票也要展示；同时在holdings中的标记为"持仓中"
+  var holdingCodes = {};
+  for(var i=0;i<holdings.length;i++){
+    holdingCodes[holdings[i].code] = true;
+  }
   var allCodes = {};
   for(var c in groups) allCodes[c] = true;
   for(var c in tGroups) allCodes[c] = true;
+  // 持仓中但没有任何交易记录的股票也要展示
+  for(var c in holdingCodes) allCodes[c] = true;
 
   // 按净盈亏排序（从高到低），持仓中的排最后
   var keys=Object.keys(allCodes).sort(function(a,b){
@@ -1594,7 +1611,7 @@ function renderStockSummary(){
     var g = groups[k] || {trades:0,success:0,profit:0};
     var tg = tGroups[k] || {trades:0,profit:0};
     var name=getStockName(k);
-    var isHolding = !groups[k] && tGroups[k]; // 仅有做T无清仓=持仓中
+    var isHolding = !!holdingCodes[k]; // 从holdings数组判断是否仍在持仓
     var opRate=g.trades>0?(g.success/g.trades*100).toFixed(1):0;
     var cls=g.profit>=0?'profit':'loss';
     var result, resultColor;
