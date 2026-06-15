@@ -64,6 +64,14 @@ th { padding:10px 8px; font-weight:500; white-space:nowrap; }
 td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; }
 tbody tr:hover { background:#f8f9fa; }
 
+/* 拖拽排序 */
+.drag-handle { cursor:grab; opacity:0; transition:opacity 0.15s; color:#bbb; font-size:16px; margin-right:2px; user-select:none; line-height:1; }
+tr:hover .drag-handle { opacity:1; }
+.drag-handle:active { cursor:grabbing; }
+tr.dragging { opacity:0.4; background:#e8f4fd !important; }
+tr.drag-over-top { box-shadow:inset 0 2px 0 0 #3498db; }
+tr.drag-over-bottom { box-shadow:inset 0 -2px 0 0 #3498db; }
+
 .profit { color:#e74c3c; font-weight:bold; }
 .loss { color:#27ae60; font-weight:bold; }
 .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; }
@@ -620,6 +628,7 @@ var pendingClearId = ''; // 待清仓的持仓ID
 var pendingDoTId = ''; // 待做T的持仓ID
 var selectedTIndex = 1; // 当前选中的做T序号
 var selectedClearPos = 'full'; // 清仓仓位选择：full/half/third/custom
+var _manualSortMode = false; // 拖拽排序后进入手动排序模式，阻止默认日期排序
 var selectedDoTPos = 'full'; // 做T仓位选择：full/half/third/custom
 
 // ===== PWA 注册 =====
@@ -698,6 +707,87 @@ window.addEventListener('DOMContentLoaded', function(){
       beginEdit(td, td.getAttribute('data-id'), td.getAttribute('data-field'));
     }
   });
+
+  // ===== 拖拽排序：交易记录表格 =====
+  (function(){
+    var tbody = document.getElementById('tbBody');
+    var dragSrcIdx = null;
+
+    tbody.addEventListener('dragstart', function(e){
+      var tr = e.target.closest('tr');
+      if(!tr || !tr.hasAttribute('data-idx')) return;
+      dragSrcIdx = parseInt(tr.getAttribute('data-idx'));
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragSrcIdx);
+    });
+
+    tbody.addEventListener('dragend', function(e){
+      var tr = e.target.closest('tr');
+      if(tr) tr.classList.remove('dragging');
+      // 清除所有拖拽指示样式
+      tbody.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(r){
+        r.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      dragSrcIdx = null;
+    });
+
+    tbody.addEventListener('dragover', function(e){
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var tr = e.target.closest('tr');
+      if(!tr || !tr.hasAttribute('data-idx')) return;
+      // 清除旧指示
+      tbody.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(function(r){
+        r.classList.remove('drag-over-top','drag-over-bottom');
+      });
+      var targetIdx = parseInt(tr.getAttribute('data-idx'));
+      if(targetIdx === dragSrcIdx) return;
+      // 判断鼠标在目标行的上半还是下半
+      var rect = tr.getBoundingClientRect();
+      var midY = rect.top + rect.height / 2;
+      if(e.clientY < midY){
+        tr.classList.add('drag-over-top');
+      } else {
+        tr.classList.add('drag-over-bottom');
+      }
+    });
+
+    tbody.addEventListener('dragleave', function(e){
+      var tr = e.target.closest('tr');
+      if(tr) tr.classList.remove('drag-over-top','drag-over-bottom');
+    });
+
+    tbody.addEventListener('drop', function(e){
+      e.preventDefault();
+      var tr = e.target.closest('tr');
+      if(!tr || !tr.hasAttribute('data-idx')) return;
+      var targetIdx = parseInt(tr.getAttribute('data-idx'));
+      if(dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+
+      // 判断插入位置：上方=before，下方=after
+      var rect = tr.getBoundingClientRect();
+      var midY = rect.top + rect.height / 2;
+      var insertAfter = e.clientY >= midY;
+
+      // 从数组中取出被拖动的元素
+      var item = trades.splice(dragSrcIdx, 1)[0];
+      // 计算插入位置（因为splice了，所以目标索引可能变化）
+      var newTargetIdx = targetIdx;
+      if(dragSrcIdx < targetIdx) newTargetIdx--;
+      if(insertAfter) newTargetIdx++;
+      trades.splice(newTargetIdx, 0, item);
+
+      // 进入手动排序模式，防止renderTable重新按日期排序
+      _manualSortMode = true;
+
+      // 重新渲染并缓存
+      renderTable();
+      updateStats();
+      cacheData(trades);
+      showStatus('ok','✅ 已调整顺序');
+    });
+  })();
 
   // ===== 事件委托：交易记录卡片（移动端） =====
   document.getElementById('tradeCard').addEventListener('click', function(e){
@@ -1096,6 +1186,7 @@ function loadTrades(){
     if(res && res.success){
       trades=res.data||[];
       cacheData(trades);
+      _manualSortMode = false; // 从服务器加载后重置为默认排序
       renderTable(); updateStats();
       _tradesLoaded=true; _checkSyncStatus();
     } else {
@@ -1342,7 +1433,10 @@ function renderTable(){
   if(trades.length===0){ tbody.innerHTML=''; cardEl.innerHTML=''; msg.style.display='block'; return; }
   msg.style.display='none';
 
-  trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
+  // 仅在非手动排序模式下按日期排序（拖拽后保持用户自定义顺序）
+  if(!_manualSortMode){
+    trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
+  }
 
   var html='';
   var cardHtml='';
@@ -1369,8 +1463,8 @@ function renderTable(){
     }
 
     // 桌面端表格行
-    html+='<tr>';
-    html+='<td>'+(i+1)+'</td>';
+    html+='<tr draggable="true" data-idx="'+i+'">';
+    html+='<td><span class="drag-handle" title="拖动排序">⠿</span>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+sourceHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
