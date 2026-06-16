@@ -2044,7 +2044,10 @@ function autoCalcClearProfit(){
 
   document.getElementById('clearAmount').value = profit;
   document.getElementById('clearAutoCalcHint').style.display = 'block';
-  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 已自动计算盈亏（成本价已含买入手续费，本次只扣卖出手续费）' + feeDetailText(sellFees) + '，可手动修改';
+  var clearTip = '✅ 已自动计算盈亏（成本价已含买入手续费，本次只扣卖出手续费）';
+  if(sellFees.total > 0) clearTip += ' — 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元';
+  clearTip += '，可手动修改';
+  document.getElementById('clearAutoCalcHint').innerHTML = clearTip;
 }
 
 // 做T：盈亏 = (卖出价 - 买回价) × 做T数量 - 卖出手续费 - 买回手续费
@@ -2075,7 +2078,13 @@ function autoCalcDoTProfit(){
   profit = Math.round(profit * 100) / 100;
   document.getElementById('doTAmount').value = profit;
   document.getElementById('doTAutoCalcHint').style.display = 'block';
-  document.getElementById('doTAutoCalcHint').innerHTML = '✅ 已自动计算做T盈亏（含手续费）' + feeDetailText(sellFees) + ' + ' + feeDetailText(buyBackFees) + '，可手动修改';
+  var totalFees = Math.round((sellFees.total + buyBackFees.total) * 100) / 100;
+  var tip = '✅ 已自动计算做T盈亏（已扣除手续费）';
+  if(totalFees > 0){
+    tip += ' — 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元 + 买回手续费 ' + buyBackFees.total.toFixed(2) + ' 元，合计 ' + totalFees.toFixed(2) + ' 元';
+  }
+  tip += '，可手动修改';
+  document.getElementById('doTAutoCalcHint').innerHTML = tip;
 }
 
 // 根据仓位类型和持仓数量计算实际操作股数
