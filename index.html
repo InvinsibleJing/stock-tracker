@@ -1482,10 +1482,49 @@ function renderTable(){
 
   trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
+  // 按月份分组（YYYY-MM）
+  var groups = [];
+  var curMonth = '';
+  for(var i=0;i<trades.length;i++){
+    var t = trades[i];
+    var m = t.date.substring(0,7); // "2026-06"
+    if(m !== curMonth){
+      curMonth = m;
+      groups.push({ month: m, label: m.replace('-','年')+'月', trades: [] });
+    }
+    groups[groups.length-1].trades.push(t);
+  }
+
   var html='';
   var cardHtml='';
-  for(var i=0;i<trades.length;i++){
-    var t=trades[i], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
+  var seq = 0;
+
+  for(var gi=0;gi<groups.length;gi++){
+    var g = groups[gi];
+    var gTrades = g.trades;
+    // 计算该月统计
+    var gCount = gTrades.length;
+    var gProfit = 0;
+    for(var k=0;k<gTrades.length;k++){ gProfit += gTrades[k].amount; }
+    var gCls = gProfit >= 0 ? 'profit' : 'loss';
+    var gSign = gProfit >= 0 ? '+' : '';
+    var gOpen = gi === 0; // 默认展开最新月份
+
+    // 桌面端：月份标题行
+    html+='<tr class="month-header" data-month="'+g.month+'" onclick="toggleMonth(this)" style="cursor:pointer;background:#f0f4f8">';
+    html+='<td colspan="10" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
+    html+='<span class="month-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(gOpen?'▼':'▶')+'</span> ';
+    html+=escapeHtml(g.label)+' ';
+    html+='<span style="color:#888;font-weight:400">'+gCount+'条</span> ';
+    html+='<span class="'+gCls+'" style="float:right;font-weight:600">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</span>';
+    html+='</td></tr>';
+
+    // 桌面端的行样式（按月份隐藏）
+    var rowStyle = gOpen ? '' : ' style="display:none"';
+
+    for(var j=0;j<gTrades.length;j++){
+      seq++;
+      var t=gTrades[j], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
     var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').trim();
     var noteShow=escapeHtml(rawNote||'-');
     var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -1525,8 +1564,8 @@ function renderTable(){
     var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
 
     // 桌面端表格行
-    html+='<tr>';
-    html+='<td>'+(i+1)+'</td>';
+    html+='<tr class="month-row-'+g.month+'"'+rowStyle+'>';
+    html+='<td>'+seq+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+sourceHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
@@ -1538,8 +1577,8 @@ function renderTable(){
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
     html+='</tr>';
 
-    // 移动端卡片
-    cardHtml+='<div class="trade-card-item">';
+    // 移动端卡片（按月份分组包裹）
+    cardHtml+='<div class="trade-card-item month-row-'+g.month+'"'+rowStyle+'>';
     cardHtml+='<div class="trade-card-header">';
     cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
     cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
@@ -1554,9 +1593,22 @@ function renderTable(){
     cardHtml+='<button class="trade-card-del" data-id="'+t.id+'" data-action="deleteTrade">删除</button>';
     cardHtml+='</div>';
     cardHtml+='</div>';
-  }
+    } // end group trades loop
+  } // end groups loop
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
+}
+
+// 切换月份折叠（桌面端行 + 移动端卡片同步）
+function toggleMonth(el){
+  var month = el.getAttribute('data-month');
+  var rows = document.querySelectorAll('.month-row-'+month);
+  var toggle = el.querySelector('.month-toggle');
+  var isOpen = toggle.textContent === '▼';
+  for(var i=0;i<rows.length;i++){
+    rows[i].style.display = isOpen ? 'none' : '';
+  }
+  toggle.textContent = isOpen ? '▶' : '▼';
 }
 
 // ===== 统计 =====
