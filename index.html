@@ -854,6 +854,8 @@ window.addEventListener('DOMContentLoaded', function(){
     selectedAccountType = btn.getAttribute('data-acc') || 'normal';
     // 记住用户选择，刷新不丢失
     try{ localStorage.setItem('stock_account_type', selectedAccountType); }catch(e){}
+    // 切换账户时立即筛选持仓列表
+    renderHoldings();
   });
 
   // 恢复上次选择的账户类型
@@ -2503,15 +2505,21 @@ function renderHoldings(){
   var tbody=document.getElementById('holdBody');
   var cardEl=document.getElementById('holdCard');
   var msg=document.getElementById('holdEmpty');
-  if(holdings.length===0){ tbody.innerHTML=''; cardEl.innerHTML=''; msg.style.display='block'; return; }
+
+  // 根据当前选中的账户类型筛选持仓
+  var filtered = holdings.filter(function(h) {
+    return (h.accountType || 'normal') === selectedAccountType;
+  });
+
+  if(filtered.length===0){ tbody.innerHTML=''; cardEl.innerHTML=''; msg.style.display='block'; return; }
   msg.style.display='none';
 
-  holdings.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
+  filtered.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
   var html='';
   var cardHtml='';
-  for(var i=0;i<holdings.length;i++){
-    var h=holdings[i];
+  for(var i=0;i<filtered.length;i++){
+    var h=filtered[i];
     var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
     var noteShow=escapeHtml(h.note||'-');
     var stockName=escapeHtml(getStockName(h.code))||'-';
