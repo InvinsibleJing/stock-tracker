@@ -2376,6 +2376,7 @@ function submitAddComplete(){
       }
       cacheData(trades);
       refreshUI();
+      _checkSyncStatus();
     } else {
       trades = savedTrades;
       refreshUI();
