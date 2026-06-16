@@ -721,7 +721,7 @@ function feeDetailText(fees) {
   if (fees.commission > 0) parts.push('佣金' + fees.commission.toFixed(2));
   if (fees.stampTax > 0) parts.push('印花税' + fees.stampTax.toFixed(2));
   if (fees.transferFee > 0) parts.push('过户费' + fees.transferFee.toFixed(2));
-  return '（手续费 ' + fees.total.toFixed(2) + ' 元：' + parts.join(' + ') + '）';
+  return '（' + parts.join(' + ') + '）';
 }
 
 // ===== PWA 注册 =====
