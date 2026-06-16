@@ -61,7 +61,7 @@ h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 thead { background:#34495e; color:white; }
 th { padding:10px 8px; font-weight:500; white-space:nowrap; }
-td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; }
+td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
 tbody tr:hover { background:#f8f9fa; }
 
 .profit { color:#e74c3c; font-weight:bold; }
@@ -75,9 +75,9 @@ tbody tr:hover { background:#f8f9fa; }
 .acc-margin { background:#fdf2e8; color:#d35400; }
 
 /* Tooltip */
-.tooltip-box { display:none; position:absolute; z-index:9999; background:#2c3e50; color:#ecf0f1; padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.3); pointer-events:none; }
+.tooltip-box { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:6px; z-index:9999; background:#2c3e50; color:#ecf0f1; padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.3); pointer-events:none; }
 .tooltip-box::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:#2c3e50; }
-.editable { cursor:pointer; position:relative; }
+.editable { cursor:pointer; position:relative; overflow:visible; }
 .editable:hover .tooltip-box { display:block; }
 .editable:hover { background:#eef5fb; border-radius:4px; }
 .editable::after { content:"✎"; font-size:9px; color:#bdc3c7; margin-left:2px; opacity:0; transition:opacity 0.2s; }
