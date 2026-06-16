@@ -109,11 +109,11 @@ tbody tr:hover { background:#f8f9fa; }
 .source-clear { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:600; margin-left:4px; vertical-align:middle; background:#d1ecf1; color:#0c5460; }
 
 /* 仓位选择按钮组 */
-.pos-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.pos-btn { padding:7px 16px; border:2px solid #ddd; border-radius:8px; background:white; cursor:pointer; font-size:13px; font-weight:600; color:#666; transition:all 0.15s; }
+.pos-group { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; }
+.pos-btn { padding:7px 16px; border:2px solid #ddd; border-radius:8px; background:white; cursor:pointer; font-size:13px; font-weight:600; color:#666; transition:all 0.15s; white-space:nowrap; }
 .pos-btn:hover { border-color:#e67e22; color:#e67e22; background:#fef9f3; }
 .pos-btn.active { border-color:#e67e22; background:#e67e22; color:white; }
-.pos-custom-input { width:80px; padding:7px 10px; border:2px solid #ddd; border-radius:8px; font-size:13px; text-align:center; outline:none; transition:border-color 0.15s; }
+.pos-custom-input { width:88px !important; min-width:88px !important; max-width:88px !important; padding:7px 12px !important; border:2px solid #ddd !important; border-radius:8px !important; background:white !important; font-size:13px !important; font-weight:600 !important; color:#666 !important; text-align:center !important; outline:none; transition:all 0.15s; flex-shrink:0 !important; box-sizing:border-box !important; vertical-align:middle; -webkit-appearance:none; appearance:none; margin:0 !important; }
 .pos-custom-input:focus { border-color:#e67e22; }
 .pos-qty-display { font-size:12px; color:#888; margin-top:4px; min-height:18px; }
 
@@ -142,6 +142,7 @@ tbody tr:hover { background:#f8f9fa; }
 .period-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:12px; }
 .period-table th { background:#f0f4f8; color:#555; padding:8px; font-weight:500; }
 .period-table td { padding:8px; text-align:center; border-bottom:1px solid #eee; }
+.period-table td:first-child, .period-table th:first-child { text-align:left; }
 
 /* 设置弹窗 */
 .modal-bg { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:999; justify-content:center; align-items:center; }
@@ -528,7 +529,7 @@ tbody tr:hover { background:#f8f9fa; }
         <button class="pos-btn active" data-pos="full">全部</button>
         <button class="pos-btn" data-pos="half">1/2</button>
         <button class="pos-btn" data-pos="third">1/3</button>
-        <input type="number" class="pos-custom-input" id="clearCustomQty" placeholder="自定义股数" min="1" step="1">
+        <input type="number" class="pos-custom-input" id="clearCustomQty" placeholder="自定义" min="1" step="1">
       </div>
       <div class="pos-qty-display" id="clearQtyDisplay"></div>
     </div>
@@ -561,7 +562,7 @@ tbody tr:hover { background:#f8f9fa; }
         <button class="pos-btn active" data-pos="full">全部</button>
         <button class="pos-btn" data-pos="half">1/2</button>
         <button class="pos-btn" data-pos="third">1/3</button>
-        <input type="number" class="pos-custom-input" id="doTCustomQty" placeholder="自定义股数" min="1" step="1">
+        <input type="number" class="pos-custom-input" id="doTCustomQty" placeholder="自定义" min="1" step="1">
       </div>
       <div class="pos-qty-display" id="doTQtyDisplay"></div>
     </div>
@@ -611,7 +612,7 @@ tbody tr:hover { background:#f8f9fa; }
 
 <script>
 // ===== 配置 =====
-var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbwbBgvHJ7VDyQri-Vk4TB2XQHWeb3xXrYRgiuH3VjOjM67OOLc6dZFQsJBFYQtgcKIcaw/exec';
+var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbz-ShMppP3oxI783NlmvR08IUYTbfq3qVt8L1ctwWCfeLvig5NyZURyMm_1N5RtVF-miQ/exec';
 var trades = [];
 var holdings = [];
 var isLoading = false;
@@ -776,6 +777,7 @@ window.addEventListener('DOMContentLoaded', function(){
   // ===== 清仓弹窗 仓位按钮事件 =====
   setupPosGroup('clearPosGroup', 'clearCustomQty', 'clearQtyDisplay', function(pos){
     selectedClearPos = pos;
+    autoCalcClearProfit();
     // 根据仓位类型更新提示文字
     var desc = document.getElementById('clearDesc');
     if(pos === 'full'){
@@ -786,7 +788,7 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 
   // ===== 做T弹窗 仓位按钮事件 =====
-  setupPosGroup('doTPosGroup', 'doTCustomQty', 'doTQtyDisplay', function(pos){ selectedDoTPos = pos; });
+  setupPosGroup('doTPosGroup', 'doTCustomQty', 'doTQtyDisplay', function(pos){ selectedDoTPos = pos; autoCalcDoTProfit(); });
 
   if(!isOnline){
     document.getElementById('offlineTip').classList.add('show');
@@ -1584,8 +1586,11 @@ function renderStockSummary(){
   // 持仓中但没有任何交易记录的股票也要展示
   for(var c in holdingCodes) allCodes[c] = true;
 
-  // 按净盈亏排序（从高到低），持仓中的排最后
+  // 持仓中的排在最前面，其余按净盈亏从高到低
   var keys=Object.keys(allCodes).sort(function(a,b){
+    var ha = !!holdingCodes[a];
+    var hb = !!holdingCodes[b];
+    if(ha !== hb) return ha ? -1 : 1; // 持仓中优先
     var pa = groups[a] ? groups[a].profit : -Infinity;
     var pb = groups[b] ? groups[b].profit : -Infinity;
     return pb - pa;
