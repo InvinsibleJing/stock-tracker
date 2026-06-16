@@ -2364,6 +2364,7 @@ function submitAddComplete(){
   trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
   
   closeAddComplete();
+  cacheData(trades);
   refreshUI();
   showStatus('ok','✅ 已补录「'+getStockName(code)+'」清仓，盈亏'+amount.toFixed(2)+'元');
   
@@ -2374,6 +2375,7 @@ function submitAddComplete(){
         if(trades[j].id===tmpTradeId){ trades[j].id=res.id; break; }
       }
       cacheData(trades);
+      refreshUI();
     } else {
       trades = savedTrades;
       refreshUI();
