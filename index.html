@@ -513,8 +513,8 @@ tbody tr:hover { background:#f8f9fa; }
       </div>
     </div>
     <div class="row" style="margin-bottom:10px">
-      <div class="field"><label>买入数量（股）</label><input type="number" id="holdQty" placeholder="如 1000" step="100"></div>
-      <div class="field"><label>买入价格（元）</label><input type="number" id="holdBuyPrice" placeholder="如 10.50" step="0.001"></div>
+      <div class="field"><label>买入数量（股）</label><input type="number" id="holdQty" placeholder="如 1000" step="100" oninput="autoCalcBuyFees()"></div>
+      <div class="field"><label>买入价格（元）</label><input type="number" id="holdBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcBuyFees()"></div>
       <div class="field"><label>板块分类</label>
         <select id="holdTag">
           <option value="主板">主板</option>
@@ -523,6 +523,7 @@ tbody tr:hover { background:#f8f9fa; }
         </select>
       </div>
     </div>
+    <p id="addHoldFeeHint" style="display:none;font-size:11px;color:#7f8c8d;margin:0 0 10px 0"></p>
     <div class="row" style="margin-bottom:10px">
       <div class="field" style="flex:3"><label>买入逻辑（可选）</label><input type="text" id="holdNote" placeholder="如：突破均线买入"></div>
     </div>
@@ -2046,6 +2047,28 @@ function autoCalcClearProfit(){
   var detail = '';
   if(sellFees.total > 0) detail = feeDetailText(sellFees);
   document.getElementById('clearAutoCalcHint').innerHTML = '✅ 本次卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + detail;
+}
+
+// ===== 添加持仓手续费提示 =====
+function autoCalcBuyFees(){
+  var price = parseFloat(document.getElementById('holdBuyPrice').value);
+  var qty = parseInt(document.getElementById('holdQty').value);
+  var hint = document.getElementById('addHoldFeeHint');
+  if(isNaN(price) || isNaN(qty) || price <= 0 || qty <= 0){
+    hint.style.display = 'none';
+    return;
+  }
+  var code = document.getElementById('holdCode').value.trim();
+  var fees = calcFees(price, qty, false, selectedAccountType, code);
+  if(fees.total === 0){
+    hint.style.display = 'none';
+    return;
+  }
+  var parts = [];
+  if(fees.commission > 0) parts.push('佣金' + fees.commission.toFixed(2) + '元');
+  if(fees.transferFee > 0) parts.push('过户费' + fees.transferFee.toFixed(2) + '元');
+  hint.style.display = 'block';
+  hint.innerHTML = '💰 预计买入手续费 <b>' + fees.total.toFixed(2) + '</b> 元（' + parts.join(' + ') + '），将摊入成本价';
 }
 
 // 做T：盈亏 = (卖出价 - 买回价) × 做T数量 - 卖出手续费 - 买回手续费
