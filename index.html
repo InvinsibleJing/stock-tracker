@@ -62,6 +62,7 @@ table { width:100%; border-collapse:collapse; font-size:13px; }
 thead { background:#34495e; color:white; }
 th { padding:10px 8px; font-weight:500; white-space:nowrap; }
 td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
+/* 包含 tooltip 的行避免被 table-wrap 裁剪 */
 tbody tr:hover { background:#f8f9fa; }
 
 .profit { color:#e74c3c; font-weight:bold; }
@@ -424,7 +425,7 @@ tbody tr:hover { background:#f8f9fa; }
       <h2>📋 交易记录</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>数量</th><th>盈利金额</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
+          <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>数量</th><th>盈亏金额</th><th>手续费</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
           <tbody id="tbBody"></tbody>
         </table>
       </div>
@@ -541,7 +542,7 @@ tbody tr:hover { background:#f8f9fa; }
       <div class="field"><label>卖出价格（元）</label><input type="number" id="clearSellPrice" step="0.001" placeholder="如 11.00" oninput="autoCalcClearProfit()"></div>
       <div class="field"><label>盈亏金额（¥）</label><input type="number" id="clearAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
-    <p id="clearAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0">✅ 已根据成本价自动计算盈亏，可手动修改</p>
+    <p id="clearAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0"></p>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">清仓仓位</label>
       <div class="pos-group" id="clearPosGroup">
@@ -574,7 +575,7 @@ tbody tr:hover { background:#f8f9fa; }
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>做T盈亏（¥）</label><input type="number" id="doTAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
     </div>
-    <p id="doTAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0">✅ 已自动计算做T盈亏，可手动修改</p>
+    <p id="doTAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0"></p>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">做T仓位</label>
       <div class="pos-group" id="doTPosGroup">
@@ -1504,12 +1505,8 @@ function renderTable(){
       sourceHtml = '<span class="source-clear">清仓</span>';
     }
 
-    // 手续费提示
-    var feesTip = '';
-    if(t.fees && t.fees > 0){
-      feesTip = '<div class="tooltip-box">手续费：' + t.fees.toFixed(2) + ' 元</div>';
-    }
-    var amountHtml = sign+'¥'+t.amount.toFixed(2) + feesTip;
+    // 手续费显示
+    var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
 
     // 桌面端表格行
     html+='<tr>';
@@ -1518,7 +1515,8 @@ function renderTable(){
     html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+sourceHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
-    html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+amountHtml+'</td>';
+    html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
+    html+='<td style="color:#7f8c8d">'+feesShow+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
@@ -1528,10 +1526,11 @@ function renderTable(){
     cardHtml+='<div class="trade-card-item">';
     cardHtml+='<div class="trade-card-header">';
     cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
-    cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+amountHtml+'</span>';
+    cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
     cardHtml+='</div>';
     cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
     cardHtml+='<div class="trade-card-row"><span class="label">数量</span><span class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</span></div>';
+    if(t.fees && t.fees > 0) cardHtml+='<div class="trade-card-row"><span class="label">手续费</span><span style="color:#7f8c8d">¥'+t.fees.toFixed(2)+'</span></div>';
     cardHtml+='<div class="trade-card-row"><span class="label">备注</span><span class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</span></div>';
     cardHtml+='<div class="trade-card-footer">';
     cardHtml+='<span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span>';
@@ -2046,7 +2045,7 @@ function autoCalcClearProfit(){
   document.getElementById('clearAutoCalcHint').style.display = 'block';
   var detail = '';
   if(sellFees.total > 0) detail = feeDetailText(sellFees);
-  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 本次卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + detail + '，可手动修改';
+  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 本次卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + detail;
 }
 
 // 做T：盈亏 = (卖出价 - 买回价) × 做T数量 - 卖出手续费 - 买回手续费
@@ -2082,10 +2081,7 @@ function autoCalcDoTProfit(){
   if(sellFees.total > 0 || buyBackFees.total > 0){
     tip += ' 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + feeDetailText(sellFees);
     if(buyBackFees.total > 0) tip += ' + 买回手续费 ' + buyBackFees.total.toFixed(2) + ' 元' + feeDetailText(buyBackFees);
-  } else {
-    tip += ' 已自动计算做T盈亏（无手续费）';
   }
-  tip += '，可手动修改';
   document.getElementById('doTAutoCalcHint').innerHTML = tip;
 }
 
