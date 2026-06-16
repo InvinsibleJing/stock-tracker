@@ -641,6 +641,9 @@ tbody tr:hover { background:#f8f9fa; }
       </div>
     </div>
     <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>买入数量（股）</label><input type="number" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()"></div>
+      <div class="field"><label>买入价格（元）</label><input type="number" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()"></div>
+      <div class="field"><label>清仓价格（元）</label><input type="number" id="compSellPrice" placeholder="如 11.00" step="0.001" oninput="autoCalcCompProfit()"></div>
       <div class="field"><label>板块分类</label>
         <select id="compTag">
           <option value="主板">主板</option>
@@ -648,9 +651,6 @@ tbody tr:hover { background:#f8f9fa; }
           <option value="科创板">科创板</option>
         </select>
       </div>
-      <div class="field"><label>买入数量（股）</label><input type="number" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()"></div>
-      <div class="field"><label>买入价格（元）</label><input type="number" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()"></div>
-      <div class="field"><label>清仓价格（元）</label><input type="number" id="compSellPrice" placeholder="如 11.00" step="0.001" oninput="autoCalcCompProfit()"></div>
     </div>
     <div style="margin-bottom:10px" id="compBatchWrap">
       <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">清仓次数 <span style="font-size:10px;color:#d35400">（两融账户每笔佣金5元）</span></label>
@@ -860,6 +860,7 @@ window.addEventListener('DOMContentLoaded', function(){
     if(!e.target.closest('.autocomplete-wrap')){
       document.getElementById('acList').classList.remove('show');
       document.getElementById('holdAcList').classList.remove('show');
+      document.getElementById('compAcList').classList.remove('show');
     }
   });
 
