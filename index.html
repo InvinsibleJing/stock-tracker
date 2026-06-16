@@ -423,7 +423,10 @@ tbody tr:hover { background:#f8f9fa; }
 
     <!-- 交易记录 -->
     <div class="table-box">
-      <h2>📋 交易记录</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin-bottom:0">📋 交易记录</h2>
+        <button class="btn btn-green" onclick="openAddComplete()" style="font-size:13px;padding:6px 16px">+ 添加记录</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>数量</th><th>盈亏金额</th><th>手续费</th><th>是否成功</th><th>备注</th><th>操作</th></tr></thead>
@@ -615,6 +618,61 @@ tbody tr:hover { background:#f8f9fa; }
   </div>
 </div>
 
+<!-- 补录已完结交易弹窗 -->
+<div class="modal-bg" id="addCompleteModal">
+  <div class="modal">
+    <h2>📝 补录已完结交易</h2>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <span style="font-size:12px;color:#666;font-weight:500">账户类型</span>
+      <div id="completeAccGroup" style="display:flex;gap:6px">
+        <button class="acc-type-btn active" data-acc="normal">正常</button>
+        <button class="acc-type-btn" data-acc="margin">两融</button>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>交易日期</label><input type="date" id="compDate"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>股票代码/首字母</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="compCode" placeholder="输入代码或首字母" autocomplete="off" oninput="onCompCodeInput();autoDetectTagComp(this.value)" onfocus="onCompCodeInput()" onkeydown="onCompCodeKeydown(event)">
+          <div class="autocomplete-list" id="compAcList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>板块分类</label>
+        <select id="compTag">
+          <option value="主板">主板</option>
+          <option value="创业板">创业板</option>
+          <option value="科创板">科创板</option>
+        </select>
+      </div>
+      <div class="field"><label>买入数量（股）</label><input type="number" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()"></div>
+      <div class="field"><label>买入价格（元）</label><input type="number" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()"></div>
+      <div class="field"><label>清仓价格（元）</label><input type="number" id="compSellPrice" placeholder="如 11.00" step="0.001" oninput="autoCalcCompProfit()"></div>
+    </div>
+    <div style="margin-bottom:10px" id="compBatchWrap">
+      <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">清仓次数 <span style="font-size:10px;color:#d35400">（两融账户每笔佣金5元）</span></label>
+      <div class="pos-group" id="compBatchGroup">
+        <button class="pos-btn active" data-batch="1">1次全清</button>
+        <button class="pos-btn" data-batch="2">分2次清</button>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>实际盈亏（¥）</label><input type="number" id="compAmount" step="0.01" placeholder="正=盈利，负=亏损"></div>
+    </div>
+    <p id="compAutoCalcHint" style="display:none;font-size:11px;color:#27ae60;margin:0 0 6px 0"></p>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="flex:3"><label>备注（可选）</label><input type="text" id="compNote" placeholder="如：历史补录"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-blue" onclick="submitAddComplete()">确认添加</button>
+      <button class="btn btn-red" onclick="closeAddComplete()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 删除持仓确认弹窗 -->
 <div class="modal-bg" id="deleteHoldingModal">
   <div class="modal">
@@ -659,6 +717,10 @@ var pendingDoTId = ''; // 待做T的持仓ID
 var selectedTIndex = 1; // 当前选中的做T序号
 var selectedClearPos = 'full'; // 清仓仓位选择：full/half/third/custom
 var selectedClearBatches = 1; // 清仓次数：1=一次全清, 2=分2次清
+var selectedCompAcc = 'normal'; // 补录弹窗账户类型
+var selectedCompBatches = 1; // 补录弹窗清仓次数
+var compAcSelectedIndex = -1; // 补录联想下拉选中索引
+var compAcResults = []; // 补录联想结果
 var selectedDoTPos = 'full'; // 做T仓位选择：full/half/third/custom
 var selectedAccountType = 'normal'; // 当前选中的账户类型：normal=正常账户 margin=两融账户
 
@@ -921,6 +983,28 @@ window.addEventListener('DOMContentLoaded', function(){
     btn.classList.add('active');
     selectedClearBatches = parseInt(btn.getAttribute('data-batch')) || 1;
     autoCalcClearProfit();
+  });
+
+  // ===== 补录弹窗 账户类型按钮 =====
+  document.getElementById('completeAccGroup').addEventListener('click', function(e){
+    var btn = e.target.closest('.acc-type-btn');
+    if(!btn) return;
+    document.querySelectorAll('#completeAccGroup .acc-type-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedCompAcc = btn.getAttribute('data-acc') || 'normal';
+    // 显示/隐藏清仓次数（仅两融）
+    document.getElementById('compBatchWrap').style.display = (selectedCompAcc === 'margin') ? 'block' : 'none';
+    autoCalcCompProfit();
+  });
+
+  // ===== 补录弹窗 清仓次数按钮 =====
+  document.getElementById('compBatchGroup').addEventListener('click', function(e){
+    var btn = e.target.closest('.pos-btn');
+    if(!btn) return;
+    document.querySelectorAll('#compBatchGroup .pos-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedCompBatches = parseInt(btn.getAttribute('data-batch')) || 1;
+    autoCalcCompProfit();
   });
 
   // ===== 做T弹窗 仓位按钮事件 =====
@@ -1553,7 +1637,7 @@ function renderTable(){
     for(var j=0;j<gTrades.length;j++){
       seq++;
       var t=gTrades[j], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
-    var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').trim();
+    var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').replace('[补录]','').trim();
     var noteShow=escapeHtml(rawNote||'-');
     var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
@@ -2176,6 +2260,183 @@ function autoCalcBuyFees(){
   if(fees.transferFee > 0) parts.push('过户费' + fees.transferFee.toFixed(2) + '元');
   hint.style.display = 'block';
   hint.innerHTML = '💰 预计买入手续费 <b>' + fees.total.toFixed(2) + '</b> 元（' + parts.join(' + ') + '），将摊入成本价';
+}
+
+// ===== 补录已完结交易 =====
+function openAddComplete(){
+  document.getElementById('compDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('compCode').value = '';
+  document.getElementById('compTag').value = '主板';
+  document.getElementById('compQty').value = '';
+  document.getElementById('compBuyPrice').value = '';
+  document.getElementById('compSellPrice').value = '';
+  document.getElementById('compAmount').value = '';
+  document.getElementById('compNote').value = '';
+  document.getElementById('compAutoCalcHint').style.display = 'none';
+  selectedCompAcc = 'normal';
+  selectedCompBatches = 1;
+  document.querySelectorAll('#completeAccGroup .acc-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-acc')==='normal'); });
+  document.getElementById('compBatchWrap').style.display = 'none';
+  document.querySelectorAll('#compBatchGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-batch')==='1'); });
+  document.getElementById('addCompleteModal').classList.add('active');
+}
+
+function closeAddComplete(){ document.getElementById('addCompleteModal').classList.remove('active'); }
+
+function autoDetectTagComp(code){
+  if(!code) return;
+  var c = String(code).trim();
+  var sel = document.getElementById('compTag');
+  if(c.charAt(0)==='3') sel.value = '创业板';
+  else if(c.substring(0,2)==='68') sel.value = '科创板';
+  else if(c.charAt(0)==='6') sel.value = '主板';
+  else sel.value = '主板';
+}
+
+function autoCalcCompProfit(){
+  var buyPrice = parseFloat(document.getElementById('compBuyPrice').value);
+  var sellPrice = parseFloat(document.getElementById('compSellPrice').value);
+  var qty = parseInt(document.getElementById('compQty').value);
+  if(isNaN(buyPrice) || isNaN(sellPrice) || isNaN(qty) || qty <= 0) return;
+  
+  var code = document.getElementById('compCode').value.trim();
+  var accType = selectedCompAcc;
+  var batches = (accType === 'margin') ? selectedCompBatches : 1;
+  
+  // 买入手续费
+  var buyFees = calcFees(buyPrice, qty, false, accType, code);
+  // 卖出手续费
+  var sellFees = calcFees(sellPrice, qty, true, accType, code);
+  if(batches === 2){
+    sellFees.total = Math.round((sellFees.commission * 2 + sellFees.stampTax + sellFees.transferFee) * 100) / 100;
+    sellFees.commission = Math.round(sellFees.commission * 2 * 100) / 100;
+  }
+  
+  // 盈亏 = (卖出价 - 买入价) × 数量 - 买入手续费 - 卖出手续费
+  var profit = (sellPrice - buyPrice) * qty - buyFees.total - sellFees.total;
+  profit = Math.round(profit * 100) / 100;
+  
+  document.getElementById('compAmount').value = profit;
+  var hint = document.getElementById('compAutoCalcHint');
+  hint.style.display = 'block';
+  var ht = '💰 买入手续费 ' + buyFees.total.toFixed(2) + ' 元' + feeDetailText(buyFees);
+  ht += ' + 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + feeDetailText(sellFees);
+  if(batches === 2) ht += '（分2次清，佣金×2）';
+  ht += ' = 实际盈亏 ' + (profit>=0?'+':'') + profit.toFixed(2) + ' 元';
+  hint.innerHTML = ht;
+}
+
+function submitAddComplete(){
+  var date = document.getElementById('compDate').value;
+  var code = document.getElementById('compCode').value.trim();
+  var tag = document.getElementById('compTag').value;
+  var qty = parseInt(document.getElementById('compQty').value) || 0;
+  var buyPrice = parseFloat(document.getElementById('compBuyPrice').value) || 0;
+  var sellPrice = parseFloat(document.getElementById('compSellPrice').value) || 0;
+  var amount = parseFloat(document.getElementById('compAmount').value);
+  var note = document.getElementById('compNote').value.trim();
+  
+  if(!date || !code){ alert('请填写交易日期和股票代码！'); return; }
+  if(qty <= 0){ alert('请填写买入数量！'); return; }
+  if(isNaN(amount)){ alert('请填写盈亏金额，或输入买卖价格自动计算！'); return; }
+  
+  // 计算手续费
+  var accType = selectedCompAcc;
+  var batches = (accType === 'margin') ? selectedCompBatches : 1;
+  var buyFees = calcFees(buyPrice, qty, false, accType, code);
+  var sellFees = calcFees(sellPrice, qty, true, accType, code);
+  if(batches === 2){
+    sellFees.total = Math.round((sellFees.commission * 2 + sellFees.stampTax + sellFees.transferFee) * 100) / 100;
+  }
+  var feesTotal = Math.round((buyFees.total + sellFees.total) * 100) / 100;
+  
+  // 备注加账户标记
+  var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
+  var finalNote = (note ? note + ' ' : '') + '[补录]['+clearAccLabel+']';
+  
+  // 乐观更新
+  var savedTrades = trades.slice();
+  var tmpTradeId = genTempId();
+  trades.push({id:tmpTradeId, date:date, code:code, tag:tag, quantity:qty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
+  
+  // 按日期排序
+  trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
+  
+  closeAddComplete();
+  refreshUI();
+  showStatus('ok','✅ 已补录「'+getStockName(code)+'」清仓，盈亏'+amount.toFixed(2)+'元');
+  
+  // 后台同步
+  apiCall({action:'add',date:date,code:code,tag:tag,quantity:qty,amount:amount,note:finalNote,tIndex:0,status:'closed',source:'clear',fees:feesTotal}, function(res){
+    if(res&&res.success){
+      for(var j=0;j<trades.length;j++){
+        if(trades[j].id===tmpTradeId){ trades[j].id=res.id; break; }
+      }
+      cacheData(trades);
+    } else {
+      trades = savedTrades;
+      refreshUI();
+      showStatus('err','❌ 补录失败，请重试');
+    }
+  });
+}
+
+// ===== 补录弹窗 代码联想 =====
+function onCompCodeInput(){
+  var input = document.getElementById('compCode');
+  var list = document.getElementById('compAcList');
+  var v = input.value.trim().toLowerCase();
+  if(!v || typeof STOCK_DICT === 'undefined'){ list.classList.remove('show'); compAcResults=[]; return; }
+  
+  compAcResults=[]; compAcSelectedIndex=-1; var cnt=0;
+  for(var c in STOCK_DICT){
+    var name=STOCK_DICT[c].toLowerCase();
+    if(cnt>=8) break;
+    if(name.indexOf(v)===0 || c.indexOf(v)===0){
+      compAcResults.push({code:c,name:STOCK_DICT[c]}); cnt++;
+    }
+  }
+  if(compAcResults.length===0){ list.classList.remove('show'); return; }
+  
+  list.innerHTML='';
+  for(var i=0;i<compAcResults.length;i++){
+    var div=document.createElement('div');
+    div.textContent=compAcResults[i].code+' '+compAcResults[i].name;
+    div.setAttribute('data-i',i);
+    div.addEventListener('mousedown',function(e){
+      var idx=parseInt(this.getAttribute('data-i'));
+      if(idx>=0&&idx<compAcResults.length){
+        document.getElementById('compCode').value = compAcResults[idx].code;
+        autoDetectTagComp(compAcResults[idx].code);
+      }
+      list.classList.remove('show');
+    });
+    list.appendChild(div);
+  }
+  list.classList.add('show');
+  compAcSelectedIndex=-1;
+}
+
+function onCompCodeKeydown(e){
+  var list=document.getElementById('compAcList');
+  if(!list.classList.contains('show')) return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); compAcSelectedIndex=Math.min(compAcSelectedIndex+1,compAcResults.length-1); highlightCompAc(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); compAcSelectedIndex=Math.max(compAcSelectedIndex-1,-1); highlightCompAc(); }
+  else if(e.key==='Enter'){ e.preventDefault();
+    if(compAcSelectedIndex>=0&&compAcSelectedIndex<compAcResults.length){
+      document.getElementById('compCode').value = compAcResults[compAcSelectedIndex].code;
+      autoDetectTagComp(compAcResults[compAcSelectedIndex].code);
+      list.classList.remove('show');
+    }
+  }
+}
+
+function highlightCompAc(){
+  var list=document.getElementById('compAcList');
+  var items=list.children;
+  for(var i=0;i<items.length;i++){
+    items[i].classList.toggle('selected',i===compAcSelectedIndex);
+  }
 }
 
 // 做T：盈亏 = (卖出价 - 买回价) × 做T数量 - 卖出手续费 - 买回手续费
