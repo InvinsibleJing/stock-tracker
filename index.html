@@ -70,6 +70,9 @@ tbody tr:hover { background:#f8f9fa; }
 .tag-main { background:#e8f4fd; color:#2980b9; }
 .tag-gem { background:#fdf2e8; color:#e67e22; }
 .tag-star { background:#f4ecf7; color:#8e44ad; }
+.acc-badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:10px; font-weight:600; margin-left:4px; }
+.acc-normal { background:#e8f4fd; color:#2980b9; }
+.acc-margin { background:#fdf2e8; color:#d35400; }
 
 .editable { cursor:pointer; position:relative; }
 .editable:hover { background:#eef5fb; border-radius:4px; }
@@ -93,6 +96,12 @@ tbody tr:hover { background:#f8f9fa; }
 .btn-dot:hover { background:#7d3c98; }
 .btn-del-h { background:#e74c3c; color:white; }
 .btn-del-h:hover { background:#c0392b; }
+
+/* 账户类型选择器 */
+.account-type-group { display:flex; gap:4px; background:#e8ecf0; border-radius:8px; padding:3px; }
+.acc-type-btn { padding:5px 14px; border:none; border-radius:6px; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:#666; transition:all 0.15s; white-space:nowrap; }
+.acc-type-btn:hover { background:rgba(255,255,255,0.6); }
+.acc-type-btn.active { background:white; color:#3498db; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
 
 /* T1~T5 选择按钮组 */
 .t-index-group { display:flex; gap:8px; }
@@ -387,7 +396,13 @@ tbody tr:hover { background:#f8f9fa; }
     <!-- 当前持仓 -->
     <div class="holding-box">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="margin-bottom:0">📌 当前持仓</h2>
+        <div style="display:flex;align-items:center;gap:12px">
+          <h2 style="margin-bottom:0">📌 当前持仓</h2>
+          <div id="accountTypeGroup" class="account-type-group">
+            <button class="acc-type-btn active" data-acc="normal">正常</button>
+            <button class="acc-type-btn" data-acc="margin">两融</button>
+          </div>
+        </div>
         <button class="btn btn-green" onclick="openAddHolding()" style="font-size:13px;padding:6px 16px">+ 添加持仓</button>
       </div>
       <div class="table-wrap">
@@ -547,7 +562,7 @@ tbody tr:hover { background:#f8f9fa; }
 <div class="modal-bg" id="doTModal">
   <div class="modal">
     <h2>🔄 做T - <span id="doTStockName"></span></h2>
-    <p>记录本次做T的盈亏，持仓保留。做T盈亏（带T标识）不计入总盈亏统计，但会自动降低持仓成本。</p>
+    <p>记录本次做T的盈亏，持仓保留。做T盈亏（带T标识）不计入总盈亏统计，但会自动降低持仓成本。<b>盈亏已自动扣除手续费</b>。</p>
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>卖出价格（元）</label><input type="number" id="doTSellPrice" step="0.001" placeholder="如 10.50" oninput="autoCalcDoTProfit()"></div>
       <div class="field"><label>买回价格（元）</label><input type="number" id="doTBuyBackPrice" step="0.001" placeholder="如 10.00" oninput="autoCalcDoTProfit()"></div>
@@ -630,6 +645,62 @@ var pendingDoTId = ''; // 待做T的持仓ID
 var selectedTIndex = 1; // 当前选中的做T序号
 var selectedClearPos = 'full'; // 清仓仓位选择：full/half/third/custom
 var selectedDoTPos = 'full'; // 做T仓位选择：full/half/third/custom
+var selectedAccountType = 'normal'; // 当前选中的账户类型：normal=正常账户 margin=两融账户
+
+// ===== 手续费计算 =====
+// 判断是否为沪市股票（代码6开头）
+function isShanghai(code) {
+  if (!code) return false;
+  var c = String(code).trim();
+  return c.charAt(0) === '6';
+}
+
+/**
+ * 计算单笔交易的手续费
+ * @param {number} price - 成交价格
+ * @param {number} qty - 成交数量
+ * @param {boolean} isSell - 是否为卖出（印花税只在卖出时收）
+ * @param {string} accType - 账户类型 'normal' | 'margin'
+ * @param {string} stockCode - 股票代码（用于判断沪/深市）
+ * @returns {object} { total, commission, stampTax, transferFee }
+ */
+function calcFees(price, qty, isSell, accType, stockCode) {
+  if (!accType || isNaN(price) || isNaN(qty)) return { total: 0, commission: 0, stampTax: 0, transferFee: 0 };
+  var amount = price * qty;
+  if (amount <= 0) return { total: 0, commission: 0, stampTax: 0, transferFee: 0 };
+
+  var sh = isShanghai(stockCode);
+  var commission = 0, stampTax = 0, transferFee = 0;
+
+  if (accType === 'margin') {
+    // 两融账户：佣金固定5元/笔
+    commission = 5;
+    // 过户费：沪市双向收取
+    transferFee = sh ? Math.round(amount * 0.00001 * 100) / 100 : 0; // 0.001%
+    // 印花税：卖出时收取 0.05%
+    if (isSell) stampTax = Math.round(amount * 0.0005 * 100) / 100;
+  } else {
+    // 正常账户（万一免五）：佣金 0.01%，无最低
+    commission = Math.round(amount * 0.0001 * 100) / 100;
+    // 过户费：沪市双向收取
+    transferFee = sh ? Math.round(amount * 0.00001 * 100) / 100 : 0; // 0.001%
+    // 印花税：卖出时收取 0.05%（2025年下调后）
+    if (isSell) stampTax = Math.round(amount * 0.0005 * 100) / 100;
+  }
+
+  var total = Math.round((commission + stampTax + transferFee) * 100) / 100;
+  return { total: total, commission: commission, stampTax: stampTax, transferFee: transferFee };
+}
+
+/** 格式化费用明细文本 */
+function feeDetailText(fees) {
+  if (fees.total === 0) return '';
+  var parts = [];
+  if (fees.commission > 0) parts.push('佣金' + fees.commission.toFixed(2));
+  if (fees.stampTax > 0) parts.push('印花税' + fees.stampTax.toFixed(2));
+  if (fees.transferFee > 0) parts.push('过户费' + fees.transferFee.toFixed(2));
+  return '（手续费 ' + fees.total.toFixed(2) + ' 元：' + parts.join(' + ') + '）';
+}
 
 // ===== PWA 注册 =====
 if('serviceWorker' in navigator){
@@ -773,6 +844,26 @@ window.addEventListener('DOMContentLoaded', function(){
     btn.classList.add('active');
     selectedTIndex = parseInt(btn.getAttribute('data-idx')) || 1;
   });
+
+  // ===== 账户类型选择按钮事件 =====
+  document.getElementById('accountTypeGroup').addEventListener('click', function(e){
+    var btn = e.target.closest('.acc-type-btn');
+    if(!btn) return;
+    document.querySelectorAll('#accountTypeGroup .acc-type-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedAccountType = btn.getAttribute('data-acc') || 'normal';
+    // 记住用户选择，刷新不丢失
+    try{ localStorage.setItem('stock_account_type', selectedAccountType); }catch(e){}
+  });
+
+  // 恢复上次选择的账户类型
+  var savedAccType = localStorage.getItem('stock_account_type');
+  if(savedAccType && (savedAccType==='normal'||savedAccType==='margin')){
+    selectedAccountType = savedAccType;
+    document.querySelectorAll('#accountTypeGroup .acc-type-btn').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-acc')===savedAccType);
+    });
+  }
 
   // ===== 清仓弹窗 仓位按钮事件 =====
   setupPosGroup('clearPosGroup', 'clearCustomQty', 'clearQtyDisplay', function(pos){
@@ -1838,13 +1929,14 @@ function submitAddHolding(){
   // 乐观更新：先在前端添加持仓
   var tmpId = genTempId();
   var savedHoldings = holdings.slice();
-  holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice});
+  holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType});
+  closeAddHolding();
   closeAddHolding();
   refreshUI();
   showStatus('ok','✅ 持仓已添加');
 
   // 后台同步
-  apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice}, function(res){
+  apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType}, function(res){
     if(res&&res.success){
       for(var i=0;i<holdings.length;i++){
         if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
@@ -1905,13 +1997,22 @@ function autoCalcClearProfit(){
   var actualQty = calcActualQty(holding.quantity, selectedClearPos, customQty);
   if(actualQty <= 0 || actualQty > holding.quantity) actualQty = holding.quantity;
 
+  // 基础价差盈亏
   var profit = (sellPrice - holding.buyPrice) * actualQty;
+
+  // 扣除手续费（买入时 + 卖出时）
+  var accType = holding.accountType || 'normal';
+  var buyFees = calcFees(holding.buyPrice, actualQty, false, accType, holding.code);
+  var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
+  profit = profit - buyFees.total - sellFees.total;
   profit = Math.round(profit * 100) / 100; // 保留2位小数
+
   document.getElementById('clearAmount').value = profit;
   document.getElementById('clearAutoCalcHint').style.display = 'block';
+  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 已自动计算盈亏（含手续费）' + feeDetailText(buyFees) + ' + ' + feeDetailText(sellFees) + '，可手动修改';
 }
 
-// 做T：盈亏 = (卖出价 - 买回价) × 做T数量
+// 做T：盈亏 = (卖出价 - 买回价) × 做T数量 - 卖出手续费 - 买回手续费
 function autoCalcDoTProfit(){
   var sellPrice = parseFloat(document.getElementById('doTSellPrice').value);
   var buyBackPrice = parseFloat(document.getElementById('doTBuyBackPrice').value);
@@ -1928,10 +2029,18 @@ function autoCalcDoTProfit(){
   var actualQty = holding ? calcActualQty(holding.quantity, selectedDoTPos, customQty) : 0;
   if(actualQty <= 0 || (holding && actualQty > holding.quantity)) actualQty = holding ? holding.quantity : 0;
 
+  // 基础价差盈亏
   var profit = (sellPrice - buyBackPrice) * actualQty;
+
+  // 扣除手续费（卖出时 + 买回时）
+  var accType = holding ? (holding.accountType || 'normal') : 'normal';
+  var sellFees = calcFees(sellPrice, actualQty, true, accType, holding ? holding.code : '');
+  var buyBackFees = calcFees(buyBackPrice, actualQty, false, accType, holding ? holding.code : '');
+  profit = profit - sellFees.total - buyBackFees.total;
   profit = Math.round(profit * 100) / 100;
   document.getElementById('doTAmount').value = profit;
   document.getElementById('doTAutoCalcHint').style.display = 'block';
+  document.getElementById('doTAutoCalcHint').innerHTML = '✅ 已自动计算做T盈亏（含手续费）' + feeDetailText(sellFees) + ' + ' + feeDetailText(buyBackFees) + '，可手动修改';
 }
 
 // 根据仓位类型和持仓数量计算实际操作股数
@@ -1983,7 +2092,8 @@ function openClearHolding(id){
   document.getElementById('clearAutoCalcHint').style.display='none';
   // 显示成本价提示
   if(h.buyPrice){
-    document.getElementById('clearDesc').innerHTML='持仓成本价：<b style="color:#e74c3c">'+parseFloat(h.buyPrice).toFixed(3)+'</b> 元。选择仓位并输入卖出价格后，盈亏将自动计算。';
+    var accLabel = (h.accountType || 'normal') === 'margin' ? '两融账户' : '正常账户';
+    document.getElementById('clearDesc').innerHTML='持仓成本价：<b style="color:#e74c3c">'+parseFloat(h.buyPrice).toFixed(3)+'</b> 元（'+accLabel+'）。选择仓位并输入卖出价格后，盈亏将<strong>自动扣除手续费</strong>。';
   } else {
     document.getElementById('clearDesc').innerHTML='将该持仓清仓，盈亏将记录到交易记录中。未设置成本价，请手动填写盈亏金额。';
   }
@@ -2077,6 +2187,7 @@ function submitClearHolding(){
                     if(String(hRes.data[n].id)===String(id)){
                       holdings[m].quantity = hRes.data[n].quantity;
                       if(hRes.data[n].buyPrice) holdings[m].buyPrice = hRes.data[n].buyPrice;
+                      if(hRes.data[n].accountType) holdings[m].accountType = hRes.data[n].accountType;
                       break;
                     }
                   }
@@ -2405,12 +2516,14 @@ function renderHoldings(){
     var noteShow=escapeHtml(h.note||'-');
     var stockName=escapeHtml(getStockName(h.code))||'-';
     var buyPriceShow = h.buyPrice ? (parseFloat(h.buyPrice).toFixed(3)) : '-';
+    var accType = h.accountType || 'normal';
+    var accBadge = '<span class="acc-badge '+(accType==='margin'?'acc-margin':'acc-normal')+'">'+(accType==='margin'?'两融':'正常')+'</span>';
 
     // 桌面端表格行
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+accBadge+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'</td>';
@@ -2425,7 +2538,7 @@ function renderHoldings(){
     // 移动端卡片
     cardHtml+='<div class="hold-card-item">';
     cardHtml+='<div class="hold-card-header">';
-    cardHtml+='<span class="hold-card-name">'+stockName+'</span>';
+    cardHtml+='<span class="hold-card-name">'+stockName+accBadge+'</span>';
     cardHtml+='<span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span>';
     cardHtml+='</div>';
     cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
