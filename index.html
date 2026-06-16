@@ -1502,22 +1502,23 @@ function renderTable(){
   for(var gi=0;gi<groups.length;gi++){
     var g = groups[gi];
     var gTrades = g.trades;
-    // 计算该月统计
+    // 计算该月统计（排除做T记录，与顶部总盈亏口径一致）
     var gCount = gTrades.length;
     var gProfit = 0;
-    for(var k=0;k<gTrades.length;k++){ gProfit += gTrades[k].amount; }
+    for(var k=0;k<gTrades.length;k++){ if((gTrades[k].tIndex||0)===0) gProfit += gTrades[k].amount; }
     var gCls = gProfit >= 0 ? 'profit' : 'loss';
     var gSign = gProfit >= 0 ? '+' : '';
     var gOpen = gi === 0; // 默认展开最新月份
 
-    // 桌面端：月份标题行
+    // 桌面端：月份标题行（金额对齐盈亏金额列）
     html+='<tr class="month-header" data-month="'+g.month+'" onclick="toggleMonth(this)" style="cursor:pointer;background:#f0f4f8">';
-    html+='<td colspan="10" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
+    html+='<td colspan="5" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
     html+='<span class="month-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(gOpen?'▼':'▶')+'</span> ';
-    html+=escapeHtml(g.label)+' ';
-    html+='<span style="color:#888;font-weight:400">'+gCount+'条</span> ';
-    html+='<span class="'+gCls+'" style="float:right;font-weight:600">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</span>';
-    html+='</td></tr>';
+    html+=escapeHtml(g.label)+' <span style="color:#888;font-weight:400">'+gCount+'条</span>';
+    html+='</td>';
+    html+='<td class="'+gCls+'" style="font-weight:600;text-align:center">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</td>';
+    html+='<td colspan="4"></td>';
+    html+='</tr>';
 
     // 桌面端的行样式（按月份隐藏）
     var rowStyle = gOpen ? '' : ' style="display:none"';
