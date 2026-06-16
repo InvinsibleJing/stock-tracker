@@ -833,7 +833,7 @@ function installPWA(){
 function dismissInstall(){
   document.getElementById('installBanner').classList.remove('show');
   // 当天不再提示
-  localStorage.setItem('install_dismissed', new Date().toISOString().slice(0,10));
+  localStorage.setItem('install_dismissed', todayStr());
 }
 
 window.addEventListener('appinstalled', function(){
@@ -854,9 +854,15 @@ window.addEventListener('offline', function(){
   showStatus('offline','📴 离线模式 | 显示缓存数据');
 });
 
+// 获取本地日期字符串（YYYY-MM-DD），避免UTC时区偏移
+function todayStr(){
+  var n=new Date();
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+
 // ===== 初始化 =====
 window.addEventListener('DOMContentLoaded', function(){
-  document.getElementById('inpDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('inpDate').value = todayStr();
 
   // 点击页面其他地方关闭联想下拉
   document.addEventListener('click', function(e){
@@ -2139,7 +2145,7 @@ function autoDetectTagHold(code) {
 // ===== 持仓弹窗 =====
 function openAddHolding(){
   document.getElementById('addHoldingModal').classList.add('active');
-  document.getElementById('holdDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('holdDate').value = todayStr();
   document.getElementById('holdCode').value = '';
   document.getElementById('holdTag').value = '主板';
   document.getElementById('holdQty').value = '';
@@ -2282,7 +2288,7 @@ function autoCalcBuyFees(){
 
 // ===== 补录已完结交易 =====
 function openAddComplete(){
-  document.getElementById('compDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('compDate').value = todayStr();
   document.getElementById('compCode').value = '';
   document.getElementById('compTag').value = '主板';
   document.getElementById('compQty').value = '';
