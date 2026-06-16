@@ -357,6 +357,7 @@ tbody tr:hover { background:#f8f9fa; }
     <div class="card"><div class="card-label">总盈亏</div><div class="card-val" id="stProfit">¥0</div></div>
     <div class="card"><div class="card-label">最大单笔盈利</div><div class="card-val red" id="stMaxWin">¥0</div></div>
     <div class="card"><div class="card-label">最大单笔亏损</div><div class="card-val green" id="stMaxLoss">¥0</div></div>
+    <div class="card"><div class="card-label">手续费总额</div><div class="card-val" id="stFees" style="color:#8e44ad">¥0</div></div>
   </div>
 
   <!-- Tab 切换 -->
@@ -1631,6 +1632,10 @@ function updateStats(){
   el.className='card-val '+(tp>=0?'red':'green');
   document.getElementById('stMaxWin').textContent='+'+maxWin.toFixed(2);
   document.getElementById('stMaxLoss').textContent=maxLoss.toFixed(2);
+  // 手续费总额
+  var tf=0;
+  for(var j=0;j<trades.length;j++){ tf+=(parseFloat(trades[j].fees)||0); }
+  document.getElementById('stFees').textContent='¥'+tf.toFixed(2);
 }
 
 // ===== 数据分析 =====
