@@ -643,7 +643,6 @@ tbody tr:hover { background:#f8f9fa; }
     <div class="row" style="margin-bottom:10px">
       <div class="field"><label>买入数量（股）</label><input type="number" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()"></div>
       <div class="field"><label>买入价格（元）</label><input type="number" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()"></div>
-      <div class="field"><label>清仓价格（元）</label><input type="number" id="compSellPrice" placeholder="如 11.00" step="0.001" oninput="autoCalcCompProfit()"></div>
       <div class="field"><label>板块分类</label>
         <select id="compTag">
           <option value="主板">主板</option>
@@ -651,6 +650,10 @@ tbody tr:hover { background:#f8f9fa; }
           <option value="科创板">科创板</option>
         </select>
       </div>
+    </div>
+    <div class="row" style="margin-bottom:10px" id="compSellPriceRow">
+      <div class="field"><label>清仓价格（元）</label><input type="number" id="compSellPrice" placeholder="如 11.00" step="0.001" oninput="autoCalcCompProfit()"></div>
+      <div class="field" id="compSellPrice2Wrap" style="display:none"><label>第二次清仓价格（元）</label><input type="number" id="compSellPrice2" placeholder="如 11.20" step="0.001" oninput="autoCalcCompProfit()"></div>
     </div>
     <div style="margin-bottom:10px" id="compBatchWrap">
       <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">清仓次数 <span style="font-size:10px;color:#d35400">（两融账户每笔佣金5元）</span></label>
@@ -1005,6 +1008,10 @@ window.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('#compBatchGroup .pos-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     selectedCompBatches = parseInt(btn.getAttribute('data-batch')) || 1;
+    // 显示/隐藏第二次清仓价格
+    var show2 = selectedCompBatches === 2;
+    document.getElementById('compSellPrice2Wrap').style.display = show2 ? '' : 'none';
+    document.getElementById('compSellPrice').parentElement.querySelector('label').textContent = show2 ? '第一次清仓价格（元）' : '清仓价格（元）';
     autoCalcCompProfit();
   });
 
@@ -2271,6 +2278,9 @@ function openAddComplete(){
   document.getElementById('compQty').value = '';
   document.getElementById('compBuyPrice').value = '';
   document.getElementById('compSellPrice').value = '';
+  document.getElementById('compSellPrice2').value = '';
+  document.getElementById('compSellPrice2Wrap').style.display = 'none';
+  document.getElementById('compSellPrice').parentElement.querySelector('label').textContent = '清仓价格（元）';
   document.getElementById('compAmount').value = '';
   document.getElementById('compNote').value = '';
   document.getElementById('compAutoCalcHint').style.display = 'none';
@@ -2304,26 +2314,52 @@ function autoCalcCompProfit(){
   var accType = selectedCompAcc;
   var batches = (accType === 'margin') ? selectedCompBatches : 1;
   
-  // 买入手续费
+  // 买入手续费（一次性买入，只有一笔）
   var buyFees = calcFees(buyPrice, qty, false, accType, code);
-  // 卖出手续费
-  var sellFees = calcFees(sellPrice, qty, true, accType, code);
-  if(batches === 2){
-    sellFees.total = Math.round((sellFees.commission * 2 + sellFees.stampTax + sellFees.transferFee) * 100) / 100;
-    sellFees.commission = Math.round(sellFees.commission * 2 * 100) / 100;
-  }
   
-  // 盈亏 = (卖出价 - 买入价) × 数量 - 买入手续费 - 卖出手续费
-  var profit = (sellPrice - buyPrice) * qty - buyFees.total - sellFees.total;
-  profit = Math.round(profit * 100) / 100;
+  var sellFees; // 总卖出手续费
+  var profit;   // 总盈亏
+  var ht;
+  
+  if(batches === 2){
+    var sellPrice2 = parseFloat(document.getElementById('compSellPrice2').value);
+    if(isNaN(sellPrice2)) return;
+    var halfQty = Math.floor(qty / 2);
+    var halfQty2 = qty - halfQty;
+    
+    // 两次卖出手续费分开算（佣金各5元）
+    var sellFees1 = calcFees(sellPrice, halfQty, true, accType, code);
+    var sellFees2 = calcFees(sellPrice2, halfQty2, true, accType, code);
+    sellFees = {
+      total: Math.round((sellFees1.total + sellFees2.total) * 100) / 100,
+      commission: Math.round((sellFees1.commission + sellFees2.commission) * 100) / 100,
+      stampTax: Math.round((sellFees1.stampTax + sellFees2.stampTax) * 100) / 100,
+      transferFee: Math.round((sellFees1.transferFee + sellFees2.transferFee) * 100) / 100
+    };
+    
+    profit = (sellPrice - buyPrice) * halfQty + (sellPrice2 - buyPrice) * halfQty2;
+    profit = profit - buyFees.total - sellFees.total;
+    profit = Math.round(profit * 100) / 100;
+    
+    ht = '💰 买入手续费 ' + buyFees.total.toFixed(2) + ' 元' + feeDetailText(buyFees);
+    ht += ' + 第1次卖出手续费 ' + sellFees1.total.toFixed(2) + ' 元' + feeDetailText(sellFees1);
+    ht += ' + 第2次卖出手续费 ' + sellFees2.total.toFixed(2) + ' 元' + feeDetailText(sellFees2);
+    ht += '，实际盈亏：' + (profit>=0?'+':'') + profit.toFixed(2) + ' 元';
+  } else {
+    // 一次全清
+    sellFees = calcFees(sellPrice, qty, true, accType, code);
+    
+    profit = (sellPrice - buyPrice) * qty - buyFees.total - sellFees.total;
+    profit = Math.round(profit * 100) / 100;
+    
+    ht = '💰 买入手续费 ' + buyFees.total.toFixed(2) + ' 元' + feeDetailText(buyFees);
+    ht += ' + 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + feeDetailText(sellFees);
+    ht += '，实际盈亏：' + (profit>=0?'+':'') + profit.toFixed(2) + ' 元';
+  }
   
   document.getElementById('compAmount').value = profit;
   var hint = document.getElementById('compAutoCalcHint');
   hint.style.display = 'block';
-  var ht = '💰 买入手续费 ' + buyFees.total.toFixed(2) + ' 元' + feeDetailText(buyFees);
-  ht += ' + 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + feeDetailText(sellFees);
-  if(batches === 2) ht += '（分2次清）';
-  ht += '，实际盈亏：' + (profit>=0?'+':'') + profit.toFixed(2) + ' 元';
   hint.innerHTML = ht;
 }
 
@@ -2345,11 +2381,18 @@ function submitAddComplete(){
   var accType = selectedCompAcc;
   var batches = (accType === 'margin') ? selectedCompBatches : 1;
   var buyFees = calcFees(buyPrice, qty, false, accType, code);
-  var sellFees = calcFees(sellPrice, qty, true, accType, code);
+  var feesTotal;
   if(batches === 2){
-    sellFees.total = Math.round((sellFees.commission * 2 + sellFees.stampTax + sellFees.transferFee) * 100) / 100;
+    var sellPrice2 = parseFloat(document.getElementById('compSellPrice2').value) || 0;
+    var halfQty = Math.floor(qty / 2);
+    var halfQty2 = qty - halfQty;
+    var sellFees1 = calcFees(sellPrice, halfQty, true, accType, code);
+    var sellFees2 = calcFees(sellPrice2, halfQty2, true, accType, code);
+    feesTotal = Math.round((buyFees.total + sellFees1.total + sellFees2.total) * 100) / 100;
+  } else {
+    var sellFees = calcFees(sellPrice, qty, true, accType, code);
+    feesTotal = Math.round((buyFees.total + sellFees.total) * 100) / 100;
   }
-  var feesTotal = Math.round((buyFees.total + sellFees.total) * 100) / 100;
   
   // 备注加账户标记
   var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
