@@ -2196,9 +2196,10 @@ function submitClearHolding(){
   var savedTrades = trades.slice();
   var savedHoldings = holdings.slice();
 
-  // 计算卖出手续费（用于存入交易记录）
+  // 计算卖出手续费（用于存入交易记录）—— 必须用卖出价，不能用成本价
   var accType = holding.accountType || 'normal';
-  var sellFees = calcFees(holding.buyPrice || 0, actualQty, true, accType, holding.code);
+  var sellPrice = parseFloat(document.getElementById('clearSellPrice').value) || 0;
+  var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
   var feesTotal = Math.round(sellFees.total * 100) / 100;
 
   // 添加到交易记录
