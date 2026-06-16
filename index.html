@@ -867,6 +867,16 @@ window.addEventListener('DOMContentLoaded', function(){
     }
   });
 
+  // 日期输入框：点击任意位置弹出日期选择器
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(t.tagName === 'INPUT' && t.type === 'date'){
+      setTimeout(function(){
+        try { if(t.showPicker) t.showPicker(); } catch(e){}
+      }, 10);
+    }
+  });
+
   // ===== 事件委托：交易记录表 =====
   document.getElementById('tbBody').addEventListener('click', function(e){
     var target = e.target;
