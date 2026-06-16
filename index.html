@@ -74,7 +74,11 @@ tbody tr:hover { background:#f8f9fa; }
 .acc-normal { background:#e8f4fd; color:#2980b9; }
 .acc-margin { background:#fdf2e8; color:#d35400; }
 
+/* Tooltip */
+.tooltip-box { display:none; position:absolute; z-index:9999; background:#2c3e50; color:#ecf0f1; padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.3); pointer-events:none; }
+.tooltip-box::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:#2c3e50; }
 .editable { cursor:pointer; position:relative; }
+.editable:hover .tooltip-box { display:block; }
 .editable:hover { background:#eef5fb; border-radius:4px; }
 .editable::after { content:"✎"; font-size:9px; color:#bdc3c7; margin-left:2px; opacity:0; transition:opacity 0.2s; }
 .editable:hover::after { opacity:1; }
@@ -690,6 +694,24 @@ function calcFees(price, qty, isSell, accType, stockCode) {
 
   var total = Math.round((commission + stampTax + transferFee) * 100) / 100;
   return { total: total, commission: commission, stampTax: stampTax, transferFee: transferFee };
+}
+
+/** 生成持仓成本价 tooltip（买入价格 + 手续费明细） */
+function getBuyPriceTip(h) {
+  var bp = parseFloat(h.buyPrice) || 0;
+  if (bp === 0) return '';
+  var qty = h.quantity || 0;
+  var accType = h.accountType || 'normal';
+  // 用含费成本价反推近似成交价：手续费 = calcFees(成交价, qty, false, accType, h.code)
+  // 正向：含费成本价 = (成交价 * qty + 手续费) / qty
+  // 近似：直接按含费成本价算手续费（误差极小）
+  var estFees = calcFees(bp, qty, false, accType, h.code);
+  var rawPrice = bp - estFees.total / qty;
+  rawPrice = Math.round(rawPrice * 1000) / 1000;
+  var tip = '买入价格约：' + rawPrice.toFixed(3) + ' 元<br>';
+  tip += '买入手续费：' + estFees.total.toFixed(2) + ' 元';
+  if (estFees.commission > 0) tip += '（佣金' + estFees.commission.toFixed(2) + (estFees.transferFee > 0 ? ' + 过户费' + estFees.transferFee.toFixed(2) : '') + '）';
+  return tip;
 }
 
 /** 格式化费用明细文本 */
@@ -1482,6 +1504,13 @@ function renderTable(){
       sourceHtml = '<span class="source-clear">清仓</span>';
     }
 
+    // 手续费提示
+    var feesTip = '';
+    if(t.fees && t.fees > 0){
+      feesTip = '<div class="tooltip-box">手续费：' + t.fees.toFixed(2) + ' 元</div>';
+    }
+    var amountHtml = sign+'¥'+t.amount.toFixed(2) + feesTip;
+
     // 桌面端表格行
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
@@ -1489,7 +1518,7 @@ function renderTable(){
     html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+sourceHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
-    html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
+    html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+amountHtml+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
@@ -1499,7 +1528,7 @@ function renderTable(){
     cardHtml+='<div class="trade-card-item">';
     cardHtml+='<div class="trade-card-header">';
     cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
-    cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
+    cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+amountHtml+'</span>';
     cardHtml+='</div>';
     cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
     cardHtml+='<div class="trade-card-row"><span class="label">数量</span><span class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</span></div>';
@@ -1924,9 +1953,14 @@ function submitAddHolding(){
   var code=document.getElementById('holdCode').value.trim();
   var tag=document.getElementById('holdTag').value;
   var quantity=parseInt(document.getElementById('holdQty').value);
-  var buyPrice=parseFloat(document.getElementById('holdBuyPrice').value)||0;
+  var rawPrice=parseFloat(document.getElementById('holdBuyPrice').value)||0;
   var note=document.getElementById('holdNote').value.trim();
   if(!date||!code||isNaN(quantity)||quantity<=0){ alert('请填写交易日期、股票代码和买入数量！'); return; }
+
+  // 计算买入手续费，将含费成本价存入后端
+  var buyFees = calcFees(rawPrice, quantity, false, selectedAccountType, code);
+  var totalCost = rawPrice * quantity + buyFees.total;
+  var buyPrice = Math.round(totalCost / quantity * 1000) / 1000; // 保留3位小数
 
   // 乐观更新：先在前端添加持仓
   var tmpId = genTempId();
@@ -1935,7 +1969,7 @@ function submitAddHolding(){
   closeAddHolding();
   closeAddHolding();
   refreshUI();
-  showStatus('ok','✅ 持仓已添加');
+  showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
 
   // 后台同步
   apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType}, function(res){
@@ -1999,19 +2033,18 @@ function autoCalcClearProfit(){
   var actualQty = calcActualQty(holding.quantity, selectedClearPos, customQty);
   if(actualQty <= 0 || actualQty > holding.quantity) actualQty = holding.quantity;
 
-  // 基础价差盈亏
+  // 基础价差盈亏（buyPrice已是含费成本价）
   var profit = (sellPrice - holding.buyPrice) * actualQty;
 
-  // 扣除手续费（买入时 + 卖出时）
+  // 只扣除卖出手续费（买入手续费已摊入成本价）
   var accType = holding.accountType || 'normal';
-  var buyFees = calcFees(holding.buyPrice, actualQty, false, accType, holding.code);
   var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
-  profit = profit - buyFees.total - sellFees.total;
+  profit = profit - sellFees.total;
   profit = Math.round(profit * 100) / 100; // 保留2位小数
 
   document.getElementById('clearAmount').value = profit;
   document.getElementById('clearAutoCalcHint').style.display = 'block';
-  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 已自动计算盈亏（含手续费）' + feeDetailText(buyFees) + ' + ' + feeDetailText(sellFees) + '，可手动修改';
+  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 已自动计算盈亏（成本价已含买入手续费，本次只扣卖出手续费）' + feeDetailText(sellFees) + '，可手动修改';
 }
 
 // 做T：盈亏 = (卖出价 - 买回价) × 做T数量 - 卖出手续费 - 买回手续费
@@ -2133,15 +2166,20 @@ function submitClearHolding(){
   var savedTrades = trades.slice();
   var savedHoldings = holdings.slice();
 
+  // 计算卖出手续费（用于存入交易记录）
+  var accType = holding.accountType || 'normal';
+  var sellFees = calcFees(holding.buyPrice || 0, actualQty, true, accType, holding.code);
+  var feesTotal = Math.round(sellFees.total * 100) / 100;
+
   // 添加到交易记录
   var tmpTradeId = genTempId();
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   var finalNote = note || holding.note || '';
   if(isPartial){
-    finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + actualQty + '/' + holding.quantity + '股';
+     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + actualQty + '/' + holding.quantity + '股';
   }
-  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear'});
+  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
 
   if(isPartial){
     // 部分清仓：减少持仓数量，不移除持仓
@@ -2287,13 +2325,21 @@ function submitDoT(){
   }
   if(note) doTNote += '（' + note + '）';
 
+  // 计算做T手续费（卖出+买回）
+  var accType = holding.accountType || 'normal';
+  var sellPrice = parseFloat(document.getElementById('doTSellPrice').value) || 0;
+  var buyBackPrice = parseFloat(document.getElementById('doTBuyBackPrice').value) || 0;
+  var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
+  var buyBackFees = calcFees(buyBackPrice, actualQty, false, accType, holding.code);
+  var doTFees = Math.round((sellFees.total + buyBackFees.total) * 100) / 100;
+
   // 乐观更新：先在前端添加交易记录（持仓不变）
   var savedTrades = trades.slice();
 
   var tmpTradeId = genTempId();
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open', source:'doT'});
+  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open', source:'doT', fees:doTFees});
 
   // 乐观更新：做T后自动更新持仓成本价
   if(holding.buyPrice > 0 && holding.quantity > 0){
@@ -2309,7 +2355,7 @@ function submitDoT(){
   showStatus('ok','✅ 做T'+selectedTIndex+'已记录（'+actualQty+'股）');
 
   // 后台同步
-  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty}, function(res){
+  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty,fees:doTFees}, function(res){
     if(res&&res.success){
       // 用云端真ID替换临时ID
       if(res.tradeId){
@@ -2534,7 +2580,7 @@ function renderHoldings(){
     html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+accBadge+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td>';
     html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
@@ -2551,7 +2597,7 @@ function renderHoldings(){
     cardHtml+='</div>';
     cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'</span></div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">买入逻辑</span><span class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</span></div>';
     cardHtml+='<div class="hold-card-footer">';
     cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
