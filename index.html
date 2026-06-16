@@ -1486,7 +1486,8 @@ function renderTable(){
   var cardHtml='';
   for(var i=0;i<trades.length;i++){
     var t=trades[i], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
-    var noteShow=escapeHtml(t.note||'-');
+    var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').trim();
+    var noteShow=escapeHtml(rawNote||'-');
     var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
     var stockName=escapeHtml(getStockName(t.code))||'-';
@@ -1497,6 +1498,13 @@ function renderTable(){
     if(tIdx > 0){
       var tBadgeCls = ip ? 't-badge-profit' : 't-badge-loss';
       tBadgeHtml = '<span class="t-badge '+tBadgeCls+'">T'+tIdx+'</span>';
+      // 做T记录显示账户徽章（从备注中解析[正常]/[两融]）
+      var tNote = t.note || '';
+      if(tNote.indexOf('[两融]')!==-1){
+        tBadgeHtml += '<span class="acc-badge acc-margin" style="font-size:10px">两融</span>';
+      } else if(tNote.indexOf('[正常]')!==-1){
+        tBadgeHtml += '<span class="acc-badge acc-normal" style="font-size:10px">正常</span>';
+      }
     }
 
     // 清仓来源徽章（绿色，标识该记录由清仓操作产生）
@@ -2311,11 +2319,16 @@ function openDoT(id){
   document.getElementById('doTCustomQty').value = '';
   updateQtyDisplay(document.getElementById('doTQtyDisplay'), 'full', 0, 'doTPosGroup');
 
-  // 自动检测该持仓已做T次数，默认选中下一个
+  // 自动检测该持仓已做T次数（按code+账户类型分开计数）
+  // 判断方式：做T备注中包含"[正常]"或"[两融]"标识
+  var accLabel = (h.accountType || 'normal') === 'margin' ? '两融' : '正常';
   var maxT = 0;
   for(var i=0;i<trades.length;i++){
-    if(trades[i].code === h.code && trades[i].tIndex > 0){
-      if(trades[i].tIndex > maxT) maxT = trades[i].tIndex;
+    if(trades[i].code === h.code && trades[i].tIndex > 0 && trades[i].source === 'doT'){
+      // 通过备注中的账户标记来区分是否属于当前账户类型
+      if(trades[i].note.indexOf('['+accLabel+']') !== -1){
+        if(trades[i].tIndex > maxT) maxT = trades[i].tIndex;
+      }
     }
   }
   var nextT = Math.min(maxT + 1, 5);
@@ -2355,6 +2368,9 @@ function submitDoT(){
     doTNote += ' ' + actualQty + '/' + holding.quantity + '股';
   }
   if(note) doTNote += '（' + note + '）';
+  // 做T备注末尾加账户标记，用于T序号按账户分开计数
+  var accLabel = (holding.accountType || 'normal') === 'margin' ? '两融' : '正常';
+  doTNote += '['+accLabel+']';
 
   // 计算做T手续费（卖出+买回）
   var accType = holding.accountType || 'normal';
