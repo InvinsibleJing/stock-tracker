@@ -1512,6 +1512,13 @@ function renderTable(){
     var tSource = t.source || '';
     if(tSource === 'clear'){
       sourceHtml = '<span class="source-clear">清仓</span>';
+      // 清仓记录显示账户徽章（从备注中解析[正常]/[两融]）
+      var cNote = t.note || '';
+      if(cNote.indexOf('[两融]')!==-1){
+        sourceHtml += '<span class="acc-badge acc-margin" style="font-size:10px;margin-left:4px">两融</span>';
+      } else if(cNote.indexOf('[正常]')!==-1){
+        sourceHtml += '<span class="acc-badge acc-normal" style="font-size:10px;margin-left:4px">正常</span>';
+      }
     }
 
     // 手续费显示
@@ -2218,6 +2225,9 @@ function submitClearHolding(){
   if(isPartial){
      finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + actualQty + '/' + holding.quantity + '股';
   }
+  // 清仓备注末尾加账户标记，用于显示账户徽章
+  var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
+  finalNote += '['+clearAccLabel+']';
   trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
 
   if(isPartial){
