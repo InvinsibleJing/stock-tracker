@@ -555,6 +555,13 @@ tbody tr:hover { background:#f8f9fa; }
       </div>
       <div class="pos-qty-display" id="clearQtyDisplay"></div>
     </div>
+    <div style="margin-bottom:14px" id="clearBatchWrap">
+      <label style="font-size:12px;color:#666;font-weight:500;display:block;margin-bottom:6px">清仓次数 <span style="font-size:10px;color:#d35400">（两融账户每笔佣金5元）</span></label>
+      <div class="pos-group" id="clearBatchGroup">
+        <button class="pos-btn active" data-batch="1">1次全清</button>
+        <button class="pos-btn" data-batch="2">分2次清</button>
+      </div>
+    </div>
     <div class="row" style="margin-bottom:10px">
       <div class="field" style="flex:3"><label>清仓逻辑（可选）</label><input type="text" id="clearNote" placeholder="如：触及止损"></div>
     </div>
@@ -651,6 +658,7 @@ var pendingClearId = ''; // 待清仓的持仓ID
 var pendingDoTId = ''; // 待做T的持仓ID
 var selectedTIndex = 1; // 当前选中的做T序号
 var selectedClearPos = 'full'; // 清仓仓位选择：full/half/third/custom
+var selectedClearBatches = 1; // 清仓次数：1=一次全清, 2=分2次清
 var selectedDoTPos = 'full'; // 做T仓位选择：full/half/third/custom
 var selectedAccountType = 'normal'; // 当前选中的账户类型：normal=正常账户 margin=两融账户
 
@@ -903,6 +911,16 @@ window.addEventListener('DOMContentLoaded', function(){
     } else {
       desc.innerHTML = '部分清仓，盈亏将记录到交易记录中。<b>请填写本次清仓部分的真实盈亏金额</b>（仅本次操作的盈亏，非全部持仓的总盈亏）。';
     }
+  });
+
+  // ===== 清仓弹窗 清仓次数按钮事件 =====
+  document.getElementById('clearBatchGroup').addEventListener('click', function(e){
+    var btn = e.target.closest('.pos-btn');
+    if(!btn) return;
+    document.querySelectorAll('#clearBatchGroup .pos-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedClearBatches = parseInt(btn.getAttribute('data-batch')) || 1;
+    autoCalcClearProfit();
   });
 
   // ===== 做T弹窗 仓位按钮事件 =====
@@ -2118,16 +2136,24 @@ function autoCalcClearProfit(){
   var profit = (sellPrice - holding.buyPrice) * actualQty;
 
   // 只扣除卖出手续费（买入手续费已摊入成本价）
+  // 两融账户分2次清仓时，佣金多算一次（每笔固定5元），印花税/过户费不变（按总金额比例）
   var accType = holding.accountType || 'normal';
+  var batches = (accType === 'margin') ? selectedClearBatches : 1;
   var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
+  if(batches === 2){
+    // 分2次：佣金 × 2，印花税和过户费不变
+    sellFees.total = Math.round((sellFees.commission * 2 + sellFees.stampTax + sellFees.transferFee) * 100) / 100;
+    sellFees.commission = Math.round(sellFees.commission * 2 * 100) / 100;
+  }
   profit = profit - sellFees.total;
   profit = Math.round(profit * 100) / 100; // 保留2位小数
 
   document.getElementById('clearAmount').value = profit;
   document.getElementById('clearAutoCalcHint').style.display = 'block';
-  var detail = '';
-  if(sellFees.total > 0) detail = feeDetailText(sellFees);
-  document.getElementById('clearAutoCalcHint').innerHTML = '✅ 本次卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + detail;
+  var hintText = '✅ 本次卖出手续费 ' + sellFees.total.toFixed(2) + ' 元';
+  if(sellFees.total > 0) hintText += feeDetailText(sellFees);
+  if(batches === 2) hintText += '（分2次清，佣金×2）';
+  document.getElementById('clearAutoCalcHint').innerHTML = hintText;
 }
 
 // ===== 添加持仓手续费提示 =====
@@ -2246,6 +2272,11 @@ function openClearHolding(id){
   // 重置仓位选择为"全部"
   selectedClearPos = 'full';
   document.querySelectorAll('#clearPosGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-pos')==='full'); });
+  // 重置清仓次数 + 两融账户显示次数选项
+  selectedClearBatches = 1;
+  var isMargin = (h.accountType || 'normal') === 'margin';
+  document.getElementById('clearBatchWrap').style.display = isMargin ? 'block' : 'none';
+  document.querySelectorAll('#clearBatchGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-batch')==='1'); });
   document.getElementById('clearCustomQty').value = '';
   updateQtyDisplay(document.getElementById('clearQtyDisplay'), 'full', 0, 'clearPosGroup');
   document.getElementById('clearHoldingModal').classList.add('active');
@@ -2280,7 +2311,12 @@ function submitClearHolding(){
   // 计算卖出手续费（用于存入交易记录）—— 必须用卖出价，不能用成本价
   var accType = holding.accountType || 'normal';
   var sellPrice = parseFloat(document.getElementById('clearSellPrice').value) || 0;
+  var batches = (accType === 'margin') ? selectedClearBatches : 1;
   var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
+  if(batches === 2){
+    sellFees.total = Math.round((sellFees.commission * 2 + sellFees.stampTax + sellFees.transferFee) * 100) / 100;
+    sellFees.commission = Math.round(sellFees.commission * 2 * 100) / 100;
+  }
   var feesTotal = Math.round(sellFees.total * 100) / 100;
 
   // 添加到交易记录
