@@ -1366,6 +1366,9 @@ function beginEdit(cell, id, field){
   } else if(field==='quantity'){
     input=document.createElement('input'); input.type='number'; input.step='100';
     input.value=trade.quantity || '';
+  } else if(field==='fees'){
+    input=document.createElement('input'); input.type='number'; input.step='0.01';
+    input.value=trade.fees || 0;
   } else if(field==='code'){
     input=document.createElement('input'); input.type='text';
     input.value=trade.code||'';
@@ -1433,6 +1436,7 @@ function beginEdit(cell, id, field){
         oldVal = trades[i][field];
         if(field==='amount') trades[i].amount = parseFloat(v);
         else if(field==='quantity') trades[i].quantity = parseInt(v)||0;
+        else if(field==='fees') trades[i].fees = parseFloat(v)||0;
         else if(field==='code') trades[i].code = v;
         else if(field==='tag') trades[i].tag = v;
         else if(field==='date') trades[i].date = v;
@@ -1577,7 +1581,7 @@ function renderTable(){
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
-    html+='<td style="color:#7f8c8d">'+feesShow+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="fees" style="color:#7f8c8d">'+feesShow+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
