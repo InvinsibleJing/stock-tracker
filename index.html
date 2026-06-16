@@ -2390,11 +2390,12 @@ function onCompCodeInput(){
   if(!v || typeof STOCK_DICT === 'undefined'){ list.classList.remove('show'); compAcResults=[]; return; }
   
   compAcResults=[]; compAcSelectedIndex=-1; var cnt=0;
-  for(var c in STOCK_DICT){
-    var name=STOCK_DICT[c].toLowerCase();
+  for(var code in STOCK_DICT){
     if(cnt>=8) break;
-    if(name.indexOf(v)===0 || c.indexOf(v)===0){
-      compAcResults.push({code:c,name:STOCK_DICT[c]}); cnt++;
+    var name = STOCK_DICT[code][0];
+    var py = STOCK_DICT[code][1];
+    if(code.indexOf(v)===0 || py.indexOf(v)===0){
+      compAcResults.push({code:code,name:name,pinyin:py}); cnt++;
     }
   }
   if(compAcResults.length===0){ list.classList.remove('show'); return; }
@@ -2402,16 +2403,17 @@ function onCompCodeInput(){
   list.innerHTML='';
   for(var i=0;i<compAcResults.length;i++){
     var div=document.createElement('div');
-    div.textContent=compAcResults[i].code+' '+compAcResults[i].name;
-    div.setAttribute('data-i',i);
+    div.className='autocomplete-item';
+    div.innerHTML='<span class="ac-name">'+escapeHtml(compAcResults[i].name)+'</span><span class="ac-code">'+compAcResults[i].code+'</span>';
     div.addEventListener('mousedown',function(e){
-      var idx=parseInt(this.getAttribute('data-i'));
-      if(idx>=0&&idx<compAcResults.length){
+      var idx=compAcResults.indexOf(this._compResult);
+      if(idx>=0){
         document.getElementById('compCode').value = compAcResults[idx].code;
         autoDetectTagComp(compAcResults[idx].code);
       }
       list.classList.remove('show');
     });
+    div._compResult = compAcResults[i];
     list.appendChild(div);
   }
   list.classList.add('show');
@@ -2422,7 +2424,7 @@ function onCompCodeKeydown(e){
   var list=document.getElementById('compAcList');
   if(!list.classList.contains('show')) return;
   if(e.key==='ArrowDown'){ e.preventDefault(); compAcSelectedIndex=Math.min(compAcSelectedIndex+1,compAcResults.length-1); highlightCompAc(); }
-  else if(e.key==='ArrowUp'){ e.preventDefault(); compAcSelectedIndex=Math.max(compAcSelectedIndex-1,-1); highlightCompAc(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); compAcSelectedIndex=Math.max(compAcSelectedIndex-1,0); highlightCompAc(); }
   else if(e.key==='Enter'){ e.preventDefault();
     if(compAcSelectedIndex>=0&&compAcSelectedIndex<compAcResults.length){
       document.getElementById('compCode').value = compAcResults[compAcSelectedIndex].code;
@@ -2434,9 +2436,9 @@ function onCompCodeKeydown(e){
 
 function highlightCompAc(){
   var list=document.getElementById('compAcList');
-  var items=list.children;
+  var items=list.querySelectorAll('.autocomplete-item');
   for(var i=0;i<items.length;i++){
-    items[i].classList.toggle('selected',i===compAcSelectedIndex);
+    items[i].style.background = i===compAcSelectedIndex ? '#f0f7ff' : '';
   }
 }
 
