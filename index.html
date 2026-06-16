@@ -1595,7 +1595,7 @@ function renderTable(){
     html+='<tr class="month-row-'+g.month+'"'+rowStyle+'>';
     html+='<td>'+seq+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="code">'+stockName+tBadgeHtml+sourceHtml+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="code" style="text-align:left">'+stockName+tBadgeHtml+sourceHtml+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
@@ -2736,7 +2736,7 @@ function renderHoldings(){
     html+='<tr>';
     html+='<td>'+(i+1)+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+accBadge+'</td>';
+    html+='<td class="editable" data-id="'+h.id+'" data-field="code" style="text-align:left">'+stockName+accBadge+'</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
