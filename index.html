@@ -2322,8 +2322,8 @@ function autoCalcCompProfit(){
   hint.style.display = 'block';
   var ht = '💰 买入手续费 ' + buyFees.total.toFixed(2) + ' 元' + feeDetailText(buyFees);
   ht += ' + 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + feeDetailText(sellFees);
-  if(batches === 2) ht += '（分2次清，佣金×2）';
-  ht += ' = 实际盈亏 ' + (profit>=0?'+':'') + profit.toFixed(2) + ' 元';
+  if(batches === 2) ht += '（分2次清）';
+  ht += '，实际盈亏：' + (profit>=0?'+':'') + profit.toFixed(2) + ' 元';
   hint.innerHTML = ht;
 }
 
