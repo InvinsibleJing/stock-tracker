@@ -6,7 +6,7 @@ h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
 
 /* 统计卡片 */
 .stats { display:flex; justify-content:center; gap:14px; margin-bottom:28px; flex-wrap:wrap; }
-.card { background:white; padding:16px 22px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); text-align:center; min-width:105px; transition:transform 0.2s, box-shadow 0.2s; cursor:default; }
+.card { background:white; padding:16px 22px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); text-align:center; min-width:105px; flex:1; transition:transform 0.2s, box-shadow 0.2s; cursor:default; }
 .card:hover { transform:scale(1.08); box-shadow:0 6px 20px rgba(0,0,0,0.15); }
 .card-label { font-size:12px; color:#7f8c8d; margin-bottom:5px; }
 .card-val { font-size:22px; font-weight:bold; }
