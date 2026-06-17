@@ -151,8 +151,8 @@ tbody tr:hover { background:#f8f9fa; }
 .modal-bg.active { display:flex; }
 .modal { background:white; border-radius:12px; padding:28px; width:90%; max-width:520px; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
 .modal h2 { color:#2c3e50; margin-bottom:16px; }
-.modal .row { gap:16px; }
-.modal .field { min-width:100px; }
+.modal .row { gap:14px; flex-wrap:nowrap; }
+.modal .field { min-width:0; flex:1; }
 .modal input, .modal select { width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:14px; margin-bottom:0; }
 .modal p { font-size:13px; color:#666; margin-bottom:8px; line-height:1.6; }
 
