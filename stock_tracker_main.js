@@ -360,10 +360,17 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 
 function updateCurrentTime(){
-  var el = document.getElementById('currentTime');
+  var el = document.getElementById('currentTimeStr');
   if(!el) return;
   var n = new Date();
   el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  // 时辰（23-1子, 1-3丑, 3-5寅 ... 每2小时一个时辰）
+  var h = n.getHours();
+  var shiChenNames = ['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'];
+  // 23:00-00:59 -> 子时(0); 01:00-02:59 -> 丑时(1) ...
+  var idx = Math.floor((h + 1) / 2) % 12;
+  var scEl = document.getElementById('currentShiChen');
+  if(scEl) scEl.textContent = shiChenNames[idx];
 }
 
 // ===== 本地缓存数据（离线兜底） =====
