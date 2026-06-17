@@ -582,10 +582,11 @@ function _hasPendingOptimistic(){
 // 简单比较两个数据数组是否相同（比ID和长度）
 function _dataChanged(oldArr, newArr, idField){
   if(oldArr.length !== newArr.length) return true;
-  var oldIds = {};
-  for(var i=0;i<oldArr.length;i++) oldIds[oldArr[i].id] = true;
-  for(var i=0;i<newArr.length;i++){
-    if(!oldIds[newArr[i].id]) return true;
+  // 按ID排序后逐条对比，用 JSON 比对内容变化
+  var oldSorted = oldArr.slice().sort(function(a,b){ return String(a.id).localeCompare(String(b.id)); });
+  var newSorted = newArr.slice().sort(function(a,b){ return String(a.id).localeCompare(String(b.id)); });
+  for(var i=0;i<oldSorted.length;i++){
+    if(JSON.stringify(oldSorted[i]) !== JSON.stringify(newSorted[i])) return true;
   }
   return false;
 }
@@ -1514,7 +1515,6 @@ function submitAddHolding(){
     // 加权平均成本价（含本次手续费）
     var newBP = Math.round(((oldQty * oldBP + rawPrice * quantity + buyFees.total) / newQty) * 1000) / 1000;
     var savedHoldings = holdings.slice();
-    var savedTrades = trades.slice();
     holdings[existingIdx].quantity = newQty;
     holdings[existingIdx].buyPrice = newBP;
     holdings[existingIdx].date = date;
@@ -1531,11 +1531,11 @@ function submitAddHolding(){
               if(r3&&r3.success){
                 try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
                 _checkSyncStatus();
-              }else{rollbackOptimistic(savedTrades,savedHoldings,'❌ 补仓失败：'+(r3?r3.error:''));}
+              }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r3?r3.error:''));}
             });
-          }else{rollbackOptimistic(savedTrades,savedHoldings,'❌ 补仓失败：'+(r2?r2.error:''));}
+          }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r2?r2.error:''));}
         });
-      }else{rollbackOptimistic(savedTrades,savedHoldings,'❌ 补仓失败：'+(r1?r1.error:''));}
+      }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r1?r1.error:''));}
     });
   } else {
     // ===== 新持仓 =====
