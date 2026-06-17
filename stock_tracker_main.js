@@ -1694,6 +1694,7 @@ function openAddComplete(){
   document.querySelectorAll('#compBatchGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-batch')==='1'); });
   document.getElementById('addCompleteModal').classList.add('active');
   setTimeout(function(){ document.getElementById('compCode').focus(); },100);
+}
 
 function closeAddComplete(){ document.getElementById('addCompleteModal').classList.remove('active'); }
 
