@@ -229,7 +229,7 @@ tbody tr:hover { background:#f8f9fa; }
 /* 中国日历 */
 .calendar-bar { background:white; border-radius:12px; padding:16px 22px 14px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; }
 .cal-left-part { display:flex; align-items:center; gap:14px; }
-.cal-left-part .cal-icon { font-size:28px; line-height:1; }
+#wuXingClock { flex-shrink:0; }
 .cal-left-part .cal-gregorian { text-align:left; }
 .cal-left-part .cal-gregorian .cal-date { font-size:20px; font-weight:700; color:#2c3e50; }
 .cal-left-part .cal-gregorian .cal-weekday { font-size:13px; color:#888; margin-top:3px; }
