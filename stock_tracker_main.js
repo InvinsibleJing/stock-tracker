@@ -1,6 +1,6 @@
 
 // ===== 配置 =====
-var SUPABASE_URL = 'https://tbxfeikdvoplmlxdunjpj.supabase.co';
+var SUPABASE_URL = '';  // 初始化时动态设置
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieGZlaWtkdm9wbG1sZHVuanBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2NTgyNDEsImV4cCI6MjA5NzIzNDI0MX0.-b7ykb_UMIDzveI4sdfhDJYlRZ-AwR54lMbMtxWriow';
 var sb;
 var trades = [];
@@ -338,6 +338,10 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('offlineTip').classList.add('show');
     loadCachedData();
   } else {
+    // Supabase URL: Vercel 部署用 /api/proxy 转发，本地调试直连
+    SUPABASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'https://tbxfeikdvoplmlxdunjpj.supabase.co'
+      : window.location.origin + '/api/proxy';
     // 初始化 Supabase 客户端
     try {
       if(typeof supabase === 'undefined') throw new Error('Supabase CDN 未加载');
