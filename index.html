@@ -199,12 +199,11 @@
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h2>⚙ 云端数据库设置</h2>
-    <p>请将你的 Google Apps Script Web App URL 粘贴到下方：</p>
-    <input type="text" id="inpApiUrl" placeholder="https://script.google.com/macros/s/xxxxx/exec">
-    <p><b>如何获取？</b><br>1. 打开 Google 表格 → 扩展程序 → Apps Script<br>2. 粘贴代码 → 部署 → Web 应用 → 任何人可访问<br>3. 复制生成的 URL</p>
+    <p>当前已接入 Supabase 云端 PostgreSQL 数据库。</p>
+    <p style="font-size:12px;color:#999">数据自动同步，无需手动配置。</p>
+    <input type="text" id="inpApiUrl" value="Supabase PostgreSQL" disabled style="background:#f0f0f0;color:#999">
     <div class="btns">
-      <button class="btn btn-green" onclick="saveSettings()">保存并连接</button>
-      <button class="btn btn-red" onclick="closeSettings()">取消</button>
+      <button class="btn btn-red" onclick="closeSettings()">关闭</button>
     </div>
   </div>
 </div>
@@ -408,6 +407,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/umd/supabase.min.js"></script>
 <script src="./stock_tracker_main.js"></script>
 
 <script src="./stock_tracker_calendar.js"></script>

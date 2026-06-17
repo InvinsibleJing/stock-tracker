@@ -339,8 +339,15 @@ window.addEventListener('DOMContentLoaded', function(){
     loadCachedData();
   } else {
     // 初始化 Supabase 客户端
-    sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    loadAll();
+    try {
+      if(typeof supabase === 'undefined') throw new Error('Supabase CDN 未加载');
+      sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      loadAll();
+    } catch(e) {
+      console.error('Supabase 初始化失败:', e.message);
+      showStatus('err','❌ 数据库连接失败: ' + e.message);
+      loadCachedData();
+    }
   }
 
   // 跨终端同步：页面从不可见变为可见时，立即同步一次（零配额消耗）
@@ -504,7 +511,7 @@ function onCodeKeydown(e) {
 }
 
 // ===== 设置 =====
-function openSettings(){ document.getElementById('settingsModal').classList.add('active'); document.getElementById('inpApiUrl').value='已使用 Supabase 数据库'; document.getElementById('inpApiUrl').disabled=true; }
+function openSettings(){ document.getElementById('settingsModal').classList.add('active'); }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('active'); }
 function saveSettings(){ closeSettings(); }
 
