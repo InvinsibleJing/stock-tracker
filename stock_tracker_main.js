@@ -220,6 +220,10 @@ window.addEventListener('DOMContentLoaded', function(){
       openDoT(target.getAttribute('data-id'));
       return;
     }
+    if(target.classList.contains('btn-add-more') && target.getAttribute('data-action')==='addMore'){
+      openAddMore(target.getAttribute('data-id'));
+      return;
+    }
     if(target.classList.contains('btn-del-h') && target.getAttribute('data-action')==='deleteHolding'){
       deleteHolding(target.getAttribute('data-id'));
       return;
@@ -239,6 +243,10 @@ window.addEventListener('DOMContentLoaded', function(){
     }
     if(target.getAttribute('data-action')==='doT'){
       openDoT(target.getAttribute('data-id'));
+      return;
+    }
+    if(target.getAttribute('data-action')==='addMore'){
+      openAddMore(target.getAttribute('data-id'));
       return;
     }
     if(target.getAttribute('data-action')==='deleteHolding'){
@@ -1443,7 +1451,35 @@ function openAddHolding(){
   document.getElementById('holdNote').value = '';
   setTimeout(function(){ document.getElementById('holdCode').focus(); },100);
 }
-function closeAddHolding(){ document.getElementById('addHoldingModal').classList.remove('active'); }
+function closeAddHolding(){
+  document.getElementById('addHoldingModal').classList.remove('active');
+  document.getElementById('holdCode').disabled = false;
+  document.getElementById('holdMergeHint').style.display = 'none';
+  document.querySelector('#addHoldingModal .modal h2').textContent = '📌 添加持仓';
+}
+
+function openAddMore(id){
+  var holding = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
+  }
+  if(!holding) return;
+  document.getElementById('addHoldingModal').classList.add('active');
+  document.getElementById('holdDate').value = todayStr();
+  document.getElementById('holdCode').value = holding.code;
+  document.getElementById('holdCode').disabled = true;
+  document.getElementById('holdTag').value = holding.tag || '主板';
+  document.getElementById('holdQty').value = '';
+  document.getElementById('holdBuyPrice').value = '';
+  document.getElementById('holdNote').value = '';
+  // 触发补仓提示
+  document.getElementById('holdMergeHint').style.display = 'block';
+  document.getElementById('holdMergeHint').innerHTML = '🔔 补仓 ' + getStockName(holding.code) + '（当前持仓 '+ (holding.quantity||0) +' 股，成本价 ' + (parseFloat(holding.buyPrice)||0).toFixed(3) + ' 元）';
+  document.getElementById('addHoldFeeHint').style.display = 'none';
+  // 标题改为补仓
+  document.querySelector('#addHoldingModal .modal h2').textContent = '📥 补仓 - ' + getStockName(holding.code);
+  setTimeout(function(){ document.getElementById('holdQty').focus(); },100);
+}
 
 function submitAddHolding(){
   var date=document.getElementById('holdDate').value;
@@ -2421,6 +2457,7 @@ function renderHoldings(){
     html+='<td>';
     html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
     html+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
+    html+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore">补仓</button>';
     html+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding">删除</button>';
     html+='</td>';
     html+='</tr>';
@@ -2438,6 +2475,7 @@ function renderHoldings(){
     cardHtml+='<div class="hold-card-footer">';
     cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
     cardHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT" style="background:#8e44ad;color:white">做T</button>';
+    cardHtml+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore" style="background:#27ae60;color:white">补仓</button>';
     cardHtml+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding" style="background:#e74c3c;color:white">删除</button>';
     cardHtml+='</div>';
     cardHtml+='</div>';

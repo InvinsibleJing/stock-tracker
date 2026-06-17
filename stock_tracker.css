@@ -85,6 +85,8 @@ tbody tr:hover { background:#f8f9fa; }
 .btn-clear:hover { background:#d35400; }
 .btn-dot { background:#8e44ad; color:white; }
 .btn-dot:hover { background:#7d3c98; }
+.btn-add-more { background:#27ae60; color:white; }
+.btn-add-more:hover { background:#219a52; }
 .btn-del-h { background:#e74c3c; color:white; }
 .btn-del-h:hover { background:#c0392b; }
 
