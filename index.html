@@ -22,7 +22,6 @@
   <!-- 中国日历 -->
   <div class="calendar-bar" id="calendarBar">
     <div class="cal-left-part">
-      <canvas id="wuXingClock" width="66" height="66" style="border-radius:50%;cursor:pointer" title="五行指针时钟"></canvas>
       <div class="cal-gregorian">
         <div class="cal-date" id="calGregorian"> loading...</div>
         <div class="cal-weekday" id="calWeekday"></div>
@@ -117,8 +116,10 @@
             <button class="acc-type-btn" data-acc="margin">两融</button>
           </div>
         </div>
-        <button class="btn btn-green" onclick="openAddHolding()" style="font-size:13px;padding:6px 16px">+ 添加持仓</button>
-      </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <canvas id="wuXingClock" width="44" height="44" style="border-radius:50%;flex-shrink:0" title="五行指针时钟"></canvas>
+          <button class="btn btn-green" onclick="openAddHolding()" style="font-size:13px;padding:6px 16px">+ 添加持仓</button>
+        </div>
       <div class="table-wrap">
         <table>
           <thead style="background:#2c6e49"><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>买入数量</th><th>成本价</th><th>买入逻辑</th><th>操作</th></tr></thead>
