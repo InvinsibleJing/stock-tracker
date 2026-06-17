@@ -2607,7 +2607,7 @@ function openClearHolding(id){
   document.getElementById('clearCustomQty').value = '';
   updateQtyDisplay(document.getElementById('clearQtyDisplay'), 'full', 0, 'clearPosGroup');
   document.getElementById('clearHoldingModal').classList.add('active');
-  setTimeout(function(){ document.getElementById('clearAmount').focus(); },100);
+  setTimeout(function(){ document.getElementById('clearSellPrice').focus(); },100);
 }
 function closeClearHolding(){ document.getElementById('clearHoldingModal').classList.remove('active'); pendingClearId=''; }
 
