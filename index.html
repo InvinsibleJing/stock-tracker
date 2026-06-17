@@ -2300,10 +2300,11 @@ function openAddComplete(){
   document.getElementById('compAmount').value = '';
   document.getElementById('compNote').value = '';
   document.getElementById('compAutoCalcHint').style.display = 'none';
-  selectedCompAcc = 'normal';
+  selectedCompAcc = localStorage.getItem('stock_account_type') || 'normal';
+  var isMargin = selectedCompAcc === 'margin';
   selectedCompBatches = 1;
-  document.querySelectorAll('#completeAccGroup .acc-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-acc')==='normal'); });
-  document.getElementById('compBatchWrap').style.display = 'none';
+  document.querySelectorAll('#completeAccGroup .acc-type-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-acc')===selectedCompAcc); });
+  document.getElementById('compBatchWrap').style.display = isMargin ? 'block' : 'none';
   document.querySelectorAll('#compBatchGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-batch')==='1'); });
   document.getElementById('addCompleteModal').classList.add('active');
 }
