@@ -1897,11 +1897,12 @@ function renderStockSummary(){
     }
 
     // 非做T记录（清仓/手动添加）：参与盈亏计算
-    if(!groups[code]) groups[code]={trades:0,success:0,profit:0,firstDate:trades[i].date};
+    if(!groups[code]) groups[code]={trades:0,success:0,profit:0,firstDate:trades[i].date,lastDate:trades[i].date};
     groups[code].trades++;
     if(trades[i].amount>0) groups[code].success++;
     groups[code].profit+=trades[i].amount;
     if(trades[i].date<groups[code].firstDate) groups[code].firstDate=trades[i].date;
+    if(trades[i].date>groups[code].lastDate) groups[code].lastDate=trades[i].date;
   }
 
   // 合并：有做T但无清仓的股票也要展示；同时在holdings中的标记为"持仓中"
@@ -1915,14 +1916,15 @@ function renderStockSummary(){
   // 持仓中但没有任何交易记录的股票也要展示
   for(var c in holdingCodes) allCodes[c] = true;
 
-  // 持仓中的排在最前面，其余按净盈亏从高到低
+  // 持仓中的排在最前面，已清仓的按最后清仓日期从近到远
   var keys=Object.keys(allCodes).sort(function(a,b){
     var ha = !!holdingCodes[a];
     var hb = !!holdingCodes[b];
     if(ha !== hb) return ha ? -1 : 1; // 持仓中优先
-    var pa = groups[a] ? groups[a].profit : -Infinity;
-    var pb = groups[b] ? groups[b].profit : -Infinity;
-    return pb - pa;
+    // 已清仓股票按最后清仓日期从近到远（最近的在上）
+    var da = groups[a] ? groups[a].lastDate : '0000';
+    var db = groups[b] ? groups[b].lastDate : '0000';
+    return db.localeCompare(da);
   });
 
   var totalStocks=keys.length;
