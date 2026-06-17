@@ -353,7 +353,18 @@ window.addEventListener('DOMContentLoaded', function(){
   document.addEventListener('visibilitychange', function(){
     if(!document.hidden && isOnline) _silentSync();
   });
+
+  // 当前时间（每秒刷新）
+  updateCurrentTime();
+  setInterval(updateCurrentTime, 1000);
 });
+
+function updateCurrentTime(){
+  var el = document.getElementById('currentTime');
+  if(!el) return;
+  var n = new Date();
+  el.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+}
 
 // ===== 本地缓存数据（离线兜底） =====
 function cacheData(data){
