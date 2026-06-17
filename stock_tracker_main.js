@@ -1,8 +1,8 @@
 
 // ===== 配置 =====
-var SUPABASE_URL = '';  // 初始化时动态设置
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieGZlaWtkdm9wbG1sZHVuanBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2NTgyNDEsImV4cCI6MjA5NzIzNDI0MX0.-b7ykb_UMIDzveI4sdfhDJYlRZ-AwR54lMbMtxWriow';
-var sb;
+var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbzUuiFt6lpIpsA2fLxu9VOdwu-j4JwDB0pAas-bhAp0MqbKJvo0xUjAywd3E_5ar94GWA/exec';
+var MAX_RETRIES = 3;
+var RETRY_DELAY = 2000;
 var trades = [];
 var holdings = [];
 var isLoading = false;
@@ -338,20 +338,7 @@ window.addEventListener('DOMContentLoaded', function(){
     document.getElementById('offlineTip').classList.add('show');
     loadCachedData();
   } else {
-    // Supabase URL: Vercel 部署用 /api/proxy 转发，本地调试直连
-    SUPABASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'https://tbxfeikdvoplmlxdunjpj.supabase.co'
-      : window.location.origin + '/api/proxy';
-    // 初始化 Supabase 客户端
-    try {
-      if(typeof supabase === 'undefined') throw new Error('Supabase CDN 未加载');
-      sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      loadAll();
-    } catch(e) {
-      console.error('Supabase 初始化失败:', e.message);
-      showStatus('err','❌ 数据库连接失败: ' + e.message);
-      loadCachedData();
-    }
+    loadAll();
   }
 
   // 跨终端同步：页面从不可见变为可见时，立即同步一次（零配额消耗）
@@ -515,32 +502,58 @@ function onCodeKeydown(e) {
 }
 
 // ===== 设置 =====
-function openSettings(){ document.getElementById('settingsModal').classList.add('active'); }
+// ===== 设置 =====
+function openSettings(){ document.getElementById('settingsModal').classList.add('active'); document.getElementById('inpApiUrl').value=API_URL; }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('active'); }
-function saveSettings(){ closeSettings(); }
+function saveSettings(){
+  var url=document.getElementById('inpApiUrl').value.trim();
+  if(!url){ alert('请输入API URL！'); return; }
+  API_URL=url; localStorage.setItem('stock_api_url',url);
+  closeSettings(); showStatus('load','⏳ 正在连接...'); loadTrades();
+}
 
-// ===== API（带自动重试） =====
-var MAX_RETRIES = 3;     // 最大重试次数
-var RETRY_DELAY = 2000;  // 重试间隔（毫秒）
+// ===== API（GAS JSONP + 自动重试） =====
+function apiCall(params, callback, _retries){
+  if(!API_URL){ showStatus('err','⚠️ 未配置云端数据库'); return; }
+  var retries = typeof _retries === 'number' ? _retries : 0;
+  var callbackName = 'cb_'+Date.now()+'_'+Math.floor(Math.random()*10000);
+  params.callback = callbackName;
+  var parts=[];
+  for(var k in params){ parts.push(encodeURIComponent(k)+'='+encodeURIComponent(params[k])); }
+  var url = API_URL + '?' + parts.join('&');
 
-function apiCall(params, callback){
-  if(!sb){ callback({success:false,error:"数据库未连接"}); return; }
-  var a = params.action;
-  function ok(p){ p.then(function(r){ if(r.error){ callback({success:false,error:r.error.message}); return; } var res={success:true}; if(a==="list"||a==="listHoldings") res.data=r.data||[]; if(a==="add"||a==="addHolding") res.id=r.data&&r.data[0]?String(r.data[0].id):""; callback(res); }).catch(function(e){ callback({success:false,error:e.message}); }); }
-  function n(){ return Date.now(); }
-  switch(a){
-    case "list": ok(sb.from("trades").select("*").order("date",{ascending:false})); break;
-    case "add": ok(sb.from("trades").insert([{id:parseInt(params.id)||n(),date:params.date||"",code:params.code||"",tag:params.tag||"主板",quantity:parseInt(params.quantity)||0,amount:parseFloat(params.amount)||0,note:params.note||"",tIndex:parseInt(params.tIndex)||0,status:params.status||"closed",source:params.source||"manual",fees:parseFloat(params.fees)||0}]).select()); break;
-    case "delete": ok(sb.from("trades").delete().eq("id",parseInt(params.id))); break;
-    case "update": var uv=params.value; if(params.field==="amount"||params.field==="fees") uv=parseFloat(uv); if(params.field==="quantity"||params.field==="tIndex") uv=parseInt(uv)||0; var u={}; u[params.field]=uv; ok(sb.from("trades").update(u).eq("id",parseInt(params.id))); break;
-    case "listHoldings": ok(sb.from("holdings").select("*").order("date",{ascending:false})); break;
-    case "addHolding": ok(sb.from("holdings").insert([{id:parseInt(params.id)||n(),date:params.date||"",code:params.code||"",tag:params.tag||"主板",quantity:parseInt(params.quantity)||0,note:params.note||"",buyPrice:parseFloat(params.buyPrice)||0,accountType:params.accountType||"normal"}]).select()); break;
-    case "deleteHolding": ok(sb.from("holdings").delete().eq("id",parseInt(params.id))); break;
-    case "updateHolding": var uh=params.value; if(params.field==="quantity"||params.field==="buyPrice") uh=parseFloat(uh)||0; var uph={}; uph[params.field]=uh; ok(sb.from("holdings").update(uph).eq("id",parseInt(params.id))); break;
-    case "clearHolding": var cid=n(); sb.from("trades").insert([{id:cid,date:params.clearDate||params.date||"",code:params.clearCode||"",tag:params.clearTag||"主板",quantity:parseInt(params.quantity)||0,amount:parseFloat(params.amount)||0,note:(params.note||"")+"["+(params.clearAccLabel||"正常")+"]",tIndex:0,status:"closed",source:"clear",fees:parseFloat(params.fees)||0}]).then(function(r1){ if(r1.error){callback({success:false,error:r1.error.message});return;} if(parseInt(params.isPartial)===1){sb.from("holdings").update({quantity:parseInt(params.clearNewQty)||0}).eq("id",parseInt(params.id)).then(function(r2){if(r2.error){callback({success:false,error:r2.error.message});return;}callback({success:true,tradeId:String(cid),wasPartial:true,newQuantity:parseInt(params.clearNewQty)});});}else{sb.from("holdings").delete().eq("id",parseInt(params.id)).then(function(r2){if(r2.error){callback({success:false,error:r2.error.message});return;}callback({success:true,tradeId:String(cid),wasPartial:false});});}}).catch(function(e){callback({success:false,error:e.message});});break;
-    case "doT": var did=n(); sb.from("trades").insert([{id:did,date:params.dotDate||"",code:params.dotCode||"",tag:params.dotTag||"主板",quantity:parseInt(params.quantity)||0,amount:parseFloat(params.amount)||0,note:params.note||"",tIndex:parseInt(params.tIndex)||1,status:"open",source:"doT",fees:parseFloat(params.fees)||0}]).then(function(r1){if(r1.error){callback({success:false,error:r1.error.message});return;}if(params.dotBuyPrice!==undefined){sb.from("holdings").update({buyPrice:parseFloat(params.dotBuyPrice)}).eq("id",parseInt(params.id)).then(function(r2){callback({success:true,tradeId:String(did),newBuyPrice:parseFloat(params.dotBuyPrice)});});}else{callback({success:true,tradeId:String(did)});}}).catch(function(e){callback({success:false,error:e.message});});break;
-    default: callback({success:false,error:"未知操作"}); break;
-  }
+  window[callbackName] = function(data){ delete window[callbackName]; document.head.removeChild(script); callback(data); };
+  var script = document.createElement('script');
+  script.src = url;
+  script.onerror = function(){
+    delete window[callbackName];
+    if(script.parentNode) document.head.removeChild(script);
+    if(retries < MAX_RETRIES - 1){
+      var next = retries + 1;
+      showStatus('load','⏳ 连接失败，第 '+next+'/'+(MAX_RETRIES-1)+' 次重试...');
+      setTimeout(function(){ apiCall(params, callback, next); }, RETRY_DELAY);
+    } else {
+      showStatus('err','❌ 网络错误（已重试 '+(MAX_RETRIES-1)+' 次）');
+      callback({success:false,error:'网络错误'});
+    }
+  };
+  var timer = setTimeout(function(){
+    if(window[callbackName]){
+      delete window[callbackName];
+      if(script.parentNode) document.head.removeChild(script);
+      if(retries < MAX_RETRIES - 1){
+        var next = retries + 1;
+        showStatus('load','⏳ 响应超时，第 '+next+'/'+(MAX_RETRIES-1)+' 次重试...');
+        setTimeout(function(){ apiCall(params, callback, next); }, RETRY_DELAY);
+      } else {
+        showStatus('err','❌ 请求超时（已重试 '+(MAX_RETRIES-1)+' 次）');
+        callback({success:false,error:'请求超时'});
+      }
+    }
+  }, 15000);
+  var origCb = window[callbackName];
+  window[callbackName] = function(data){ clearTimeout(timer); origCb(data); };
+  document.head.appendChild(script);
 }
 
 function loadAll(){
