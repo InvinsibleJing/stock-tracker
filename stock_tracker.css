@@ -91,8 +91,8 @@ tbody tr:hover { background:#f8f9fa; }
 .btn-del-h:hover { background:#c0392b; }
 
 /* 账户类型选择器 */
-.account-type-group { display:flex; gap:4px; background:#e8ecf0; border-radius:8px; padding:3px; }
-.acc-type-btn { padding:5px 14px; border:none; border-radius:6px; background:transparent; cursor:pointer; font-size:12px; font-weight:600; color:#999; transition:all 0.15s; white-space:nowrap; }
+.account-type-group { display:flex; gap:4px; border-radius:8px; }
+.acc-type-btn { padding:5px 14px; border:none; border-radius:6px; background:#e8ecf0; cursor:pointer; font-size:12px; font-weight:600; color:#999; transition:all 0.15s; white-space:nowrap; }
 .acc-type-btn:hover { color:#666; }
 .acc-type-btn.active { background:#3498db; color:white; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
 
