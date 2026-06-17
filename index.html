@@ -225,18 +225,18 @@
       </div>
     </div>
     <div class="row" style="gap:20px;margin-bottom:4px">
-      <div style="flex:1;font-size:12px;color:#666;font-weight:500;padding-left:11px">买入数量（股）</div>
-      <div style="flex:1;font-size:12px;color:#666;font-weight:500;padding-left:11px">买入价格（元）</div>
-      <div style="flex:1;font-size:12px;color:#666;font-weight:500;padding-left:11px">板块分类</div>
+      <div style="flex:1;font-size:14px;color:#666;font-weight:500;padding:9px 11px;box-sizing:border-box">买入数量（股）</div>
+      <div style="flex:1;font-size:14px;color:#666;font-weight:500;padding:9px 11px;box-sizing:border-box">买入价格（元）</div>
+      <div style="flex:1;font-size:14px;color:#666;font-weight:500;padding:9px 11px;box-sizing:border-box">板块分类</div>
     </div>
     <div class="row" style="gap:20px;margin-bottom:10px">
-      <input type="number" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;box-sizing:border-box" id="holdQty" placeholder="如 1000" step="100" oninput="autoCalcBuyFees()">
-      <input type="number" style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;box-sizing:border-box" id="holdBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcBuyFees()">
-      <select style="flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;box-sizing:border-box" id="holdTag">
+      <div class="field" style="flex:1;padding:0;margin:0"><input type="number" id="holdQty" placeholder="如 1000" step="100" oninput="autoCalcBuyFees()"></div>
+      <div class="field" style="flex:1;padding:0;margin:0"><input type="number" id="holdBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcBuyFees()"></div>
+      <div class="field" style="flex:1;padding:0;margin:0"><select id="holdTag">
         <option value="主板">主板</option>
         <option value="创业板">创业板</option>
         <option value="科创板">科创板</option>
-      </select>
+      </select></div>
     </div>
     <p id="addHoldFeeHint" style="display:none;font-size:11px;color:#7f8c8d;margin:0 0 6px 0"></p>
     <p id="holdMergeHint" style="display:none;font-size:12px;color:#e67e22;margin:0 0 10px 0;font-weight:bold"></p>
@@ -353,18 +353,18 @@
       </div>
     </div>
     <div class="row" style="gap:20px;margin-bottom:4px">
-      <div style="flex:1;font-size:12px;color:#666;font-weight:500;padding-left:11px">买入数量（股）</div>
-      <div style="flex:1;font-size:12px;color:#666;font-weight:500;padding-left:11px">买入价格（元）</div>
-      <div style="flex:1;font-size:12px;color:#666;font-weight:500;padding-left:11px">板块分类</div>
+      <div style="flex:1;font-size:14px;color:#666;font-weight:500;padding:9px 11px;box-sizing:border-box">买入数量（股）</div>
+      <div style="flex:1;font-size:14px;color:#666;font-weight:500;padding:9px 11px;box-sizing:border-box">买入价格（元）</div>
+      <div style="flex:1;font-size:14px;color:#666;font-weight:500;padding:9px 11px;box-sizing:border-box">板块分类</div>
     </div>
     <div class="row" style="gap:20px;margin-bottom:10px">
-      <input type="number" style="flex:1" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()">
-      <input type="number" style="flex:1" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()">
-      <select style="flex:1" id="compTag">
+      <div class="field" style="flex:1;padding:0;margin:0"><input type="number" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()"></div>
+      <div class="field" style="flex:1;padding:0;margin:0"><input type="number" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()"></div>
+      <div class="field" style="flex:1;padding:0;margin:0"><select id="compTag">
         <option value="主板">主板</option>
         <option value="创业板">创业板</option>
         <option value="科创板">科创板</option>
-      </select>
+      </select></div>
     </div>
     <div class="row" style="margin-bottom:10px" id="compSellPriceRow">
       <div class="field"><label>清仓价格（元）</label><input type="number" id="compSellPrice" placeholder="如 11.00" step="0.001" oninput="autoCalcCompProfit()"></div>
