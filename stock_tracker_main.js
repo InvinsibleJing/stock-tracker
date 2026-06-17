@@ -1,7 +1,7 @@
 
 // ===== 配置 =====
 var SUPABASE_URL = 'https://tbxfeikdvoplmlxdunjpj.supabase.co';
-var SUPABASE_KEY = 'sb_publishable_7Dh8zq-aBQ3SoJ0K5RU2sg_bDER26Vw';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRieGZlaWtkdm9wbG1sZHVuanBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2NTgyNDEsImV4cCI6MjA5NzIzNDI0MX0.-b7ykb_UMIDzveI4sdfhDJYlRZ-AwR54lMbMtxWriow';
 var sb;
 var trades = [];
 var holdings = [];
