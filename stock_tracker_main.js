@@ -396,7 +396,7 @@ function switchTab(name){
   // 更新tab样式
   var tabBtns = document.querySelectorAll('.container > .tabs .tab');
   tabBtns.forEach(function(t){ t.classList.remove('active'); });
-  if(name==='input') tabBtns[0].classList.add('active');
+  if(name==='input'){ tabBtns[0].classList.add('active'); setTimeout(function(){ document.getElementById('inpCode').focus(); },100); }
   if(name==='table') tabBtns[1].classList.add('active');
   if(name==='analysis') tabBtns[2].classList.add('active');
 
@@ -1693,7 +1693,7 @@ function openAddComplete(){
   document.getElementById('compBatchWrap').style.display = isMargin ? 'block' : 'none';
   document.querySelectorAll('#compBatchGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-batch')==='1'); });
   document.getElementById('addCompleteModal').classList.add('active');
-}
+  setTimeout(function(){ document.getElementById('compCode').focus(); },100);
 
 function closeAddComplete(){ document.getElementById('addCompleteModal').classList.remove('active'); }
 
