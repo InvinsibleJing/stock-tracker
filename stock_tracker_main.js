@@ -1454,33 +1454,74 @@ function submitAddHolding(){
   var note=document.getElementById('holdNote').value.trim();
   if(!date||!code||isNaN(quantity)||quantity<=0){ alert('请填写交易日期、股票代码和买入数量！'); return; }
 
-  // 计算买入手续费，将含费成本价存入后端
+  // 买入手续费
   var buyFees = calcFees(rawPrice, quantity, false, selectedAccountType, code);
   var totalCost = rawPrice * quantity + buyFees.total;
-  var buyPrice = Math.round(totalCost / quantity * 1000) / 1000; // 保留3位小数
+  var buyPrice = Math.round(totalCost / quantity * 1000) / 1000;
 
-  // 乐观更新：先在前端添加持仓
-  var tmpId = genTempId();
-  var savedHoldings = holdings.slice();
-  holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType});
-  closeAddHolding();
-  closeAddHolding();
-  refreshUI();
-  showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
-
-  // 后台同步
-  apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType}, function(res){
-    if(res&&res.success){
-      for(var i=0;i<holdings.length;i++){
-        if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
-      }
-      try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
-      refreshUI();
-      _checkSyncStatus();
-    } else {
-      rollbackOptimistic(trades, savedHoldings, '❌ 添加持仓失败：'+(res?res.error:''));
+  // 检测是否已持仓（同代码+同账户类型 → 补仓合并）
+  var existingIdx = -1;
+  for(var i=0;i<holdings.length;i++){
+    if(holdings[i].code===code && (holdings[i].accountType||'normal')===selectedAccountType){
+      existingIdx=i; break;
     }
-  });
+  }
+
+  closeAddHolding();
+
+  if(existingIdx>=0){
+    // ===== 补仓：合并到现有持仓 =====
+    var old = holdings[existingIdx];
+    var oldQty = old.quantity || 0;
+    var oldBP = parseFloat(old.buyPrice) || rawPrice;
+    var newQty = oldQty + quantity;
+    // 加权平均成本价（含本次手续费）
+    var newBP = Math.round(((oldQty * oldBP + rawPrice * quantity + buyFees.total) / newQty) * 1000) / 1000;
+    var savedHoldings = holdings.slice();
+    var savedTrades = trades.slice();
+    holdings[existingIdx].quantity = newQty;
+    holdings[existingIdx].buyPrice = newBP;
+    holdings[existingIdx].date = date;
+    if(note) holdings[existingIdx].note = (holdings[existingIdx].note ? holdings[existingIdx].note+'; ' : '') + note;
+    refreshUI();
+    showStatus('ok','✅ 补仓成功：' + getStockName(code) + ' ' + oldQty + '→'+newQty + '股，成本价更新为' + newBP.toFixed(3) + '元');
+
+    // 后台同步
+    apiCall({action:'updateHolding',id:old.id,field:'quantity',value:newQty}, function(r1){
+      if(r1&&r1.success){
+        apiCall({action:'updateHolding',id:old.id,field:'buyPrice',value:newBP}, function(r2){
+          if(r2&&r2.success){
+            apiCall({action:'updateHolding',id:old.id,field:'date',value:date}, function(r3){
+              if(r3&&r3.success){
+                try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+                _checkSyncStatus();
+              }else{rollbackOptimistic(savedTrades,savedHoldings,'❌ 补仓失败：'+(r3?r3.error:''));}
+            });
+          }else{rollbackOptimistic(savedTrades,savedHoldings,'❌ 补仓失败：'+(r2?r2.error:''));}
+        });
+      }else{rollbackOptimistic(savedTrades,savedHoldings,'❌ 补仓失败：'+(r1?r1.error:''));}
+    });
+  } else {
+    // ===== 新持仓 =====
+    var tmpId = genTempId();
+    var savedHoldings = holdings.slice();
+    holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType});
+    refreshUI();
+    showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
+
+    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType}, function(res){
+      if(res&&res.success){
+        for(var i=0;i<holdings.length;i++){
+          if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
+        }
+        try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+        refreshUI();
+        _checkSyncStatus();
+      } else {
+        rollbackOptimistic(trades, savedHoldings, '❌ 添加持仓失败：'+(res?res.error:''));
+      }
+    });
+  }
 }
 
 // ===== 仓位选择工具函数 =====
@@ -1559,11 +1600,30 @@ function autoCalcBuyFees(){
   var price = parseFloat(document.getElementById('holdBuyPrice').value);
   var qty = parseInt(document.getElementById('holdQty').value);
   var hint = document.getElementById('addHoldFeeHint');
+  var mergeHint = document.getElementById('holdMergeHint');
+  var code = document.getElementById('holdCode').value.trim();
   if(isNaN(price) || isNaN(qty) || price <= 0 || qty <= 0){
     hint.style.display = 'none';
+    mergeHint.style.display = 'none';
     return;
   }
-  var code = document.getElementById('holdCode').value.trim();
+  // 检测是否已持仓（补仓模式）
+  if(code){
+    for(var i=0;i<holdings.length;i++){
+      if(holdings[i].code===code && (holdings[i].accountType||'normal')===selectedAccountType){
+        var old = holdings[i];
+        var newQty = (old.quantity||0) + qty;
+        var oldBP = parseFloat(old.buyPrice) || price;
+        var buyFees = calcFees(price, qty, false, selectedAccountType, code);
+        var newBP = Math.round(((old.quantity * oldBP + price * qty + buyFees.total) / newQty) * 1000) / 1000;
+        mergeHint.style.display = 'block';
+        mergeHint.innerHTML = '🔔 补仓模式：将合并到现有持仓 ' + getStockName(code) + '（' + (old.quantity||0) + '→<b>' + newQty + '</b>股，成本价 ' + oldBP.toFixed(3) + '→<b>' + newBP.toFixed(3) + '</b>元）';
+        hint.style.display = 'none';
+        return;
+      }
+    }
+  }
+  mergeHint.style.display = 'none';
   var fees = calcFees(price, qty, false, selectedAccountType, code);
   if(fees.total === 0){
     hint.style.display = 'none';
