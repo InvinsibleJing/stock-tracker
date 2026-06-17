@@ -121,7 +121,7 @@ tbody tr:hover { background:#f8f9fa; }
 
 /* 持仓模块间距 */
 .holding-box { background:white; border-radius:12px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:20px; }
-.holding-box h2 { color:#2c3e50; margin-bottom:16px; font-size:17px; }
+.holding-box h2 { color:#2c3e50; margin:0 0 16px 0; font-size:17px; }
 
 .empty { text-align:center; padding:36px; color:#999; }
 
