@@ -353,10 +353,6 @@ window.addEventListener('DOMContentLoaded', function(){
   document.addEventListener('visibilitychange', function(){
     if(!document.hidden && isOnline) _silentSync();
   });
-
-  // ===== 五行指针时钟 =====
-  drawWuXingClock();  // 初始绘制
-  setInterval(drawWuXingClock, 1000);  // 每秒刷新
 });
 
 // ===== 本地缓存数据（离线兜底） =====
@@ -2487,89 +2483,6 @@ function renderHoldings(){
   }
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
-}
-
-// ===== 五行指针时钟 =====
-function drawWuXingClock(){
-  var c = document.getElementById('wuXingClock');
-  if(!c) return;
-  var ctx = c.getContext('2d');
-  var w = c.width, h = c.height;
-  var cx = w/2, cy = h/2, r = w/2 - 3;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // 土 — 表盘底色（淡黄）
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI*2);
-  ctx.fillStyle = '#fef9e7';
-  ctx.fill();
-
-  // 金 — 表盘边框
-  ctx.strokeStyle = '#c9a96e';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  // 刻度（12个）
-  for(var i=0;i<12;i++){
-    var angle = (i-3)*Math.PI/6; // -3 让0对准12点
-    var outerR = i%3===0 ? r-4 : r-2;
-    var innerR = i%3===0 ? r-10 : r-6;
-    ctx.beginPath();
-    ctx.moveTo(cx+Math.cos(angle)*innerR, cy+Math.sin(angle)*innerR);
-    ctx.lineTo(cx+Math.cos(angle)*outerR, cy+Math.sin(angle)*outerR);
-    ctx.strokeStyle = '#b8945a';
-    ctx.lineWidth = i%3===0 ? 1.5 : 0.8;
-    ctx.stroke();
-  }
-
-  var now = new Date();
-  var hh = now.getHours()%12;
-  var mm = now.getMinutes();
-  var ss = now.getSeconds();
-
-  // 木 — 时针（绿色，短粗）
-  var hAngle = (hh+mm/60-3)*Math.PI/6;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx+Math.cos(hAngle)*r*0.5, cy+Math.sin(hAngle)*r*0.5);
-  ctx.strokeStyle = '#27ae60';
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.stroke();
-
-  // 火 — 分针（红色）
-  var mAngle = (mm+ss/60-15)*Math.PI/30;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx+Math.cos(mAngle)*r*0.72, cy+Math.sin(mAngle)*r*0.72);
-  ctx.strokeStyle = '#e74c3c';
-  ctx.lineWidth = 1.8;
-  ctx.stroke();
-
-  // 水 — 秒针（蓝色，细长）
-  var sAngle = (ss-15)*Math.PI/30;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx+Math.cos(sAngle)*r*0.82, cy+Math.sin(sAngle)*r*0.82);
-  ctx.strokeStyle = '#3498db';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // 秒针尾（小红点）
-  ctx.beginPath();
-  ctx.arc(cx+Math.cos(sAngle+Math.PI)*r*0.12, cy+Math.sin(sAngle+Math.PI)*r*0.12, 1.5, 0, Math.PI*2);
-  ctx.fillStyle = '#e74c3c';
-  ctx.fill();
-
-  // 中心点（金）
-  ctx.beginPath();
-  ctx.arc(cx, cy, 2.5, 0, Math.PI*2);
-  ctx.fillStyle = '#c9a96e';
-  ctx.fill();
-  ctx.strokeStyle = '#a07d4a';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
 }
 
 // ===== 工具 =====
