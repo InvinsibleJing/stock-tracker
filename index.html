@@ -86,6 +86,8 @@
           <div class="autocomplete-list" id="acList"></div>
         </div>
       </div>
+    </div>
+    <div class="row">
       <div class="field"><label>板块分类</label>
         <select id="inpTag">
           <option value="主板">主板</option>
@@ -224,10 +226,12 @@
         </div>
       </div>
     </div>
-    <div class="row" style="margin-bottom:10px">
+    <div class="row">
       <div class="field"><label>买入数量（股）</label><input type="number" id="holdQty" placeholder="如 1000" step="100" oninput="autoCalcBuyFees()"></div>
       <div class="field"><label>买入价格（元）</label><input type="number" id="holdBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcBuyFees()"></div>
-      <div class="field"><label>板块分类</label>
+    </div>
+    <div class="row">
+      <div class="field" style="max-width:180px"><label>板块分类</label>
         <select id="holdTag">
           <option value="主板">主板</option>
           <option value="创业板">创业板</option>
@@ -349,10 +353,12 @@
         </div>
       </div>
     </div>
-    <div class="row" style="margin-bottom:10px">
+    <div class="row">
       <div class="field"><label>买入数量（股）</label><input type="number" id="compQty" placeholder="如 1000" step="100" oninput="autoCalcCompProfit()"></div>
       <div class="field"><label>买入价格（元）</label><input type="number" id="compBuyPrice" placeholder="如 10.50" step="0.001" oninput="autoCalcCompProfit()"></div>
-      <div class="field"><label>板块分类</label>
+    </div>
+    <div class="row">
+      <div class="field" style="max-width:180px"><label>板块分类</label>
         <select id="compTag">
           <option value="主板">主板</option>
           <option value="创业板">创业板</option>
