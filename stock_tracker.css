@@ -249,7 +249,7 @@ tbody tr:hover { background:#f8f9fa; }
 .cal-jieqi-part .cal-divider { border:none; border-top:1px solid #eee; margin:5px 0; }
 .cal-right-part { display:flex; flex-direction:column; gap:8px; align-items:flex-start; padding-top:4px; }
 .cal-right-part .cal-row { display:flex; gap:8px; }
-.cal-right-part button { padding:7px 16px; border-radius:7px; border:none; font-size:13px; cursor:pointer; font-weight:500; min-width:72px; text-align:center; box-sizing:border-box; height:34px; }
+.cal-right-part button { padding:0 16px; border-radius:7px; border:none; font-size:13px; cursor:pointer; font-weight:500; width:76px; text-align:center; box-sizing:border-box; height:34px; }
 .cal-right-part .cal-btn-today { background:#d4e5f7; color:#1a6baa; }
 .cal-right-part .cal-btn-today:hover { background:#c0d6f0; }
 .cal-right-part .cal-btn-select { background:#e0d4f5; color:#7b2fa0; }
