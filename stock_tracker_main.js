@@ -2111,7 +2111,7 @@ function submitClearHolding(){
   showStatus('ok','✅ 清仓成功，' + actualQty + '股已记录');
 
   // 后台同步
-  apiCall({action:'clearHolding',id:id,amount:amount,note:note,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal}, function(res){
+  apiCall({action:'clearHolding',id:id,amount:amount,note:finalNote,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal}, function(res){
     if(res&&res.success){
       if(res.tradeId){
         for(var j=0;j<trades.length;j++){
