@@ -454,6 +454,10 @@ function switchTab(name){
 function getStockName(code) {
   if (!code || typeof STOCK_DICT === 'undefined') return code || '';
   var entry = STOCK_DICT[code];
+  if (entry) return entry[0];
+  // 兼容被 Sheets 去掉前导零的代码（如 2600 → 002600）
+  var padded = String(code).padStart(6, '0');
+  entry = STOCK_DICT[padded];
   return entry ? entry[0] : code;
 }
 
