@@ -100,6 +100,34 @@ function feeDetailText(fees) {
   return '（' + parts.join(' + ') + '）';
 }
 
+/** 生成交易记录手续费 tooltip 文本 */
+function getFeesTooltip(trade) {
+  var fee = parseFloat(trade.fees) || 0;
+  if (fee <= 0) return '';
+  var source = trade.source || '';
+  var note = trade.note || '';
+  var code = trade.code || '';
+  var isMargin = note.indexOf('[两融]') !== -1;
+  var isSH = code.charAt(0) === '6';
+  var parts = [];
+  
+  if (source === 'clear') {
+    if (isMargin) parts.push('佣金 5.00 元');
+    else parts.push('佣金 ≈成交额×0.01%（万一免五）');
+    parts.push('印花税 0.05%');
+    if (isSH) parts.push('过户费 0.001%（沪市）');
+  } else if (source === 'doT') {
+    if (isMargin) parts.push('佣金 10.00 元（买卖各5元）');
+    else parts.push('佣金 ≈成交额×0.01%×2（万一免五）');
+    parts.push('印花税 0.05%（卖出）');
+    if (isSH) parts.push('过户费 0.001%×2（沪市）');
+  } else {
+    parts.push('手动添加');
+  }
+  
+  return '手续费 ¥' + fee.toFixed(2) + '<br>构成：' + parts.join(' + ');
+}
+
 // ===== PWA 注册 =====
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').then(function(reg){
@@ -1011,8 +1039,9 @@ function renderTable(){
       }
     }
 
-    // 手续费显示
+    // 手续费显示 + tooltip
     var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
+    var feesTooltip = (t.fees && t.fees > 0) ? getFeesTooltip(t) : '';
 
     // 桌面端表格行
     html+='<tr class="month-row-'+g.month+'"'+rowStyle+'>';
@@ -1022,7 +1051,7 @@ function renderTable(){
     html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
     html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="fees" style="color:#7f8c8d">'+feesShow+'</td>';
+    html+='<td class="editable" data-id="'+t.id+'" data-field="fees" style="color:#7f8c8d">'+feesShow+(feesTooltip?'<div class="tooltip-box">'+feesTooltip+'</div>':'')+'</td>';
     html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
