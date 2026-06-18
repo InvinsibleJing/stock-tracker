@@ -48,8 +48,14 @@ table { width:100%; border-collapse:collapse; font-size:13px; }
 thead { background:#34495e; color:white; }
 th { padding:10px 8px; font-weight:500; white-space:nowrap; }
 td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
-/* 包含 tooltip 的行避免被 table-wrap 裁剪 */
-tbody tr:hover { background:#f8f9fa; }
+/* 交易记录/持仓表 灰白交替 */
+.table-box #tbBody tr:nth-child(odd),
+.holding-box #holdBody tr:nth-child(odd) { background:#fafbfc; }
+.table-box #tbBody tr:nth-child(even),
+.holding-box #holdBody tr:nth-child(even) { background:white; }
+/* hover 覆盖斑马纹 */
+.table-box #tbBody tr:hover,
+.holding-box #holdBody tr:hover { background:#f0f4f8; }
 
 .profit { color:#e74c3c; font-weight:bold; }
 .loss { color:#27ae60; font-weight:bold; }
