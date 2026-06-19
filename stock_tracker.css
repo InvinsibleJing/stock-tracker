@@ -327,15 +327,17 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .cal-day-cell.loss { background:#eafaf0; color:#1e8449; border:1.5px solid #c8e6c9; }
 .cal-day-cell.loss .cal-day-num { color:#1e8449; font-weight:700; }
 .cal-day-cell.no-trade { background:#f3f4f6; color:#aaa; border:1.5px solid #e2e4e8; }
-.cal-day-cell.no-trade .cal-day-num { color:#aaa; font-weight:400; }
+.cal-day-cell.no-trade .cal-day-num { color:#aaa; }
 .cal-day-cell.today { outline:2.5px solid #2980b9; outline-offset:-3px; }
 /* 周六周日统一浅绿色背景 */
-.cal-day-cell.sat:not(.profit):not(.loss),
-.cal-day-cell.sun:not(.profit):not(.loss) { background:#eafaf0 !important; border-color:#c8e6c9 !important; }
+.cal-day-cell.sat,
+.cal-day-cell.sun { background:#e8f5e9; border-color:#c8e6c9; }
 .cal-day-cell.sat .cal-day-num,
 .cal-day-cell.sun .cal-day-num { color:#27ae60; }
-.cal-day-cell.profit.sat, .cal-day-cell.profit.sun { background:#fdf0ef !important; border-color:#faddd9 !important; }
-.cal-day-cell.loss.sat, .cal-day-cell.loss.sun { background:#dcf0e3 !important; border-color:#a3d9c4 !important; }
+.cal-day-cell.profit.sat,
+.cal-day-cell.profit.sun { background:#fce4e4; border-color:#f5c6c6; }
+.cal-day-cell.loss.sat,
+.cal-day-cell.loss.sun { background:#eafaf0; border-color:#c8e6c9; }
 
 /* 本月总计盈亏 */
 .cal-month-total { text-align:center; font-size:15px; padding:10px 20px 16px; background:white; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.06); margin-bottom:16px; }
