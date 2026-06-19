@@ -438,17 +438,52 @@ function addNote() {
   // 如果用户输入的是中文/非纯数字，尝试反向查找代码；否则直接用输入值
   var code = rawCode;
   if(rawCode && !/^\d{6}$/.test(rawCode)) {
-    // 用户可能输入的是名称，查找对应代码
     code = findCodeByName(rawCode) || rawCode;
   }
-  // 保存到 GAS
+  // 乐观更新：立即添加到本地数据并渲染
+  var now = new Date();
+  var tempId = 'tmp_' + Date.now();
+  notes.push({ id: tempId, date: date, code: code, content: text, createdAt: now.toISOString() });
+  textInput.value = '';
+  if(codeInput) codeInput.value = '';
+  // 立即用本地数据渲染
+  var list = document.getElementById('notesList');
+  var sorted = notes.slice().sort(function(a,b){ return (b.createdAt || b.date).localeCompare(a.createdAt || a.date); });
+  var html = '';
+  for(var i = 0; i < sorted.length; i++) {
+    var n = sorted[i];
+    var colorSet = NOTE_COLORS[i % NOTE_COLORS.length];
+    var timeStr = formatNoteTime(n.createdAt);
+    var stockNameStr = n.code ? getStockName(n.code) : '';
+    html += '<div class="note-item" data-id="' + escapeHtml(n.id || '') + '" style="border-left-color:' + colorSet.border + '">';
+    html += '<div class="note-item-content">';
+    html += '<div class="note-item-date" style="color:' + colorSet.time + '">' + escapeHtml(timeStr) + '</div>';
+    if(stockNameStr) {
+      html += '<div class="note-item-code" style="color:' + colorSet.code + '">📌 ' + escapeHtml(stockNameStr) + '</div>';
+    }
+    html += '<div class="note-item-text">' + escapeHtml(n.content || '') + '</div>';
+    html += '</div>';
+    html += '<div class="note-item-actions">';
+    html += '<button class="note-item-edit-btn" onclick="editNote(\'' + escapeHtml(n.id) + '\')" title="编辑">✎</button>';
+    html += '<button class="note-btn-del" onclick="deleteNote(\'' + escapeHtml(n.id) + '\')" title="删除">删除</button>';
+    html += '</div>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+  // 后台静默同步到GAS
   saveNoteRemote({ action: 'addNote', date: date, code: code, content: text }, function(res) {
-    if(res.success) {
-      textInput.value = '';
-      if(codeInput) codeInput.value = '';
-      renderNotes();
+    if(res.success && res.id) {
+      // 用真实ID替换临时ID
+      for(var j = 0; j < notes.length; j++) {
+        if(notes[j].id === tempId) { notes[j].id = res.id; break; }
+      }
     } else {
       alert('保存失败：' + (res.error || '未知错误'));
+      // 回滚：移除刚加的记录
+      for(var k = notes.length - 1; k >= 0; k--) {
+        if(notes[k].id === tempId) { notes.splice(k, 1); break; }
+      }
+      loadNotes(function() { renderNotes(); });
     }
   });
 }
@@ -550,14 +585,47 @@ function deleteNote(id) {
 
 function submitDeleteNote() {
   if(!noteToDelete) return;
-  var url = API_URL + '?action=deleteNote&id=' + encodeURIComponent(noteToDelete) + '&callback=?';
-  fetchJsonp(url, function(res) {
-    noteToDelete = null;
-    closeDeleteNote();
-    if(res.success) {
-      renderNotes();
-    } else {
+  var delId = noteToDelete;
+  // 立即关闭弹窗
+  noteToDelete = null;
+  var modal = document.getElementById('deleteNoteModal');
+  if(modal) modal.classList.remove('active');
+  // 乐观更新：立即从本地数据中移除并重新渲染
+  for(var i = notes.length - 1; i >= 0; i--) {
+    if(notes[i].id === delId) { notes.splice(i, 1); break; }
+  }
+  var list = document.getElementById('notesList');
+  var sorted = notes.slice().sort(function(a,b){ return (b.createdAt || b.date).localeCompare(a.createdAt || a.date); });
+  if(sorted.length === 0) {
+    list.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px 0">暂无备忘，在上方输入添加。</p>';
+  } else {
+    var html = '';
+    for(var j = 0; j < sorted.length; j++) {
+      var n = sorted[j];
+      var colorSet = NOTE_COLORS[j % NOTE_COLORS.length];
+      var timeStr = formatNoteTime(n.createdAt);
+      var stockNameStr = n.code ? getStockName(n.code) : '';
+      html += '<div class="note-item" data-id="' + escapeHtml(n.id || '') + '" style="border-left-color:' + colorSet.border + '">';
+      html += '<div class="note-item-content">';
+      html += '<div class="note-item-date" style="color:' + colorSet.time + '">' + escapeHtml(timeStr) + '</div>';
+      if(stockNameStr) {
+        html += '<div class="note-item-code" style="color:' + colorSet.code + '">📌 ' + escapeHtml(stockNameStr) + '</div>';
+      }
+      html += '<div class="note-item-text">' + escapeHtml(n.content || '') + '</div>';
+      html += '</div>';
+      html += '<div class="note-item-actions">';
+      html += '<button class="note-item-edit-btn" onclick="editNote(\'' + escapeHtml(n.id) + '\')" title="编辑">✎</button>';
+      html += '<button class="note-btn-del" onclick="deleteNote(\'' + escapeHtml(n.id) + '\')" title="删除">删除</button>';
+      html += '</div>';
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  }
+  // 后台静默同步到GAS（用saveNoteRemote统一格式）
+  saveNoteRemote({ action: 'deleteNote', id: delId }, function(res) {
+    if(!res.success) {
       alert('删除失败：' + (res.error || '未知错误'));
+      loadNotes(function() { renderNotes(); });
     }
   });
 }
@@ -574,46 +642,45 @@ function searchNotes() {
   if(!keywordInput) return;
   var keyword = keywordInput.value.trim();
   if(!keyword) {
-    // 如果搜索框为空，显示所有笔记
+    // 搜索框为空：直接调用renderNotes，它会从notes渲染
     renderNotes();
     return;
   }
-  var url = API_URL + '?action=searchNotes&keyword=' + encodeURIComponent(keyword) + '&callback=?';
-  fetchJsonp(url, function(res) {
-    if(res.success) {
-      notes = res.data || [];
-      // 渲染搜索结果
-      var list = document.getElementById('notesList');
-      if(notes.length === 0) {
-        list.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px 0">未找到匹配的备忘。</p>';
-        return;
-      }
-      var sorted = notes.slice().sort(function(a,b){ return (b.createdAt || b.date).localeCompare(a.createdAt || a.date); });
-      var html = '<p style="color:#e67e22;font-size:12px;padding:8px 0;">搜索结果：' + sorted.length + ' 条</p>';
-      for(var i = 0; i < sorted.length; i++) {
-        var n = sorted[i];
-        var colorSet = NOTE_COLORS[i % NOTE_COLORS.length];
-        var timeStr = formatNoteTime(n.createdAt);
-        var stockNameStr = n.code ? getStockName(n.code) : '';
-        html += '<div class="note-item" data-id="' + escapeHtml(n.id || '') + '" style="border-left-color:' + colorSet.border + '">';
-        html += '<div class="note-item-content">';
-        html += '<div class="note-item-date" style="color:' + colorSet.time + '">' + escapeHtml(timeStr) + '</div>';
-        if(stockNameStr) {
-          html += '<div class="note-item-code" style="color:' + colorSet.code + '">📌 ' + escapeHtml(stockNameStr) + '</div>';
-        }
-        html += '<div class="note-item-text">' + escapeHtml(n.content || '') + '</div>';
-        html += '</div>';
-        html += '<div class="note-item-actions">';
-        html += '<button class="note-item-edit-btn" onclick="editNote(\'' + escapeHtml(n.id) + '\')" title="编辑">✎</button>';
-        html += '<button class="note-btn-del" onclick="deleteNote(\'' + escapeHtml(n.id) + '\')" title="删除">删除</button>';
-        html += '</div>';
-        html += '</div>';
-      }
-      list.innerHTML = html;
-    } else {
-      alert('搜索失败：' + (res.error || '未知错误'));
-    }
+  // 有搜索词：用本地notes数据做前端过滤，不请求GAS
+  var kw = keyword.toLowerCase();
+  var filtered = notes.filter(function(n){
+    var dateStr = (n.date || '').toLowerCase();
+    var codeStr = (n.code || '').toLowerCase();
+    var contentStr = (n.content || '').toLowerCase();
+    return dateStr.indexOf(kw) !== -1 || codeStr.indexOf(kw) !== -1 || contentStr.indexOf(kw) !== -1;
   });
+  var list = document.getElementById('notesList');
+  if(filtered.length === 0) {
+    list.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px 0">未找到匹配的备忘。</p>';
+    return;
+  }
+  var sorted = filtered.slice().sort(function(a,b){ return (b.createdAt || b.date).localeCompare(a.createdAt || a.date); });
+  var html = '<p style="color:#e67e22;font-size:12px;padding:8px 0;">搜索结果：' + sorted.length + ' 条</p>';
+  for(var i = 0; i < sorted.length; i++) {
+    var n = sorted[i];
+    var colorSet = NOTE_COLORS[i % NOTE_COLORS.length];
+    var timeStr = formatNoteTime(n.createdAt);
+    var stockNameStr = n.code ? getStockName(n.code) : '';
+    html += '<div class="note-item" data-id="' + escapeHtml(n.id || '') + '" style="border-left-color:' + colorSet.border + '">';
+    html += '<div class="note-item-content">';
+    html += '<div class="note-item-date" style="color:' + colorSet.time + '">' + escapeHtml(timeStr) + '</div>';
+    if(stockNameStr) {
+      html += '<div class="note-item-code" style="color:' + colorSet.code + '">📌 ' + escapeHtml(stockNameStr) + '</div>';
+    }
+    html += '<div class="note-item-text">' + escapeHtml(n.content || '') + '</div>';
+    html += '</div>';
+    html += '<div class="note-item-actions">';
+    html += '<button class="note-item-edit-btn" onclick="editNote(\'' + escapeHtml(n.id) + '\')" title="编辑">✎</button>';
+    html += '<button class="note-btn-del" onclick="deleteNote(\'' + escapeHtml(n.id) + '\')" title="删除">删除</button>';
+    html += '</div>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
 }
 
 // 清除搜索
