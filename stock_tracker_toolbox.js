@@ -7,6 +7,13 @@ var calYear = null, calMonth = null;
 function switchToolboxTab(name) {
   currentToolboxTab = name;
   document.querySelectorAll('.toolbox-tab').forEach(function(t){ t.classList.remove('active'); });
+  // 给当前选中的tab加回active
+  var map = { calendar:'tb-cal', holdings:'tb-hold', notes:'tb-note' };
+  var cls = map[name];
+  if(cls){
+    var el = document.querySelector('.toolbox-tab.' + cls);
+    if(el) el.classList.add('active');
+  }
   document.getElementById('toolboxCalendar').style.display = name==='calendar' ? 'block' : 'none';
   document.getElementById('toolboxHoldings').style.display = name==='holdings' ? 'block' : 'none';
   document.getElementById('toolboxNotes').style.display = name==='notes' ? 'block' : 'none';
