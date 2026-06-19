@@ -367,10 +367,10 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .notes-input-row { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
 .notes-input-row input[type="date"] { width:150px; flex-shrink:0; }
 .notes-list { display:flex; flex-direction:column; gap:10px; }
-.note-item { background:white; border-radius:10px; padding:12px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-left:3px solid #e67e22; }
+.note-item { background:white; border-radius:10px; padding:12px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-left:3px solid #e67e22; border-left-color:#e67e22; }
 .note-item-content { flex:1; }
-.note-item-date { font-size:11px; color:#999; margin-bottom:4px; font-weight:500; }
-.note-item-text { font-size:13px; color:#333; line-height:1.5; }
+.note-item-date { font-size:11px; margin-bottom:4px; font-weight:500; }
+.note-item-text { font-size:15px; color:#333; line-height:1.5; }
 .note-item-del { background:none; border:none; color:#ccc; cursor:pointer; font-size:16px; padding:0 4px; transition:color 0.15s; flex-shrink:0; }
 .note-item-del:hover { color:#e74c3c; }
 
@@ -389,3 +389,27 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .dp-btn-confirm:hover { background:#2980b9; }
 .dp-btn-cancel { background:#eee; color:#666; }
 .dp-btn-cancel:hover { background:#ddd; }
+
+/* 快速备忘 - 搜索框 */
+.notes-search-row { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
+.notes-search-row .btn { padding:8px 14px; font-size:13px; }
+
+/* 快速备忘 - 编辑按钮 */
+.note-item-actions { display:flex; gap:4px; flex-shrink:0; align-items:flex-start; }
+.note-item-edit-btn { background:none; border:none; color:#999; cursor:pointer; font-size:14px; padding:2px 4px; transition:color 0.15s; }
+.note-item-edit-btn:hover { color:#3498db; }
+.note-btn-del { padding:5px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
+.note-btn-del:hover { background:#c0392b; }
+
+/* 快速备忘 - 股票名称 */
+.note-item-code { font-size:12px; margin-bottom:4px; font-weight:500; }
+
+/* 快速备忘 - 编辑模式 */
+.note-item-edit { display:flex; flex-direction:column; gap:6px; width:100%; }
+.note-edit-input { padding:6px 10px; border:1px solid #3498db; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box; }
+.note-edit-input:focus { outline:none; box-shadow:0 0 0 3px rgba(52,152,219,0.10); }
+.note-edit-btns { display:flex; justify-content:space-between; gap:8px; }
+.note-edit-save { padding:5px 18px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; flex:1; text-align:center; }
+.note-edit-save:hover { background:#219a52; }
+.note-edit-cancel { padding:5px 18px; background:#eee; color:#666; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; flex:1; text-align:center; }
+.note-edit-cancel:hover { background:#ddd; }

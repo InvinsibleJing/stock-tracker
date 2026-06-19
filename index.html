@@ -11,7 +11,7 @@
 <title>股票交易记录</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="./stock_dict.js"></script>
-<link rel="stylesheet" href="./stock_tracker.css?v=5">
+<link rel="stylesheet" href="./stock_tracker.css?v=6">
 </head>
 <body>
 
@@ -126,8 +126,16 @@
     <!-- 快速备忘 -->
     <div id="toolboxNotes" style="display:none">
       <div class="notes-box">
+        <!-- 搜索框 -->
+        <div class="notes-search-row">
+          <input type="text" id="noteSearch" placeholder="搜索备忘（日期/股票代码/内容）..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px" oninput="searchNotes()" onkeydown="if(event.key==='Enter')searchNotes()">
+          <button class="btn btn-blue" onclick="searchNotes()" style="padding:8px 18px">搜索</button>
+          <button class="btn btn-red" onclick="clearNoteSearch()" style="padding:8px 18px">清除</button>
+        </div>
+        <!-- 添加备忘输入框 -->
         <div class="notes-input-row">
           <input type="date" id="noteDate" style="padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
+          <input type="text" id="noteCode" placeholder="股票名称（可选）" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
           <input type="text" id="noteInput" placeholder="写一句备忘..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px" onkeydown="if(event.key==='Enter')addNote()">
           <button class="btn btn-green" onclick="addNote()" style="padding:8px 18px">添加</button>
         </div>
@@ -448,9 +456,9 @@
   </div>
 </div>
 
-<script src="./stock_tracker_main.js?v=5"></script>
-<script src="./stock_tracker_calendar.js?v=5"></script>
-<script src="./stock_tracker_toolbox.js?v=5"></script>
+<script src="./stock_tracker_main.js?v=6"></script>
+<script src="./stock_tracker_calendar.js?v=6"></script>
+<script src="./stock_tracker_toolbox.js?v=6"></script>
 
 
 <div class="date-picker-modal" id="datePickerModal">
@@ -468,6 +476,18 @@
     <div class="date-picker-actions">
       <button class="dp-btn-cancel" onclick="closeDatePicker()">取消</button>
       <button class="dp-btn-confirm" onclick="closeDatePicker()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除笔记确认弹窗 -->
+<div class="modal-bg" id="deleteNoteModal">
+  <div class="modal">
+    <h2>🗑️ 删除备忘</h2>
+    <p>确定删除这条备忘吗？此操作不可撤销。</p>
+    <div class="btns">
+      <button class="btn btn-red" onclick="submitDeleteNote()">确认删除</button>
+      <button class="btn" style="background:#999;color:white" onclick="closeDeleteNote()">取消</button>
     </div>
   </div>
 </div>
