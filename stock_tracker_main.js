@@ -1083,6 +1083,8 @@ function renderTable(){
   } // end groups loop
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
+  // 恢复月份折叠状态
+  restoreMonthCollapseState();
 }
 
 // 切换月份折叠（桌面端行 + 移动端卡片同步）
@@ -1095,6 +1097,40 @@ function toggleMonth(el){
     rows[i].style.display = isOpen ? 'none' : '';
   }
   toggle.textContent = isOpen ? '▶' : '▼';
+  // 持久化折叠状态
+  saveMonthCollapseState();
+}
+
+// 保存月份折叠状态到localStorage
+function saveMonthCollapseState(){
+  var headers = document.querySelectorAll('.month-header');
+  var state = {};
+  for(var i=0;i<headers.length;i++){
+    var m = headers[i].getAttribute('data-month');
+    var t = headers[i].querySelector('.month-toggle');
+    if(t) state[m] = (t.textContent === '▶'); // true=收缩, false=展开
+  }
+  try{ localStorage.setItem('month_collapse', JSON.stringify(state)); }catch(e){}
+}
+
+// 从localStorage恢复月份折叠状态（在renderTable后调用）
+function restoreMonthCollapseState(){
+  var raw;
+  try{ raw = localStorage.getItem('month_collapse'); }catch(e){ return; }
+  if(!raw) return;
+  var state;
+  try{ state = JSON.parse(raw); }catch(e){ return; }
+  for(var m in state){
+    if(state[m] === true){ // 需要收缩
+      var rows = document.querySelectorAll('.month-row-'+m);
+      var header = document.querySelector('.month-header[data-month="'+m+'"]');
+      for(var j=0;j<rows.length;j++){ rows[j].style.display = 'none'; }
+      if(header){
+        var toggle = header.querySelector('.month-toggle');
+        if(toggle) toggle.textContent = '▶';
+      }
+    }
+  }
 }
 
 // ===== 统计 =====
