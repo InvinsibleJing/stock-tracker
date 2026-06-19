@@ -299,7 +299,10 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .toolbox-tabs { display:inline-flex; gap:6px; margin-bottom:20px; padding:4px; background:#f0f2f5; border-radius:12px; }
 .toolbox-tab { padding:8px 22px; text-align:center; cursor:pointer; font-size:13px; font-weight:500; color:#666; transition:all 0.2s; border-radius:9px; white-space:nowrap; flex:1; }
 .toolbox-tab:hover { color:#333; background:rgba(255,255,255,0.7); }
-.toolbox-tab.active { color:white; background:#e67e22; box-shadow:0 2px 8px rgba(230,126,34,0.35); font-weight:600; }
+.toolbox-tab.active { color:white; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+.toolbox-tab.active[data-tb="calendar"] { background:#2980b9; box-shadow:0 2px 8px rgba(41,128,185,0.35); }
+.toolbox-tab.active[data-tb="holdings"] { background:#27ae60; box-shadow:0 2px 8px rgba(39,174,96,0.35); }
+.toolbox-tab.active[data-tb="notes"] { background:#8e44ad; box-shadow:0 2px 8px rgba(142,68,173,0.35); }
 
 /* 盈亏日历 */
 .calendar-nav { display:flex; align-items:center; gap:12px; margin-bottom:16px; justify-content:center; flex-wrap:wrap; }
