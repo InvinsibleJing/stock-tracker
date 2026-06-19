@@ -1,6 +1,6 @@
 
 // ===== 配置 =====
-var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbzUuiFt6lpIpsA2fLxu9VOdwu-j4JwDB0pAas-bhAp0MqbKJvo0xUjAywd3E_5ar94GWA/exec';
+var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbxCPBG5fqdWOZO-iwWF16_NcN6o7kT8Vb1MUXIkwAQffKky2Mfu9tSqtlNxtZlRNM1z-A/exec';
 var MAX_RETRIES = 3;
 var RETRY_DELAY = 2000;
 var trades = [];
@@ -435,19 +435,20 @@ function switchTab(name){
   // 找到对应的主tab（不是周期tab）
   var mainTabs = document.querySelectorAll('.container > .tabs .tab');
 
-  document.getElementById('tabInput').style.display = name==='input'?'block':'none';
+  document.getElementById('tabToolbox').style.display = name==='toolbox'?'block':'none';
   document.getElementById('tabTable').style.display = name==='table'?'block':'none';
   document.getElementById('tabAnalysis').style.display = name==='analysis'?'block':'none';
 
   // 更新tab样式
   var tabBtns = document.querySelectorAll('.container > .tabs .tab');
   tabBtns.forEach(function(t){ t.classList.remove('active'); });
-  if(name==='input'){ tabBtns[0].classList.add('active'); setTimeout(function(){ document.getElementById('inpCode').focus(); },100); }
+  if(name==='toolbox'){ tabBtns[0].classList.add('active'); switchToolboxTab('calendar'); }
   if(name==='table') tabBtns[1].classList.add('active');
   if(name==='analysis') tabBtns[2].classList.add('active');
 
   if(name==='analysis') renderAnalysis();
   if(name==='table'){ renderTable(); renderHoldings(); }
+  if(name==='toolbox') switchToolboxTab('calendar');
 }
 
 // ===== 股票联想搜索 =====

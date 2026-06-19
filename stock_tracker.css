@@ -290,6 +290,70 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .date-picker-day:hover { background:#f0f4f8; }
 .date-picker-day.today { background:#eaf0fb; color:#2980b9; font-weight:700; }
 .date-picker-day.selected { background:#3498db; color:white; font-weight:700; }
+
+/* ========== 工具箱 Tab ========== */
+.tab.tab-toolbox.active { color:#e67e22; border-bottom-color:#e67e22; background:#fef9f0; }
+
+/* 工具箱子Tab */
+.toolbox-tabs { display:flex; gap:0; margin-bottom:20px; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+.toolbox-tab { flex:1; padding:11px; text-align:center; cursor:pointer; font-size:14px; font-weight:500; color:#666; transition:all 0.2s; border-bottom:3px solid transparent; }
+.toolbox-tab:hover { background:#f9f9f9; }
+.toolbox-tab.active { color:#e67e22; border-bottom-color:#e67e22; background:#fefcf8; }
+
+/* 盈亏日历 */
+.calendar-nav { display:flex; align-items:center; gap:12px; margin-bottom:16px; justify-content:center; flex-wrap:wrap; }
+.cal-nav-btn { padding:6px 14px; border:1px solid #ddd; border-radius:6px; background:white; cursor:pointer; font-size:13px; color:#555; transition:all 0.15s; }
+.cal-nav-btn:hover { border-color:#e67e22; color:#e67e22; }
+.cal-month-label { font-size:16px; font-weight:700; color:#2c3e50; min-width:140px; text-align:center; }
+.cal-today-btn { padding:6px 14px; border:none; border-radius:6px; background:#27ae60; color:white; cursor:pointer; font-size:13px; font-weight:500; transition:all 0.15s; }
+.cal-today-btn:hover { background:#219a52; }
+
+.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:16px; }
+.cal-day-header { text-align:center; font-size:11px; color:#999; padding:6px 0; font-weight:600; }
+.cal-day-cell { text-align:center; padding:10px 0; border-radius:8px; font-size:13px; cursor:default; transition:all 0.15s; position:relative; min-height:38px; display:flex; align-items:center; justify-content:center; }
+.cal-day-cell.has-trade:hover { cursor:pointer; transform:scale(1.12); box-shadow:0 2px 8px rgba(0,0,0,0.15); }
+.cal-day-cell.profit { background:#eafaf0; color:#27ae60; font-weight:700; }
+.cal-day-cell.loss { background:#fdedec; color:#e74c3c; font-weight:700; }
+.cal-day-cell.no-trade { background:#f5f5f5; color:#ccc; }
+.cal-day-cell.today { outline:2px solid #3498db; outline-offset:-2px; }
+.cal-day-cell.other-month { opacity:0.35; }
+
+.calendar-legend { display:flex; gap:16px; justify-content:center; font-size:12px; color:#888; margin-bottom:20px; }
+.legend-item { display:flex; align-items:center; gap:5px; }
+.legend-color { width:14px; height:14px; border-radius:4px; }
+
+.calendar-detail { background:#f8f9fa; border-radius:10px; padding:16px 20px; margin-top:8px; }
+.calendar-detail h3 { color:#2c3e50; font-size:15px; margin-bottom:10px; }
+.cal-detail-row { display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid #eee; }
+.cal-detail-row:last-child { border-bottom:none; }
+.cal-detail-label { color:#888; }
+.cal-detail-value { font-weight:600; }
+.cal-detail-value.profit { color:#e74c3c; }
+.cal-detail-value.loss { color:#27ae60; }
+
+/* 持仓分析 */
+.analysis-box .chart-container { height:260px; margin-bottom:16px; }
+
+/* 快速备忘 */
+.notes-box { margin-top:8px; }
+.notes-input-row { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+.notes-input-row input[type="date"] { width:150px; flex-shrink:0; }
+.notes-list { display:flex; flex-direction:column; gap:10px; }
+.note-item { background:white; border-radius:10px; padding:12px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-left:3px solid #e67e22; }
+.note-item-content { flex:1; }
+.note-item-date { font-size:11px; color:#999; margin-bottom:4px; font-weight:500; }
+.note-item-text { font-size:13px; color:#333; line-height:1.5; }
+.note-item-del { background:none; border:none; color:#ccc; cursor:pointer; font-size:16px; padding:0 4px; transition:color 0.15s; flex-shrink:0; }
+.note-item-del:hover { color:#e74c3c; }
+
+@media(max-width:700px) {
+  .toolbox-tabs { font-size:13px; }
+  .toolbox-tab { padding:9px 6px; }
+  .calendar-nav { gap:8px; }
+  .cal-month-label { font-size:14px; min-width:110px; }
+  .notes-input-row { flex-direction:column; align-items:stretch; }
+  .notes-input-row input[type="date"] { width:100%; }
+}
 .date-picker-day.other-month { color:#ccc; }
 .date-picker-actions { display:flex; gap:10px; margin-top:14px; justify-content:center; }
 .date-picker-actions button { padding:7px 22px; border-radius:7px; border:none; font-size:13px; cursor:pointer; }
