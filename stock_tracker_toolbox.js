@@ -30,7 +30,8 @@ function renderCalendar() {
 
   var firstDay = new Date(calYear, calMonth, 1);
   var lastDay = new Date(calYear, calMonth + 1, 0);
-  var startWeekday = firstDay.getDay(); // 0=周日
+  // getDay(): 0=周日,1=周一...6=周六 → 转为周一=0: (getDay()+6)%7
+  var startWeekday = (firstDay.getDay() + 6) % 7;
   var daysInMonth = lastDay.getDate();
 
   // 按日期聚合盈亏（排除做T）
@@ -47,35 +48,42 @@ function renderCalendar() {
   var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
 
   var html = '';
-  var weekdays = ['日','一','二','三','四','五','六'];
+  // 星期头：周一~周日
+  var weekdays = ['一','二','三','四','五','六','日'];
   for(var i = 0; i < 7; i++) {
-    html += '<div class="cal-day-header">' + weekdays[i] + '</div>';
+    var thCls = 'cal-day-header';
+    if(i === 5) thCls += ' sat'; // 周六
+    if(i === 6) thCls += ' sun'; // 周日
+    html += '<div class="' + thCls + '">' + weekdays[i] + '</div>';
   }
 
-  // 前月填充
-  var prevMonthLast = new Date(calYear, calMonth, 0).getDate();
+  // 月初留空（前面补空白格子）
   for(var i = 0; i < startWeekday; i++) {
-    html += '<div class="cal-day-cell other-month">' + (prevMonthLast - startWeekday + 1 + i) + '</div>';
+    html += '<div class="cal-day-cell empty"></div>';
   }
 
   // 当月日期
   for(var d = 1; d <= daysInMonth; d++) {
+    // 计算这天是星期几（0=周一...6=周日）
+    var weekday = (startWeekday + d - 1) % 7;
     var ds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
     var profit = dayProfit[ds];
     var cls = 'cal-day-cell';
-    if(profit > 0) cls += ' profit';
-    else if(profit < 0) cls += ' loss';
+    if(profit > 0) cls += ' profit';      // 盈利→红色
+    else if(profit < 0) cls += ' loss';    // 亏损→绿色
     else cls += ' no-trade';
     if(ds === todayStr) cls += ' today';
     if(profit !== undefined && profit !== 0) cls += ' has-trade';
+    if(weekday === 5) cls += ' sat'; // 周六
+    if(weekday === 6) cls += ' sun'; // 周日
     html += '<div class="' + cls + '" onclick="showCalDetail(\'' + ds + '\')">' + d + '</div>';
   }
 
-  // 后月填充
+  // 月末留空（后面补空白格子，保持7列对齐）
   var totalCells = startWeekday + daysInMonth;
   var remain = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-  for(var i = 1; i <= remain; i++) {
-    html += '<div class="cal-day-cell other-month">' + i + '</div>';
+  for(var i = 0; i < remain; i++) {
+    html += '<div class="cal-day-cell empty"></div>';
   }
 
   document.getElementById('calendarGrid').innerHTML = html;
