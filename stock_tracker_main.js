@@ -190,7 +190,8 @@ function todayStr(){
 
 // ===== 初始化 =====
 window.addEventListener('DOMContentLoaded', function(){
-  document.getElementById('inpDate').value = todayStr();
+  var _inpDate = document.getElementById('inpDate');
+  if(_inpDate) _inpDate.value = todayStr();
 
   // 点击页面其他地方关闭联想下拉
   document.addEventListener('click', function(e){

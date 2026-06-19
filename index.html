@@ -74,6 +74,13 @@
     <div class="tab tab-analysis" onclick="switchTab('analysis')">📊 数据分析</div>
   </div>
 
+  <!-- 隐藏元素：兼容旧JS引用（补录弹窗已替代原添加记录Tab） -->
+  <div style="display:none">
+    <input type="date" id="inpDate">
+    <input type="text" id="inpCode">
+    <div id="acList" class="autocomplete-list"></div>
+  </div>
+
   <!-- 工具箱 -->
   <div id="tabToolbox" style="display:none">
     <div class="toolbox-tabs">
