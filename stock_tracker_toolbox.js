@@ -284,6 +284,14 @@ function saveNotes() {
 
 function renderNotes() {
   loadNotes();
+  // 默认日期设为今天
+  var dateInput = document.getElementById('noteDate');
+  if(dateInput && !dateInput.value) {
+    var now = new Date();
+    dateInput.value = now.getFullYear() + '-' +
+      String(now.getMonth()+1).padStart(2,'0') + '-' +
+      String(now.getDate()).padStart(2,'0');
+  }
   var list = document.getElementById('notesList');
   if(notes.length === 0) {
     list.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px 0">暂无备忘，在上方输入添加。</p>';
