@@ -312,22 +312,25 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .cal-today-btn { padding:6px 14px; border:none; border-radius:6px; background:#27ae60; color:white; cursor:pointer; font-size:13px; font-weight:500; transition:all 0.15s; }
 .cal-today-btn:hover { background:#219a52; }
 
-.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:16px; }
+.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:16px; background:white; border-radius:12px; padding:12px 10px 10px; box-shadow:0 2px 10px rgba(0,0,0,0.07); }
 .cal-day-header { text-align:center; font-size:12px; color:#888; padding:8px 0; font-weight:700; letter-spacing:1px; }
 .cal-day-header.sat, .cal-day-header.sun { color:#27ae60; }
-.cal-day-cell { text-align:center; padding:11px 4px; border-radius:10px; cursor:default; transition:all 0.15s; position:relative; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:8px; }
-.cal-day-cell.empty { background:transparent; cursor:default; pointer-events:none; }
-.cal-day-num { font-size:14px; line-height:1.2; }
+.cal-day-cell { text-align:center; padding:11px 4px; border-radius:10px; cursor:default; transition:all 0.15s; position:relative; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:8px; background:#fff; border:1.5px solid #e8e8e8; }
+.cal-day-cell.empty { background:transparent; border-color:transparent; cursor:default; pointer-events:none; }
+.cal-day-num { font-size:14px; line-height:1.2; color:#333; font-weight:500; }
 .cal-amount { font-size:9px; position:absolute; bottom:2px; right:3px; font-weight:700; line-height:1; }
 .cal-amount-profit { color:#c0392b; }
 .cal-amount-loss { color:#1e8449; }
 .cal-day-cell.has-trade:hover { cursor:pointer; transform:scale(1.12); box-shadow:0 3px 12px rgba(0,0,0,0.18); z-index:5; }
 .cal-day-cell.profit { background:#fce4e4; color:#c0392b; border:1.5px solid #f5c6c6; }
+.cal-day-cell.profit .cal-day-num { color:#c0392b; font-weight:700; }
 .cal-day-cell.loss { background:#eafaf0; color:#1e8449; border:1.5px solid #c8e6c9; }
-.cal-day-cell.no-trade { background:#f8f9fa; color:#bbb; border:1.5px solid #eee; }
+.cal-day-cell.loss .cal-day-num { color:#1e8449; font-weight:700; }
+.cal-day-cell.no-trade { background:#f3f4f6; color:#aaa; border:1.5px solid #e2e4e8; }
+.cal-day-cell.no-trade .cal-day-num { color:#aaa; font-weight:400; }
 .cal-day-cell.today { outline:2.5px solid #2980b9; outline-offset:-3px; }
 /* 周六周日统一浅绿色 */
-.cal-day-cell.sat, .cal-day-cell.sun { background:#eafaf0 !important; }
+.cal-day-cell.sat .cal-day-num, .cal-day-cell.sun .cal-day-num { color:#27ae60; }
 .cal-day-cell.profit.sat, .cal-day-cell.profit.sun { background:#fdf0ef !important; border-color:#faddd9 !important; }
 .cal-day-cell.loss.sat, .cal-day-cell.loss.sun { background:#dcf0e3 !important; border-color:#a3d9c4 !important; }
 
