@@ -3,6 +3,7 @@
 // ===== 工具箱 Tab 切换 =====
 var currentToolboxTab = 'calendar';
 var calYear = null, calMonth = null;
+var calSelectedDate = null;
 
 function switchToolboxTab(name) {
   currentToolboxTab = name;
@@ -28,6 +29,21 @@ function initCalYearMonth() {
   var now = new Date();
   calYear = now.getFullYear();
   calMonth = now.getMonth();
+}
+
+function selectCalDate(dateStr) {
+  document.querySelectorAll('.calendar-grid .selected').forEach(function(el){
+    el.classList.remove('selected');
+  });
+  var cells = document.querySelectorAll('.calendar-grid .cal-day-cell');
+  for(var i = 0; i < cells.length; i++) {
+    if(cells[i].getAttribute('data-date') === dateStr) {
+      cells[i].classList.add('selected');
+      break;
+    }
+  }
+  calSelectedDate = dateStr;
+  showCalDetail(dateStr);
 }
 
 function renderCalendar() {
@@ -79,8 +95,8 @@ function renderCalendar() {
     if(profit > 0) cls += ' profit';      // 盈利→红色
     else if(profit < 0) cls += ' loss';    // 亏损→绿色
     else cls += ' no-trade';
-    if(ds === todayStr) cls += ' today';
-    if(profit !== undefined && profit !== 0) cls += ' has-trade';
+    if(ds === todayStr && calSelectedDate === null) cls += ' selected';  // 默认选中今天
+    if(ds === calSelectedDate) cls += ' selected';  // 用户选中的日期
     if(weekday === 5) cls += ' sat'; // 周六
     if(weekday === 6) cls += ' sun'; // 周日
     // 构建日期格子HTML（含盈亏金额角标）
@@ -88,11 +104,11 @@ function renderCalendar() {
     if(profit !== undefined && profit !== 0) {
       var amtSign = profit > 0 ? '+' : '';
       var amtCls = profit > 0 ? 'cal-amount-profit' : 'cal-amount-loss';
-      // 大金额缩写：超过1000显示k
+      // 大金额缩写：超过10000显示w
       var amtText = Math.abs(profit) >= 10000 ? (profit / 10000).toFixed(1) + 'w' : (amtSign + profit.toFixed(0));
       inner += '<span class="cal-amount ' + amtCls + '">' + amtText + '</span>';
     }
-    html += '<div class="' + cls + '" onclick="showCalDetail(\'' + ds + '\')">' + inner + '</div>';
+    html += '<div class="' + cls + '" data-date="' + ds + '" onclick="selectCalDate(\'' + ds + '\')">' + inner + '</div>';
   }
 
   // 计算本月总计盈亏
@@ -138,6 +154,7 @@ function calGoTodayMonth() {
   var now = new Date();
   calYear = now.getFullYear();
   calMonth = now.getMonth();
+  calSelectedDate = null;
   renderCalendar();
 }
 
