@@ -83,7 +83,23 @@ function renderCalendar() {
     if(profit !== undefined && profit !== 0) cls += ' has-trade';
     if(weekday === 5) cls += ' sat'; // 周六
     if(weekday === 6) cls += ' sun'; // 周日
-    html += '<div class="' + cls + '" onclick="showCalDetail(\'' + ds + '\')">' + d + '</div>';
+    // 构建日期格子HTML（含盈亏金额角标）
+    var inner = '<span class="cal-day-num">' + d + '</span>';
+    if(profit !== undefined && profit !== 0) {
+      var amtSign = profit > 0 ? '+' : '';
+      var amtCls = profit > 0 ? 'cal-amount-profit' : 'cal-amount-loss';
+      // 大金额缩写：超过1000显示k
+      var amtText = Math.abs(profit) >= 10000 ? (profit / 10000).toFixed(1) + 'w' : (amtSign + profit.toFixed(0));
+      inner += '<span class="cal-amount ' + amtCls + '">' + amtText + '</span>';
+    }
+    html += '<div class="' + cls + '" onclick="showCalDetail(\'' + ds + '\')">' + inner + '</div>';
+  }
+
+  // 计算本月总计盈亏
+  var monthTotal = 0;
+  for(var d = 1; d <= daysInMonth; d++) {
+    var mds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    monthTotal += (dayProfit[mds] || 0);
   }
 
   // 月末留空（后面补空白格子，保持7列对齐）
@@ -95,6 +111,15 @@ function renderCalendar() {
 
   document.getElementById('calendarGrid').innerHTML = html;
   document.getElementById('calendarDetail').style.display = 'none';
+
+  // 显示本月总计盈亏
+  var totalEl = document.getElementById('calMonthTotal');
+  if(totalEl) {
+    var totalSign = monthTotal >= 0 ? '+' : '';
+    var totalCls = monthTotal >= 0 ? 'profit' : 'loss';
+    totalEl.innerHTML = '<span class="cal-total-label">本月共计盈亏金额：</span><span class="cal-total-value ' + totalCls + '">' + totalSign + monthTotal.toFixed(2) + ' 元</span>';
+    totalEl.style.display = 'block';
+  }
 }
 
 function calPrevMonth() {
