@@ -383,6 +383,11 @@ window.addEventListener('DOMContentLoaded', function(){
     if(!document.hidden && isOnline) _silentSync();
   });
 
+  // 跨终端自动同步：每30秒静默拉取一次，有变化才刷新
+  setInterval(function(){
+    if(!document.hidden && isOnline) _silentSync();
+  }, 30000);
+
   // 当前时间（每秒刷新）
   updateCurrentTime();
   setInterval(updateCurrentTime, 1000);
@@ -668,6 +673,23 @@ function _silentSync(){
           }
         }
       });
+    }
+  });
+
+  // 同时静默同步备忘笔记
+  apiCall({action:'getNotes'}, function(res){
+    if(res && res.success && res.data){
+      var newNotes = res.data;
+      var notesChanged = _dataChanged(notes, newNotes);
+      if(notesChanged){
+        notes = newNotes;
+        try{ localStorage.setItem('stock_notes_cache', JSON.stringify(notes)); }catch(e){}
+        // 如果当前在备忘Tab，刷新显示
+        var toolboxNotes = document.getElementById('toolboxNotes');
+        if(toolboxNotes && toolboxNotes.style.display !== 'none'){
+          renderNotes();
+        }
+      }
     }
   });
 }
