@@ -704,43 +704,82 @@ function _checkSyncStatus(){
 }
 
 function loadTrades(){
-  isLoading=true; showStatus('load','⏳ 正在同步数据...');
-  apiCall({action:'list'}, function(res){
-    isLoading=false;
-    if(res && res.success){
-      trades=res.data||[];
-      cacheData(trades);
+  // 第一步：立即显示缓存数据（<100ms，不等待GAS）
+  var cached = localStorage.getItem('stock_cache');
+  if(cached){
+    try {
+      trades = JSON.parse(cached);
       renderTable(); updateStats();
-      _tradesLoaded=true; _checkSyncStatus();
-    } else {
-      var cached = localStorage.getItem('stock_cache');
-      if(cached){
-        trades = JSON.parse(cached);
-        renderTable(); updateStats();
-        _tradesLoaded=true; _checkSyncStatus();
-      } else {
-        showStatus('err','❌ 同步失败：'+(res.error||'未知错误'));
+      showStatus('load','🔄 本地数据已加载，正在同步云端...');
+    } catch(e) {
+      trades = [];
+      showStatus('load','⏳ 正在同步数据...');
+    }
+  } else {
+    showStatus('load','⏳ 正在同步数据...');
+  }
+  
+  // 第二步：后台静默同步GAS（2-3s后返回，有变化才重绘）
+  isLoading = true;
+  apiCall({action:'list'}, function(res){
+    isLoading = false;
+    if(res && res.success){
+      var newData = res.data || [];
+      // 简单判断：数量不同或有新ID才重绘（避免无变化也闪屏）
+      var needRender = (newData.length !== trades.length);
+      if(!needRender && newData.length > 0){
+        // 数量相同，再比一下第一条的ID
+        var oldIds = {};
+        for(var i=0;i<trades.length;i++){ oldIds[trades[i].id]=1; }
+        for(var j=0;j<newData.length;j++){
+          if(!oldIds[newData[j].id]){ needRender=true; break; }
+        }
       }
+      if(needRender){
+        trades = newData;
+        cacheData(trades);
+        renderTable(); updateStats();
+      }
+      _tradesLoaded = true; _checkSyncStatus();
+    } else {
+      _tradesLoaded = true; _checkSyncStatus();
     }
   });
 }
 
 function loadHoldings(){
-  isLoadingHoldings=true;
-  apiCall({action:'listHoldings'}, function(res){
-    isLoadingHoldings=false;
-    if(res && res.success){
-      holdings=res.data||[];
-      try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+  // 第一步：立即显示缓存数据
+  var cached = localStorage.getItem('stock_holdings_cache');
+  if(cached){
+    try {
+      holdings = JSON.parse(cached);
       renderHoldings();
-      _holdingsLoaded=true; _checkSyncStatus();
-    } else {
-      var cached = localStorage.getItem('stock_holdings_cache');
-      if(cached){
-        holdings = JSON.parse(cached);
+    } catch(e) { /* ignore */ }
+  }
+  
+  // 第二步：后台静默同步GAS
+  isLoadingHoldings = true;
+  apiCall({action:'listHoldings'}, function(res){
+    isLoadingHoldings = false;
+    if(res && res.success){
+      var newData = res.data || [];
+      // 只有数据有变化才重新渲染
+      var needRender = (newData.length !== holdings.length);
+      if(!needRender && newData.length > 0){
+        var oldIds = {};
+        for(var i=0;i<holdings.length;i++){ oldIds[holdings[i].id]=1; }
+        for(var j=0;j<newData.length;j++){
+          if(!oldIds[newData[j].id]){ needRender=true; break; }
+        }
+      }
+      if(needRender){
+        holdings = newData;
+        try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
         renderHoldings();
       }
-      showStatus('err','⚠️ 持仓同步失败');
+      _holdingsLoaded = true; _checkSyncStatus();
+    } else {
+      _holdingsLoaded = true; _checkSyncStatus();
     }
   });
 }
