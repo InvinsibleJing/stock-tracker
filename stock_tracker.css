@@ -295,10 +295,11 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .tab.tab-toolbox.active { color:#e67e22; border-bottom-color:#e67e22; background:#fef9f0; }
 
 /* 工具箱子Tab */
-.toolbox-tabs { display:flex; gap:0; margin-bottom:20px; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-.toolbox-tab { flex:1; padding:11px; text-align:center; cursor:pointer; font-size:14px; font-weight:500; color:#666; transition:all 0.2s; border-bottom:3px solid transparent; }
-.toolbox-tab:hover { background:#f9f9f9; }
-.toolbox-tab.active { color:#e67e22; border-bottom-color:#e67e22; background:#fefcf8; }
+/* ===== 工具箱二级Tab（药丸按钮组） ===== */
+.toolbox-tabs { display:inline-flex; gap:6px; margin-bottom:20px; padding:4px; background:#f0f2f5; border-radius:12px; }
+.toolbox-tab { padding:8px 22px; text-align:center; cursor:pointer; font-size:13px; font-weight:500; color:#666; transition:all 0.2s; border-radius:9px; white-space:nowrap; flex:1; }
+.toolbox-tab:hover { color:#333; background:rgba(255,255,255,0.7); }
+.toolbox-tab.active { color:white; background:#e67e22; box-shadow:0 2px 8px rgba(230,126,34,0.35); font-weight:600; }
 
 /* 盈亏日历 */
 .calendar-nav { display:flex; align-items:center; gap:12px; margin-bottom:16px; justify-content:center; flex-wrap:wrap; }
@@ -353,8 +354,8 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .note-item-del:hover { color:#e74c3c; }
 
 @media(max-width:700px) {
-  .toolbox-tabs { font-size:13px; }
-  .toolbox-tab { padding:9px 6px; }
+  .toolbox-tabs { display:flex; gap:4px; padding:3px; border-radius:10px; }
+  .toolbox-tab { font-size:12px; padding:7px 10px; }
   .calendar-nav { gap:8px; }
   .cal-month-label { font-size:14px; min-width:110px; }
   .notes-input-row { flex-direction:column; align-items:stretch; }
