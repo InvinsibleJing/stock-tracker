@@ -345,7 +345,12 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .bazi-pillar-cell { display:flex; flex-direction:column; align-items:center; gap:4px; }
 .bazi-gan-text { font-size:20px; font-weight:700; letter-spacing:4px; }
 .bazi-zhi-text { font-size:18px; font-weight:600; letter-spacing:2px; }
-.bazi-elem-tag { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; font-weight:500; color:white; }
+.bazi-elem-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; color:white; }
+.bazi-elem-木 { background:#27ae60; }
+.bazi-elem-火 { background:#e74c3c; }
+.bazi-elem-土 { background:#B8860B; }
+.bazi-elem-金 { background:#d4a017; }
+.bazi-elem-水 { background:#2980b9; }
 .bazi-elem-wood { background:#27ae60; }
 .bazi-elem-fire { background:#e74c3c; }
 .bazi-elem-earth { background:#B8860B; }
