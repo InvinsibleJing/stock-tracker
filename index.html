@@ -7,11 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="交易记录">
-<link rel="manifest" href="./manifest.json">
+<link rel="manifest" href="./stock-tracker-deploy/manifest.json">
 <title>股票交易记录</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script src="./stock_dict.js"></script>
-<link rel="stylesheet" href="./stock_tracker.css?v=6">
+<script src="./stock-tracker-deploy/stock_dict.js"></script>
+<link rel="stylesheet" href="./stock-tracker-deploy/stock_tracker.css">
 </head>
 <body>
 
@@ -87,6 +87,7 @@
       <div class="toolbox-tab tb-cal active" onclick="switchToolboxTab('calendar')">📅 盈亏日历</div>
       <div class="toolbox-tab tb-hold" onclick="switchToolboxTab('holdings')">📊 持仓分析</div>
       <div class="toolbox-tab tb-note" onclick="switchToolboxTab('notes')">📝 快速备忘</div>
+      <div class="toolbox-tab tb-bazi" onclick="switchToolboxTab('bazi')">🔮 当月运势</div>
     </div>
     <!-- 盈亏日历 -->
     <div id="toolboxCalendar">
@@ -120,7 +121,7 @@
       </div>
       <div class="analysis-box">
         <h2>📊 持仓成本</h2>
-        <div class="chart-container" style="height:200px"><canvas id="profitBarChart"></canvas></div>
+        <div class="chart-container" style="height:260px"><canvas id="profitBarChart"></canvas></div>
       </div>
     </div>
     <!-- 快速备忘 -->
@@ -140,6 +141,90 @@
           <button class="btn btn-green" onclick="addNote()" style="padding:8px 18px">添加</button>
         </div>
         <div class="notes-list" id="notesList"></div>
+      </div>
+    </div>
+    <!-- 当月运势 / 八字排盘 -->
+    <div id="toolboxBazi" style="display:none">
+      <div class="bazi-box">
+        <!-- 生日输入区 -->
+        <div class="bazi-input-section">
+          <h3 class="bazi-section-title">📅 输入生日信息</h3>
+          <div class="bazi-input-row">
+            <label>日期类型：</label>
+            <div class="bazi-date-type-group">
+              <button class="bazi-type-btn active" data-type="solar" onclick="setBaziDateType('solar')">公历</button>
+              <button class="bazi-type-btn" data-type="lunar" onclick="setBaziDateType('lunar')">农历</button>
+            </div>
+          </div>
+          <div class="bazi-input-row">
+            <label>出生日期：</label>
+            <input type="date" id="baziBirthDate" onchange="onBaziDateChange()">
+            <label>出生时辰：</label>
+            <select id="baziBirthHour">
+              <option value="">未知（请选择）</option>
+              <option value="0">子时 (23:00-01:00)</option>
+              <option value="1">丑时 (01:00-03:00)</option>
+              <option value="2">寅时 (03:00-05:00)</option>
+              <option value="3">卯时 (05:00-07:00)</option>
+              <option value="4">辰时 (07:00-09:00)</option>
+              <option value="5">巳时 (09:00-11:00)</option>
+              <option value="6">午时 (11:00-13:00)</option>
+              <option value="7">未时 (13:00-15:00)</option>
+              <option value="8">申时 (15:00-17:00)</option>
+              <option value="9">酉时 (17:00-19:00)</option>
+              <option value="10">戌时 (19:00-21:00)</option>
+              <option value="11">亥时 (21:00-23:00)</option>
+            </select>
+            <label>性别：</label>
+            <select id="baziGender">
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </div>
+          <div class="bazi-input-row" id="baziLunarExtraRow" style="display:none">
+            <label>农历闰月：</label>
+            <select id="baziIsLeapMonth">
+              <option value="false">非闰月</option>
+              <option value="true">闰月</option>
+            </select>
+            <span style="font-size:12px;color:#999;margin-left:8px">提示：若出生在农历闰月，请选择"闰月"</span>
+          </div>
+          <button class="btn btn-blue" onclick="calcBazi()" style="margin-top:10px;padding:9px 30px;font-size:15px">🔮 排八字</button>
+        </div>
+
+        <!-- 八字结果区 -->
+        <div id="baziResultSection" style="display:none">
+          <!-- 四柱八字 -->
+          <div class="bazi-result-card">
+            <h3 class="bazi-section-title">🎯 四柱八字</h3>
+            <div id="baziFourPillars" class="bazi-four-pillars"></div>
+            <div id="baziWuxingStats" class="bazi-wuxing-stats"></div>
+          </div>
+
+          <!-- 性格特点 -->
+          <div class="bazi-result-card">
+            <h3 class="bazi-section-title">💡 性格特点分析</h3>
+            <div id="baziPersonality" class="bazi-personality"></div>
+          </div>
+
+          <!-- 大运 -->
+          <div class="bazi-result-card">
+            <h3 class="bazi-section-title">📊 大运走势</h3>
+            <div id="baziDayun" class="bazi-dayun"></div>
+          </div>
+
+          <!-- 当年当月影响 -->
+          <div class="bazi-result-card">
+            <h3 class="bazi-section-title">🌟 当前运势影响</h3>
+            <div id="baziCurrentFortune" class="bazi-current-fortune"></div>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div class="bazi-action-row">
+            <button class="btn btn-green" onclick="saveBaziToIMA()" style="padding:9px 28px;font-size:14px">💾 保存到知识库</button>
+          </div>
+          <div id="baziSaveStatus" class="bazi-save-status" style="display:none"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -456,9 +541,10 @@
   </div>
 </div>
 
-<script src="./stock_tracker_main.js?v=6"></script>
-<script src="./stock_tracker_calendar.js?v=6"></script>
-<script src="./stock_tracker_toolbox.js?v=6"></script>
+<script src="./stock-tracker-deploy/stock_tracker_main.js"></script>
+
+<script src="./stock-tracker-deploy/stock_tracker_calendar.js"></script>
+<script src="./stock-tracker-deploy/stock_tracker_toolbox.js"></script>
 
 
 <div class="date-picker-modal" id="datePickerModal">
