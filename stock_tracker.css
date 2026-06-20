@@ -47,6 +47,8 @@ h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 thead { background:#34495e; color:white; }
 th { padding:10px 8px; font-weight:500; white-space:nowrap; }
+/* 股票名称列左对齐（与数据行对齐） */
+th:nth-child(3) { text-align:left; padding-left:12px; }
 td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
 /* 交易记录/持仓表 灰白交替（直接渲染 td，更可靠） */
 .table-box #tbBody tr:nth-child(odd) td,
