@@ -1191,6 +1191,101 @@ function calcDayun(r) {
   return { html: html, list: dayuns, startAge: startAge, isForward: isForward };
 }
 
+/** 生成个性化总评 */
+function generateOverallSummary(r, analyses, yganzhi, mganzhi) {
+  var ws = r.wuxingStats;
+  var dayWx = r.pillars.day.ganElem;
+  var yearGanWx = yganzhi.ganElem;
+  var yearZhiWx = ZHI_ELEM[ZHI.indexOf(yganzhi.zhi)];
+
+  // 日主强弱
+  var total = ws['木']+ws['火']+ws['土']+ws['金']+ws['水'];
+  var isStrong = ws[dayWx] >= 2;
+
+  // 流年天干与日主关系
+  var shengWo = {'木':'水','火':'木','土':'火','金':'土','水':'金'};
+  var keWo = {'木':'土','火':'金','土':'水','金':'木','水':'火'};
+  var woKe = {'木':'金','火':'水','土':'木','金':'火','水':'土'};
+  var woSheng = {'木':'火','火':'土','土':'金','金':'水','水':'木'};
+  var rel = (yearGanWx===dayWx?'同类':shengWo[dayWx]===yearGanWx?'生我':keWo[dayWx]===yearGanWx?'克我':woKe[dayWx]===yearGanWx?'我克':'我生');
+
+  // 地支关系
+  var zhiRel = getZhiRelation(ZHI.indexOf(r.pillars.day.zhi), ZHI.indexOf(yganzhi.zhi));
+
+  // 当前大运
+  var now = new Date();
+  var age = now.getFullYear() - r.solarDate.y;
+  var curDu = null;
+  if(r.dayun && r.dayun.list) {
+    r.dayun.list.forEach(function(d){ if(age>=d.ageStart && age<=d.ageEnd) curDu=d; });
+  }
+
+  // 缺失五行是否被流年补上
+  var missing = [];
+  ['木','火','土','金','水'].forEach(function(k){ if(ws[k]===0) missing.push(k); });
+  var filling = missing.length > 0 && (missing.indexOf(yearGanWx)>=0 || missing.indexOf(yearZhiWx)>=0);
+
+  var lines = [];
+
+  if(rel === '生我' || rel === '同类') {
+    if(isStrong) {
+      lines.push('流年' + yganzhi.gan + yganzhi.zhi + '对您<strong style="color:#e74c3c">' + (rel==='同类'?'帮身过旺':'印星过重') + '</strong>，日主已偏旺需注意');
+      lines.push('建议：宜主动付出、投资置业或学习新技能转化能量。忌贪多冒进、盲目扩张。');
+    } else {
+      lines.push('流年' + yganzhi.gan + yganzhi.zhi + '<strong style="color:#27ae60">生助增强</strong>日主，是难得的发力之年！');
+      lines.push('建议：宜大胆行动、争取晋升、拓展人脉、启动重要计划。把握机遇，积极进取！');
+    }
+  } else if(rel === '克我') {
+    if(isStrong) {
+      lines.push('流年' + yganzhi.gan + yganzhi.zhi + '<strong style="color:#27ae60">官星克制</strong>日主，对偏旺的命局起到调节作用');
+      lines.push('建议：这是"压力变动力"的好年份，宜接受挑战、考职晋升、规范自身。贵人多在长辈和领导中。');
+    } else {
+      lines.push('流年' + yganzhi.gan + yganzhi.zhi + '<strong style="color:#c0392b">七杀攻身</strong>，今年压力较大，需注意健康和人际关系');
+      lines.push('建议：以稳为主，不宜激进投资或冒险决策。多做运动增强体魄，遇事冷静三思。修身养性待时机。');
+    }
+  } else if(rel === '我克') {
+    if(isStrong) {
+      lines.push('流年' + yganzhi.gan + yganzhi.zhi + '为<strong style="color:#27ae60">财星</strong>，日主有力能担财，<strong style="color:#d4a017">财运较佳</strong>！');
+      lines.push('建议：适合理财投资、拓展副业、谈生意合作。但注意不要因追求利益而透支身体。');
+    } else {
+      lines.push('流年为财星但日主偏弱，<strong style="color:#e67e22">求财辛苦</strong>，需量力而行');
+      lines.push('建议：可小试牛刀但不宜大额投入。先稳固基础再谋发展，合作优于单干。');
+    }
+  } else { // 我生 - 食伤
+    lines.push('流年' + yganzhi.gan + yganzhi.zhi + '为<strong>食伤</strong>之星，利于才华展示、创意输出、表达沟通');
+    lines.push('建议：适合学习新技能、写作创作、演讲培训、自媒体运营等。灵感充沛的一年！' + (isStrong?'但需收敛锋芒，避免口舌是非。':''));
+  }
+
+  // 叠加地支冲合信息
+  if(zhiRel === '六冲') {
+    lines.push('<strong style="color:#c0392b">⚠️ 注意：流年地支与日支相冲</strong>，年内可能有变动（居住/工作/感情），提前做好预案。');
+  } else if(zhiRel === '六合' || zhiRel === '三合') {
+    lines.push('<strong style="color:#27ae60">✅ 吉：流年地支与日支构成' + zhiRel + '</strong>，人际和谐，易得暗中相助。');
+  } else if(zhiRel === '相刑') {
+    lines.push('<span style="color:#e67e22">⚡ 提醒：流年与日支相刑</span>，注意文书合同细节，避免纠纷。');
+  }
+
+  // 大运叠加
+  if(curDu) {
+    var duWxMatch = (curDu.ganElem === yearGanWx || curDu.zhiElem === yearZhiWx);
+    if(duWxMatch) {
+      lines.push('当前大运「' + curDu.gan + curDu.zhi + '」与流年五行相合，运势有<strong style="color:#27ae60">加成效应</strong>。');
+    } else {
+      lines.push('叠加当前大运「' + curDu.gan + curDu.zhi + '」(' + curDu.ageStart + '-' + curDu.ageEnd + '岁)的影响。');
+    }
+  }
+
+  // 缺失五行补充
+  if(filling) {
+    var fillElems = [];
+    if(missing.indexOf(yearGanWx) >= 0) fillElems.push(yearGanWx);
+    if(missing.indexOf(yearZhiWx) >= 0) fillElems.push(yearZhiWx);
+    lines.push('<strong style="color:#2980b9">🌱 补益：</strong>您的八字缺' + fillElems.join('/') + '，流年正好补上，是难得的平衡之年。');
+  }
+
+  return '<ul style="text-align:left;margin:6px 0 0 18px;padding:0;line-height:1.9"><li>' + lines.join('</li><li>') + '</li></ul>';
+}
+
 /** 计算当前流年流月影响 */
 function calcCurrentFortune(r) {
   var now = new Date();
@@ -1277,13 +1372,8 @@ function calcCurrentFortune(r) {
 
   html += '</div>'; // end cf-detail
 
-  // 总评
-  var goodCount = analyses.filter(function(a){ return a.good; }).length;
-  var badCount = analyses.filter(function(a){ return !a.good && !a.neutral; }).length;
-  var overall = '';
-  if(goodCount > badCount) overall = '<span class="bazi-cf-good">✨ 今年整体运势偏吉，宜积极进取，把握机会！</span>';
-  else if(badCount > goodCount) overall = '<span class="bazi-cf-bad">⚠️ 今年挑战较多，宜稳扎稳打，修身养性待时机。</span>';
-  else overall = '<span class="bazi-cf-neutral">⚖️ 今年运势平稳，有起有落，平常心对待即可。</span>';
+  // 总评（基于八字数据动态生成）
+  var overall = generateOverallSummary(r, analyses, yganzhi, mganzhi);
   html += '<div style="text-align:center;margin-top:14px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:14px"><strong>总评：</strong>' + overall + '</div>';
   html += '<p style="font-size:11px;color:#bbb;text-align:center;margin-top:8px">以上分析基于传统命理学简化模型，仅供娱乐参考。命运由自己创造！</p>';
 
