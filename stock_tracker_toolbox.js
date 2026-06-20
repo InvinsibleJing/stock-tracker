@@ -758,8 +758,8 @@ function getShiShen(dayGanIdx, targetGanIdx) {
   // 同我者为比劫（与日干五行相同）
   // 我生者食伤（日干所生）
   // 我克者财（日干所克）
-  * 克我者官杀（克日干）
-  // 我生者印枭（生日干）
+  // 克我者官杀（克日干）
+  // 生我者印枭（生日干）
   var dw = [0,1,2,3,4,5,6,7,8,9]; // 五行序号映射: 甲乙=木(0,1), 丙丁=火(2,3), 戊己=土(4,5), 庚辛=金(6,7), 壬癸=水(8,9)
   function ganWuxing(idx) { return Math.floor(idx / 2); }
   var me = ganWuxing(dayGanIdx);
@@ -1301,7 +1301,7 @@ function saveBaziToIMA() {
 
   md += '## 👤 基本信息\n\n';
   md += '| 项目 | 内容 |\n|------|------|\n';
-  md += '| 出生日期 | ' + r.birthDate + (' + (r.inputType==='lunar'?'农历':'公历')) + ' |\n';
+  md += '| 出生日期 | ' + r.birthDate + '（' + (r.inputType==='lunar'?'农历':'公历') + '）' + ' |\n';
   md += '| 公历日期 | ' + r.solarDate.y + '-' + String(r.solarDate.m).padStart(2,'0') + '-' + String(r.solarDate.d).padStart(2,'0') + ' |\n';
   md += '| 性别 | ' + genderText + ' |\n';
 
