@@ -160,21 +160,21 @@
             <label>出生日期：</label>
             <input type="date" id="baziBirthDate" onchange="onBaziDateChange()">
             <label>出生时辰：</label>
-            <select id="baziBirthHour">
-              <option value="">未知（请选择）</option>
-              <option value="0">子时 (23:00-01:00)</option>
-              <option value="1">丑时 (01:00-03:00)</option>
-              <option value="2">寅时 (03:00-05:00)</option>
-              <option value="3">卯时 (05:00-07:00)</option>
-              <option value="4">辰时 (07:00-09:00)</option>
-              <option value="5">巳时 (09:00-11:00)</option>
-              <option value="6">午时 (11:00-13:00)</option>
-              <option value="7">未时 (13:00-15:00)</option>
-              <option value="8">申时 (15:00-17:00)</option>
-              <option value="9">酉时 (17:00-19:00)</option>
-              <option value="10">戌时 (19:00-21:00)</option>
-              <option value="11">亥时 (21:00-23:00)</option>
-            </select>
+            <div class="bazi-hour-grid" id="baziHourGrid">
+              <span class="bazi-hour-opt" data-val="0">子时<br><small>23-01</small></span>
+              <span class="bazi-hour-opt" data-val="1">丑时<br><small>01-03</small></span>
+              <span class="bazi-hour-opt" data-val="2">寅时<br><small>03-05</small></span>
+              <span class="bazi-hour-opt" data-val="3">卯时<br><small>05-07</small></span>
+              <span class="bazi-hour-opt" data-val="4">辰时<br><small>07-09</small></span>
+              <span class="bazi-hour-opt" data-val="5">巳时<br><small>09-11</small></span>
+              <span class="bazi-hour-opt" data-val="6">午时<br><small>11-13</small></span>
+              <span class="bazi-hour-opt" data-val="7">未时<br><small>13-15</small></span>
+              <span class="bazi-hour-opt" data-val="8">申时<br><small>15-17</small></span>
+              <span class="bazi-hour-opt" data-val="9">酉时<br><small>17-19</small></span>
+              <span class="bazi-hour-opt" data-val="10">戌时<br><small>19-21</small></span>
+              <span class="bazi-hour-opt" data-val="11">亥时<br><small>21-23</small></span>
+            </div>
+            <input type="hidden" id="baziBirthHour" value="">
             <label>性别：</label>
             <select id="baziGender">
               <option value="male">男</option>

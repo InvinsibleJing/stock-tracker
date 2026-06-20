@@ -713,7 +713,17 @@ var baziDateType = 'solar'; // 'solar' 或 'lunar'
 var baziCache = null; // 缓存计算结果
 
 function initBaziTab() {
-  // 初始化时设置默认日期为空
+  // 初始化时辰按钮网格点击事件
+  var grid = document.getElementById('baziHourGrid');
+  if(grid) {
+    grid.addEventListener('click', function(e) {
+      var opt = e.target.closest('.bazi-hour-opt');
+      if(!opt) return;
+      grid.querySelectorAll('.bazi-hour-opt').forEach(function(el){ el.classList.remove('selected'); });
+      opt.classList.add('selected');
+      document.getElementById('baziBirthHour').value = opt.getAttribute('data-val');
+    });
+  }
 }
 
 function setBaziDateType(type) {
@@ -722,6 +732,14 @@ function setBaziDateType(type) {
     btn.classList.toggle('active', btn.getAttribute('data-type') === type);
   });
   document.getElementById('baziLunarExtraRow').style.display = type === 'lunar' ? '' : 'none';
+  // 切换日期类型时清空日期，避免混淆
+  var dateInput = document.getElementById('baziBirthDate');
+  if(dateInput.value) {
+    dateInput.value = '';
+    // 隐藏结果区域
+    var resultSec = document.getElementById('baziResultSection');
+    if(resultSec) resultSec.style.display = 'none';
+  }
 }
 
 function onBaziDateChange() {
@@ -848,7 +866,7 @@ function calcBazi() {
   var yGz = getYearGanZhi(solarToLunar(yy,mm,dd).year); // 年柱按农历年
   var mGz = getMonthGanZhi(yy, mm, dd);
   var dGz = getDayGanZhi(yy, mm, dd);
-  var hGz = hourIdx >= 0 ? getHourGanZhi(yy, mm, dd, hourIdx * 2 + 1) : null; // 时柱
+  var hGz = hourIdx >= 0 ? getHourGanZhi(yy, mm, dd, hourIdx === 0 ? 23 : hourIdx * 2 - 1) : null; // 时柱：传时辰起始小时数
 
   // 日干索引（核心）
   var dayGanIdx = GAN.indexOf(dGz.gan);

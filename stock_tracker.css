@@ -318,6 +318,14 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .bazi-type-btn:hover { color:#333; }
 .bazi-type-btn.active { background:white; color:#e74c3c; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
 
+/* 时辰选择按钮网格 */
+.bazi-hour-grid { display:flex; flex-wrap:wrap; gap:6px; max-width:420px; }
+.bazi-hour-opt { padding:6px 10px; border:2px solid #e0e0e0; border-radius:8px; cursor:pointer; text-align:center; font-size:13px; font-weight:600; color:#555; transition:all 0.15s; user-select:none; min-width:58px; line-height:1.3; }
+.bazi-hour-opt small { font-size:10px; font-weight:400; color:#999; }
+.bazi-hour-opt:hover { border-color:#3498db; background:#f0f7ff; }
+.bazi-hour-opt.selected { border-color:#e74c3c; background:#fff0f0; color:#e74c3c; box-shadow:0 2px 6px rgba(231,76,60,0.15); }
+.bazi-hour-opt.selected small { color:#e74c3c; opacity:0.7; }
+
 /* 结果卡片 */
 .bazi-result-card { background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; border:1px solid #e8ecf0; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
 
@@ -460,6 +468,8 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
   .notes-input-row input[type="date"] { width:100%; }
   .bazi-input-row { flex-direction:column; align-items:stretch; }
   .bazi-input-row label { margin-bottom:2px; }
+  .bazi-hour-grid { max-width:100%; }
+  .bazi-hour-opt { min-width:0; flex:1; padding:8px 4px; font-size:12px; }
   .bazi-four-pillars { font-size:13px; }
   .bazi-gan-text { font-size:17px; letter-spacing:3px; }
   .bazi-zhi-text { font-size:15px; }
