@@ -1008,7 +1008,8 @@ function analyzePersonality(r) {
   // 五行强弱分析
   var total = ws['木']+ws['火']+ws['土']+ws['金']+ws['水'];
   var strong = [], weak = [];
-  wxKeys.forEach(function(k) {
+  var _wxK = ['木','火','土','金','水'];
+  _wxK.forEach(function(k) {
     if(ws[k] >= 2) strong.push(k + '(' + ws[k] + ')');
     else if(ws[k] === 0) weak.push(k + '(缺)');
   });
