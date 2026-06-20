@@ -724,6 +724,26 @@ function initBaziTab() {
       document.getElementById('baziBirthHour').value = opt.getAttribute('data-val');
     });
   }
+
+  // 从 localStorage 恢复上次输入
+  try {
+    var saved = JSON.parse(localStorage.getItem('baziLastInput') || '{}');
+    if(saved.year) document.getElementById('baziYear').value = saved.year;
+    if(saved.month) document.getElementById('baziMonth').value = saved.month;
+    if(saved.day) document.getElementById('baziDay').value = saved.day;
+    if(saved.hour !== undefined && saved.hour !== '') {
+      document.getElementById('baziBirthHour').value = saved.hour;
+      var hGrid = document.getElementById('baziHourGrid');
+      if(hGrid) {
+        hGrid.querySelectorAll('.bazi-hour-opt').forEach(function(el){
+          el.classList.toggle('selected', el.getAttribute('data-val') === String(saved.hour));
+        });
+      }
+    }
+    if(saved.gender) document.getElementById('baziGender').value = saved.gender;
+    if(saved.dateType) setBaziDateType(saved.dateType);
+    if(saved.isLeapMonth) document.getElementById('baziIsLeapMonth').value = saved.isLeapMonth;
+  } catch(e) { /* 忽略 */ }
 }
 
 function setBaziDateType(type) {
@@ -909,6 +929,19 @@ function calcBazi() {
 
   baziCache = result;
   renderBaziResult(result);
+
+  // 保存输入到 localStorage，下次自动恢复
+  try {
+    localStorage.setItem('baziLastInput', JSON.stringify({
+      year: document.getElementById('baziYear').value,
+      month: document.getElementById('baziMonth').value,
+      day: document.getElementById('baziDay').value,
+      hour: document.getElementById('baziBirthHour').value,
+      gender: document.getElementById('baziGender').value,
+      dateType: baziDateType,
+      isLeapMonth: document.getElementById('baziIsLeapMonth') ? document.getElementById('baziIsLeapMonth').value : 'false'
+    }));
+  } catch(e2) { /* 忽略存储失败 */ }
   } catch(e) {
     alert('排八字出错：' + (e.message || e) + '\n行号：' + (e.lineNumber || '未知') + '\n请按F12打开控制台查看详细错误');
     console.error('calcBazi error:', e);
