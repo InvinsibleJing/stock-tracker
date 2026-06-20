@@ -326,6 +326,12 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .bazi-hour-opt.selected { border-color:#e74c3c; background:#fff0f0; color:#e74c3c; box-shadow:0 2px 6px rgba(231,76,60,0.15); }
 .bazi-hour-opt.selected small { color:#e74c3c; opacity:0.7; }
 
+/* 日期手动输入 */
+.bazi-date-inputs { display:inline-flex; align-items:center; gap:4px; }
+.bazi-date-part { width:72px; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:14px; text-align:center; }
+.bazi-date-part:focus { outline:none; border-color:#e74c3c; box-shadow:0 0 0 3px rgba(231,76,60,0.10); }
+.bazi-date-sep { color:#999; font-weight:600; font-size:14px; }
+
 /* 结果卡片 */
 .bazi-result-card { background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; border:1px solid #e8ecf0; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
 

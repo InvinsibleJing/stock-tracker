@@ -158,7 +158,13 @@
           </div>
           <div class="bazi-input-row">
             <label>出生日期：</label>
-            <input type="date" id="baziBirthDate" onchange="onBaziDateChange()">
+            <div class="bazi-date-inputs">
+              <input type="number" id="baziYear" placeholder="1991" min="1900" max="2030" class="bazi-date-part">
+              <span class="bazi-date-sep">/</span>
+              <input type="number" id="baziMonth" placeholder="7" min="1" max="12" class="bazi-date-part">
+              <span class="bazi-date-sep">/</span>
+              <input type="number" id="baziDay" placeholder="27" min="1" max="31" class="bazi-date-part">
+            </div>
             <label>出生时辰：</label>
             <div class="bazi-hour-grid" id="baziHourGrid">
               <span class="bazi-hour-opt" data-val="0">子时<br><small>23-01</small></span>

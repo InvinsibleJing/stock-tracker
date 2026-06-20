@@ -733,9 +733,11 @@ function setBaziDateType(type) {
   });
   document.getElementById('baziLunarExtraRow').style.display = type === 'lunar' ? '' : 'none';
   // 切换日期类型时清空日期，避免混淆
-  var dateInput = document.getElementById('baziBirthDate');
-  if(dateInput.value) {
-    dateInput.value = '';
+  var yInput = document.getElementById('baziYear');
+  if(yInput && (yInput.value || document.getElementById('baziMonth').value || document.getElementById('baziDay').value)) {
+    yInput.value = '';
+    document.getElementById('baziMonth').value = '';
+    document.getElementById('baziDay').value = '';
     // 隐藏结果区域
     var resultSec = document.getElementById('baziResultSection');
     if(resultSec) resultSec.style.display = 'none';
@@ -841,23 +843,29 @@ function getShiShenDisplay(dayGanIdx, targetGanIdx, gender) {
 /** 排八字主函数 */
 function calcBazi() {
   try {
-  var dateVal = document.getElementById('baziBirthDate').value;
-  if(!dateVal){ alert('请选择出生日期'); return; }
+  // 从三个输入框读取年月日
+  var yyStr = document.getElementById('baziYear').value;
+  var mmStr = document.getElementById('baziMonth').value;
+  var ddStr = document.getElementById('baziDay').value;
+
+  if(!yyStr || !mmStr || !ddStr){ alert('请填写完整的出生日期（年/月/日）'); return; }
+
+  var yy = parseInt(yyStr), mm = parseInt(mmStr), dd = parseInt(ddStr);
+
+  if(isNaN(yy) || isNaN(mm) || isNaN(dd)){ alert('日期格式不正确，请检查'); return; }
+  if(yy < 1900 || yy > 2030){ alert('年份应在1900-2030之间'); return; }
+  if(mm < 1 || mm > 12){ alert('月份应在1-12之间'); return; }
+  if(dd < 1 || dd > 31){ alert('日期应在1-31之间'); return; }
 
   var hourIdx = document.getElementById('baziBirthHour').value;
   hourIdx = hourIdx === '' ? -1 : parseInt(hourIdx);
 
   var gender = document.getElementById('baziGender').value;
 
-  var yy, mm, dd;
-  if(baziDateType === 'solar') {
-    var parts = dateVal.split('-');
-    yy = parseInt(parts[0]); mm = parseInt(parts[1]); dd = parseInt(parts[2]);
-  } else {
-    var parts = dateVal.split('-');
-    var ly = parseInt(parts[0]), lm = parseInt(parts[1]), ld = parseInt(parts[2]);
+  // 如果是农历模式，先转公历
+  if(baziDateType === 'lunar') {
     var isLeap = document.getElementById('baziIsLeapMonth').value === 'true';
-    var solar = lunarToSolarApprox(ly, lm, ld, isLeap);
+    var solar = lunarToSolarApprox(yy, mm, dd, isLeap);
     if(!solar){ alert('无法转换该农历日期到公历，请检查日期是否正确'); return; }
     yy = solar.year; mm = solar.month; dd = solar.day;
   }
@@ -874,7 +882,7 @@ function calcBazi() {
   // 构建缓存结果
   var result = {
     inputType: baziDateType,
-    birthDate: dateVal,
+    birthDate: yy + '-' + String(mm).padStart(2,'0') + '-' + String(dd).padStart(2,'0'),
     gender: gender,
     solarDate: { y: yy, m: mm, d: dd },
     pillars: {
