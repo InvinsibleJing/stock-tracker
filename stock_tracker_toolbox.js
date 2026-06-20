@@ -822,6 +822,7 @@ function getShiShenDisplay(dayGanIdx, targetGanIdx, gender) {
 
 /** 排八字主函数 */
 function calcBazi() {
+  try {
   var dateVal = document.getElementById('baziBirthDate').value;
   if(!dateVal){ alert('请选择出生日期'); return; }
 
@@ -882,6 +883,10 @@ function calcBazi() {
 
   baziCache = result;
   renderBaziResult(result);
+  } catch(e) {
+    alert('排八字出错：' + (e.message || e) + '\n行号：' + (e.lineNumber || '未知') + '\n请按F12打开控制台查看详细错误');
+    console.error('calcBazi error:', e);
+  }
 }
 
 /** 统计四柱五行数量 */
