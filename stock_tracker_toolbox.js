@@ -1375,5 +1375,5 @@ function showBaziFallbackSave(md) {
   // 如果IMA不可用，提供复制功能
   var statusEl = document.getElementById('baziSaveStatus');
   statusEl.className = 'bazi-save-status error';
-  statusEl.innerHTML = '❌ IMA连接不可用，请手动复制下方内容<br><textarea id="baziMdOutput" rows="8" style="width:100%;margin-top:8px;font-family:monospace;font-size:12px">' + md.replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</textarea><br><button class="btn btn-blue" onclick="document.getElementById(\'baziMdOutput\select();document.execCommand(\'copy\');this.textContent=\'已复制!\'" style="margin-top:4px;padding:5px 14px;font-size:12px">📋 复制Markdown</button>';
+  statusEl.innerHTML = '❌ IMA连接不可用，请手动复制下方内容<br><textarea id="baziMdOutput" rows="8" style="width:100%;margin-top:8px;font-family:monospace;font-size:12px">' + md.replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</textarea><br><button class="btn btn-blue" onclick="var t=document.getElementById(\'baziMdOutput\');t.select();document.execCommand(\'copy\');this.textContent=\'已复制!\'" style="margin-top:4px;padding:5px 14px;font-size:12px">📋 复制Markdown</button>';
 }
