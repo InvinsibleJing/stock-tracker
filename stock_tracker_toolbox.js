@@ -493,8 +493,10 @@ function addNote() {
 // 通过名称反向查找股票代码
 function findCodeByName(name) {
   if(typeof STOCK_DICT === 'undefined') return null;
+  var q = (name || '').trim();
   for(var code in STOCK_DICT) {
-    if(STOCK_DICT[code] === name) return code;
+    var item = STOCK_DICT[code];
+    if (item && item[0] === q) return code;
   }
   return null;
 }
