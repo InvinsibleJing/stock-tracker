@@ -143,7 +143,8 @@ window.addEventListener('beforeinstallprompt', function(e){
   deferredPrompt = e;
   // 延迟3秒显示安装提示（如果用户未点击"以后再说"）
   setTimeout(function(){
-    if(deferredPrompt && !localStorage.getItem('install_dismissed')){
+    var dismissed = localStorage.getItem('install_dismissed');
+    if(deferredPrompt && dismissed !== todayStr()){
       document.getElementById('installBanner').classList.add('show');
     }
   }, 3000);
@@ -819,7 +820,7 @@ function addTrade(){
 
   // 乐观更新：先在前端添加
   var tmpId = genTempId();
-  var savedTrades = trades.slice();
+  var savedTrades = JSON.parse(JSON.stringify(trades));
   trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note, tIndex:0, status:'closed', source:'manual'});
   refreshUI();
   showStatus('ok','✅ 已添加');
@@ -861,7 +862,7 @@ function submitDeleteTrade(){
   closeDeleteTrade();
 
   // 乐观更新：先从前端删除
-  var savedTrades = trades.slice();
+  var savedTrades = JSON.parse(JSON.stringify(trades));
   trades = trades.filter(function(t){ return String(t.id) !== String(id); });
   refreshUI();
   showStatus('ok','✅ 已删除');
@@ -965,7 +966,7 @@ function beginEdit(cell, id, field){
     if(field==='quantity'&&v===''){ v='0'; }
 
     // 乐观更新：先在前端修改
-    var savedTrades = trades.slice();
+    var savedTrades = JSON.parse(JSON.stringify(trades));
     var oldVal;
     for(var i=0;i<trades.length;i++){
       if(String(trades[i].id)===String(id)){
@@ -1664,7 +1665,7 @@ function submitAddHolding(){
     var newQty = oldQty + quantity;
     // 加权平均成本价（含本次手续费）
     var newBP = Math.round(((oldQty * oldBP + rawPrice * quantity + buyFees.total) / newQty) * 1000) / 1000;
-    var savedHoldings = holdings.slice();
+    var savedHoldings = JSON.parse(JSON.stringify(holdings));
     holdings[existingIdx].quantity = newQty;
     holdings[existingIdx].buyPrice = newBP;
     holdings[existingIdx].date = date;
@@ -1690,7 +1691,7 @@ function submitAddHolding(){
   } else {
     // ===== 新持仓 =====
     var tmpId = genTempId();
-    var savedHoldings = holdings.slice();
+    var savedHoldings = JSON.parse(JSON.stringify(holdings));
     holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType});
     refreshUI();
     showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
@@ -1953,7 +1954,7 @@ function submitAddComplete(){
   var finalNote = (note ? note + ' ' : '') + '[补录]['+clearAccLabel+']';
   
   // 乐观更新
-  var savedTrades = trades.slice();
+  var savedTrades = JSON.parse(JSON.stringify(trades));
   var tmpTradeId = genTempId();
   trades.push({id:tmpTradeId, date:date, code:code, tag:tag, quantity:qty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
   
@@ -2169,8 +2170,8 @@ function submitClearHolding(){
   var isPartial = actualQty < holding.quantity; // 是否部分清仓
 
   // 乐观更新
-  var savedTrades = trades.slice();
-  var savedHoldings = holdings.slice();
+  var savedTrades = JSON.parse(JSON.stringify(trades));
+  var savedHoldings = JSON.parse(JSON.stringify(holdings));
 
   // 计算卖出手续费（用于存入交易记录）—— 必须用卖出价，不能用成本价
   var accType = holding.accountType || 'normal';
@@ -2357,7 +2358,8 @@ function submitDoT(){
   var doTFees = Math.round((sellFees.total + buyBackFees.total) * 100) / 100;
 
   // 乐观更新：先在前端添加交易记录（持仓不变）
-  var savedTrades = trades.slice();
+  var savedTrades = JSON.parse(JSON.stringify(trades));
+  var savedHoldings = JSON.parse(JSON.stringify(holdings));
 
   var tmpTradeId = genTempId();
   var today = new Date();
@@ -2400,7 +2402,7 @@ function submitDoT(){
       refreshUI();
       _checkSyncStatus();
     } else {
-      rollbackOptimistic(savedTrades, holdings, '❌ 做T记录失败：'+(res?res.error:''));
+      rollbackOptimistic(savedTrades, savedHoldings, '❌ 做T记录失败：'+(res?res.error:''));
     }
   });
 }
@@ -2424,7 +2426,7 @@ function submitDeleteHolding(){
   var id = pendingDeleteHoldId;
 
   // 乐观更新：先从前端删除
-  var savedHoldings = holdings.slice();
+  var savedHoldings = JSON.parse(JSON.stringify(holdings));
   holdings = holdings.filter(function(h){ return String(h.id) !== String(id); });
   closeDeleteHolding();
   refreshUI();
@@ -2522,7 +2524,7 @@ function beginEditHolding(cell, id, field){
     if(field==='quantity'&&v===''){ cancel(); return; }
 
     // 乐观更新：先在前端修改
-    var savedHoldings = holdings.slice();
+    var savedHoldings = JSON.parse(JSON.stringify(holdings));
     var oldVal;
     for(var i=0;i<holdings.length;i++){
       if(String(holdings[i].id)===String(id)){

@@ -492,9 +492,9 @@ function addNote() {
 
 // 通过名称反向查找股票代码
 function findCodeByName(name) {
-  if(typeof stockDict === 'undefined') return null;
-  for(var code in stockDict) {
-    if(stockDict[code] === name) return code;
+  if(typeof STOCK_DICT === 'undefined') return null;
+  for(var code in STOCK_DICT) {
+    if(STOCK_DICT[code] === name) return code;
   }
   return null;
 }
