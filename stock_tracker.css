@@ -248,9 +248,10 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .cal-lunar-part .cal-ganzhi-line .elem { font-size:12px; }
 .cal-lunar-part .cal-divider { border:none; border-top:1px solid #eee; margin:6px 0; }
 .cal-lunar-part .cal-info-line { display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:flex-start; margin-top:4px; font-size:14px; color:#666; line-height:1.8; }
-.cal-lunar-part .cal-info-line .cal-hour-gz { font-weight:600; }
-.cal-lunar-part .cal-info-line .cal-lunar-full { color:#555; }
-.cal-lunar-part .cal-info-line .cal-wuxing-summary { }
+.cal-lunar-part .cal-info-line .cal-hour-gz { font-weight:600; font-size:16px; color:#000; }
+.cal-lunar-part .cal-info-line .cal-lunar-full { color:#000; }
+.cal-lunar-part .cal-info-line .cal-wuxing-summary { color:#000; }
+.cal-jieqi-part .cal-next-gz-month { font-size:13px; color:#555; margin-top:6px; font-weight:500; }
 .cal-jieqi-part { text-align:center; min-width:100px; }
 .cal-jieqi-part .cal-jq-current { font-size:14px; font-weight:600; color:#2c3e50; line-height:1.8; padding-top:3.5px; }
 .cal-jieqi-part .cal-jq-next { font-size:13px; color:#555; margin-top:8px; font-weight:500; }

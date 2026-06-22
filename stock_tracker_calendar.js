@@ -222,6 +222,7 @@ var ZHI_ELEM = ['水','土','木','木','土','火','火','土','金','金','土
 // 五鼠遁：甲己日起甲子, 乙庚日起丙子, 丙辛日起戊子, 丁壬日起庚子, 戊癸日起壬子
 function getHourGanZhi(yy, mm, dd, hh){
   // 时辰地支序号（子=0, 丑=1, ..., 亥=11）
+  var hourBranchIdx;
   // 时辰地支：子(23-1),丑(1-3),寅(3-5),卯(5-7),辰(7-9),巳(9-11),午(11-13),未(13-15),申(15-17),酉(17-19),戌(19-21),亥(21-23)
   var hourBranchIdx;
   if(hh >= 23 || hh < 1) hourBranchIdx = 0;
@@ -464,6 +465,35 @@ function getSolarTermInfo(y,m,d){
   };
 }
 
+// ===== 下一个干支月计算 =====
+// 干支月以节气划分：小寒→丑月, 立春→寅月, 惊蛰→卯月, 清明→辰月,
+// 立夏→巳月, 芒种→午月, 小暑→未月, 立秋→申月, 白露→酉月,
+// 寒露→戌月, 立冬→亥月, 大雪→子月
+function getNextGzMonthInfo(y, m, d){
+  var monthStartTerms = ['立春','惊蛰','清明','立夏','芒种','小暑','立秋','白露','寒露','立冬','大雪','小寒'];
+  var currentGzMonth = getMonthGanZhi(y, m, d);
+  var currentZhi = currentGzMonth.zhi;
+  var curIdx = YUE_LING.indexOf(currentZhi);
+  if(curIdx < 0) return null;
+  var nextIdx = (curIdx + 1) % 12;
+  var startTermName = monthStartTerms[nextIdx];
+  var termAngle = JIEQI_ANGLES[JIEQI_NAMES.indexOf(startTermName)];
+  var todayJDN = Math.floor(_jdFromDate(y, m, d) + 8/24 + 0.5);
+  for(var si = 0; si < 2; si++){
+    var sy = y + si;
+    var jd = _findSolarTermJD(sy, termAngle);
+    var jdn = Math.floor(jd + 8/24 + 0.5);
+    if(jdn > todayJDN){
+      var ms = Math.round((jd + 8/24 - 2440587.5) * 86400000);
+      var dt = new Date(ms);
+      var ny = dt.getUTCFullYear(), nm = dt.getUTCMonth()+1, nd = dt.getUTCDate();
+      var nextGz = getMonthGanZhi(ny, nm, nd);
+      return { name: nextGz.gan + nextGz.zhi + '月', daysToNext: jdn - todayJDN };
+    }
+  }
+  return null;
+}
+
 // ===== 日历显示 =====
 var calCurrentDate = new Date();
 
@@ -539,6 +569,14 @@ function updateCalendar(){
   }
   if(jqInfo.next){
     document.getElementById('calJqNext').textContent = '距' + jqInfo.next + '还有' + jqInfo.daysToNext + '天';
+  }
+
+  // 下一个干支月倒计时
+  var nextGzMonth = getNextGzMonthInfo(y, m, d);
+  if(nextGzMonth){
+    document.getElementById('calNextGzMonth').textContent = '距' + nextGzMonth.name + '还有' + nextGzMonth.daysToNext + '天';
+  } else {
+    document.getElementById('calNextGzMonth').textContent = '';
   }
 
   // 同步到添加记录日期输入框
