@@ -25,6 +25,7 @@ var selectedCompBatches = 1; // 补录弹窗清仓次数
 var compAcSelectedIndex = -1; // 补录联想下拉选中索引
 var compAcResults = []; // 补录联想结果
 var selectedDoTPos = 'full'; // 做T仓位选择：full/half/third/custom
+var doTReversed = false; // 做T价格顺序是否调换（true=正T：买回价在前）
 var selectedAccountType = 'normal'; // 当前选中的账户类型：normal=正常账户 margin=两融账户
 
 // ===== 手续费计算 =====
@@ -2379,6 +2380,34 @@ function openDoT(id){
 
   document.getElementById('doTModal').classList.add('active');
   setTimeout(function(){ document.getElementById('doTSellPrice').focus(); },100);
+  // 重置调换状态
+  doTReversed = false;
+  document.querySelector('#doTField1 label').textContent = '卖出价格（元）';
+  document.querySelector('#doTField2 label').textContent = '买回价格（元）';
+  var badge = document.getElementById('doTTypeBadge');
+  badge.textContent = '反T';
+  badge.classList.remove('reversed');
+}
+function swapDoTPrices(){
+  doTReversed = !doTReversed;
+  var label1 = document.querySelector('#doTField1 label');
+  var label2 = document.querySelector('#doTField2 label');
+  var tmp = label1.textContent;
+  label1.textContent = label2.textContent;
+  label2.textContent = tmp;
+  var v1 = document.getElementById('doTSellPrice').value;
+  var v2 = document.getElementById('doTBuyBackPrice').value;
+  document.getElementById('doTSellPrice').value = v2;
+  document.getElementById('doTBuyBackPrice').value = v1;
+  var badge = document.getElementById('doTTypeBadge');
+  if(doTReversed){
+    badge.textContent = '正T';
+    badge.classList.add('reversed');
+  } else {
+    badge.textContent = '反T';
+    badge.classList.remove('reversed');
+  }
+  autoCalcDoTProfit();
 }
 function closeDoT(){ document.getElementById('doTModal').classList.remove('active'); pendingDoTId=''; }
 
