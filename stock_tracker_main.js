@@ -2383,7 +2383,7 @@ function openDoT(id){
   // 重置调换状态
   doTReversed = false;
   document.querySelector('#doTField1 label').textContent = '卖出价格（元）';
-  document.querySelector('#doTField2 label').textContent = '买回价格（元）';
+  document.querySelector('#doTField2 label').textContent = '买入价格（元）';
   var badge = document.getElementById('doTTypeBadge');
   badge.textContent = '反T';
   badge.classList.remove('reversed');
