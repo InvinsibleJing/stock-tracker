@@ -1323,7 +1323,7 @@ function renderCatStats(){
 
 // 股票综合盈亏（做T记录不计入盈亏，仅展示做T次数）
 function renderStockSummary(){
-  if(trades.length===0){
+  if(trades.length===0 && holdings.length===0){
     document.getElementById('stockSummaryTable').innerHTML='<tr><td style="padding:20px;color:#999">暂无数据</td></tr>';
     return;
   }
@@ -1364,27 +1364,39 @@ function renderStockSummary(){
   // 持仓中但没有任何交易记录的股票也要展示
   for(var c in holdingCodes) allCodes[c] = true;
 
-  // 持仓中的排在最前面，已清仓的按最后清仓日期从近到远
-  var keys=Object.keys(allCodes).sort(function(a,b){
-    var ha = !!holdingCodes[a];
-    var hb = !!holdingCodes[b];
-    if(ha !== hb) return ha ? -1 : 1; // 持仓中优先
-    // 已清仓股票按最后清仓日期从近到远（最近的在上）
-    var da = groups[a] ? groups[a].lastDate : '0000';
-    var db = groups[b] ? groups[b].lastDate : '0000';
-    return db.localeCompare(da);
-  });
-
-  var totalStocks=keys.length;
-  var profitStocks=0, lossStocks=0, totalProfit=0;
-  for(var i=0;i<keys.length;i++){
-    var k = keys[i];
-    if(groups[k]){
-      if(groups[k].profit>0) profitStocks++;
-      else if(groups[k].profit<0) lossStocks++;
-      totalProfit+=groups[k].profit;
+  // 分类：盈利、亏损、持仓中、持平
+  var profitKeys = [], lossKeys = [], holdingKeys = [], flatKeys = [];
+  for(var c in allCodes){
+    if(holdingCodes[c]){
+      holdingKeys.push(c);
+    } else if(groups[c]){
+      if(groups[c].profit > 0) profitKeys.push(c);
+      else if(groups[c].profit < 0) lossKeys.push(c);
+      else flatKeys.push(c);
+    } else {
+      // 只有做T记录，无盈亏
+      flatKeys.push(c);
     }
   }
+
+  // 排序：持仓中按代码，已清仓按最后日期从近到远
+  holdingKeys.sort();
+  profitKeys.sort(function(a,b){ return groups[b].lastDate.localeCompare(groups[a].lastDate); });
+  lossKeys.sort(function(a,b){ return groups[b].lastDate.localeCompare(groups[a].lastDate); });
+  flatKeys.sort(function(a,b){ return (groups[b]&&groups[b].lastDate||'0000').localeCompare(groups[a]&&groups[a].lastDate||'0000'); });
+
+  // 计算汇总
+  var totalStocks=Object.keys(allCodes).length;
+  var profitStocks=profitKeys.length, lossStocks=lossKeys.length, holdingStocks=holdingKeys.length, flatStocks=flatKeys.length;
+  var totalProfit=0;
+  for(var c in groups) totalProfit+=groups[c].profit;
+
+  // 从localStorage恢复折叠状态
+  var collapseState = {};
+  try {
+    var raw = localStorage.getItem('stock_group_collapse');
+    if(raw) collapseState = JSON.parse(raw);
+  } catch(e){}
 
   var html='<thead><tr><th>股票名称</th><th>做T次数</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
 
@@ -1397,41 +1409,92 @@ function renderStockSummary(){
   html+='<td style="color:'+(stockRate>=50?'#e74c3c':'#27ae60')+'">胜率 '+stockRate+'%</td>';
   html+='</tr>';
 
-  // 每只股票
-  for(var i=0;i<keys.length;i++){
-    var k = keys[i];
-    var g = groups[k] || {trades:0,success:0,profit:0};
-    var tg = tGroups[k] || {trades:0,profit:0};
-    var name=getStockName(k);
-    var isHolding = !!holdingCodes[k]; // 从holdings数组判断是否仍在持仓
-    var opRate=g.trades>0?(g.success/g.trades*100).toFixed(1):0;
-    var cls=g.profit>=0?'profit':'loss';
-    var result, resultColor;
-    if(isHolding){
-      result='🔄 持仓中';
-      resultColor='#856404';
-      cls=''; // 持仓中不加盈亏色
-    } else {
-      result=g.profit>0?'✅ 盈利':g.profit<0?'❌ 亏损':'➖ 持平';
-      resultColor=g.profit>0?'#e74c3c':g.profit<0?'#27ae60':'#999';
+  // 渲染一个分组
+  function renderGroup(keys, groupType, groupLabel, groupColor){
+    if(keys.length===0) return '';
+    var isOpen = !collapseState[groupType]; // true=展开, false=折叠
+    var groupHtml = '';
+
+    // 分组标题行（可点击折叠）
+    groupHtml+='<tr class="stock-group-header" data-group="'+groupType+'" onclick="toggleStockGroup(this)" style="cursor:pointer;background:#f8f9fa">';
+    groupHtml+='<td colspan="7" style="padding:8px 12px;text-align:left;font-weight:600;font-size:13px;color:'+groupColor+'">';
+    groupHtml+='<span class="stock-group-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(isOpen?'▼':'▶')+'</span> ';
+    groupHtml+=groupLabel+'（'+keys.length+'只）';
+    groupHtml+='</td>';
+    groupHtml+='</tr>';
+
+    // 该组的股票行
+    for(var i=0;i<keys.length;i++){
+      var k = keys[i];
+      var g = groups[k] || {trades:0,success:0,profit:0};
+      var tg = tGroups[k] || {trades:0,profit:0};
+      var name=getStockName(k);
+      var isHolding = !!holdingCodes[k];
+      var opRate=g.trades>0?(g.success/g.trades*100).toFixed(1):0;
+      var cls=g.profit>=0?'profit':'loss';
+      var result, resultColor;
+      if(isHolding){
+        result='🔄 持仓中';
+        resultColor='#856404';
+        cls='';
+      } else {
+        result=g.profit>0?'✅ 盈利':g.profit<0?'❌ 亏损':'➖ 持平';
+        resultColor=g.profit>0?'#e74c3c':g.profit<0?'#27ae60':'#999';
+      }
+
+      // 做T次数标签
+      var tCountHtml = tg.trades > 0 ? ('<span style="color:#8e44ad;font-weight:600">T×'+tg.trades+'</span>') : '-';
+
+      var rowStyle = isOpen ? '' : 'display:none;';
+      var bgStyle = isHolding ? 'background:#fffbf0;' : '';
+      groupHtml+='<tr class="stock-group-row stock-group-'+groupType+'" style="'+bgStyle+rowStyle+'">';
+      groupHtml+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
+      groupHtml+='<td>'+tCountHtml+'</td>';
+      groupHtml+='<td>'+g.trades+'</td>';
+      groupHtml+='<td>'+g.success+'</td>';
+      groupHtml+='<td>'+opRate+'%</td>';
+      groupHtml+='<td class="'+cls+'">'+(isHolding?'—':((g.profit>=0?'+':'')+g.profit.toFixed(2)))+'</td>';
+      groupHtml+='<td style="color:'+resultColor+'">'+result+'</td>';
+      groupHtml+='</tr>';
     }
 
-    // 做T次数标签
-    var tCountHtml = tg.trades > 0 ? ('<span style="color:#8e44ad;font-weight:600">T×'+tg.trades+'</span>') : '-';
-
-    html+='<tr'+(isHolding?' style="background:#fffbf0"':'')+'>';
-    html+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
-    html+='<td>'+tCountHtml+'</td>';
-    html+='<td>'+g.trades+'</td>';
-    html+='<td>'+g.success+'</td>';
-    html+='<td>'+opRate+'%</td>';
-    html+='<td class="'+cls+'">'+(isHolding?'—':((g.profit>=0?'+':'')+g.profit.toFixed(2)))+'</td>';
-    html+='<td style="color:'+resultColor+'">'+result+'</td>';
-    html+='</tr>';
+    return groupHtml;
   }
+
+  // 按分组顺序渲染：持仓中 → 盈利 → 亏损 → 持平
+  html += renderGroup(holdingKeys, 'holding', '🔄 持仓中', '#856404');
+  html += renderGroup(profitKeys, 'profit', '📈 盈利', '#e74c3c');
+  html += renderGroup(lossKeys, 'loss', '📉 亏损', '#27ae60');
+  html += renderGroup(flatKeys, 'flat', '➖ 持平', '#999');
 
   html+='</tbody>';
   document.getElementById('stockSummaryTable').innerHTML=html;
+}
+
+// 切换股票分组折叠（类似交易记录的月份折叠）
+function toggleStockGroup(el){
+  var group = el.getAttribute('data-group');
+  var rows = document.querySelectorAll('.stock-group-'+group);
+  var toggle = el.querySelector('.stock-group-toggle');
+  var isOpen = toggle.textContent === '▼';
+  for(var i=0;i<rows.length;i++){
+    rows[i].style.display = isOpen ? 'none' : '';
+  }
+  toggle.textContent = isOpen ? '▶' : '▼';
+  // 持久化折叠状态
+  saveStockGroupCollapseState();
+}
+
+// 保存股票分组折叠状态到localStorage
+function saveStockGroupCollapseState(){
+  var headers = document.querySelectorAll('.stock-group-header');
+  var state = {};
+  for(var i=0;i<headers.length;i++){
+    var g = headers[i].getAttribute('data-group');
+    var t = headers[i].querySelector('.stock-group-toggle');
+    if(t) state[g] = (t.textContent === '▶'); // true=收缩, false=展开
+  }
+  try{ localStorage.setItem('stock_group_collapse', JSON.stringify(state)); }catch(e){}
 }
 
 // 周期统计
