@@ -257,7 +257,7 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .cal-lunar-part .cal-info-line .cal-lunar-full { color:#000; }
 .cal-lunar-part .cal-info-line .cal-wuxing-summary { color:#000; }
 .cal-jieqi-part .cal-next-gz-month { font-size:13px; color:#555; margin-top:6px; font-weight:500; }
-.cal-jieqi-part { text-align:center; min-width:100px; }
+.cal-jieqi-part { text-align:left; min-width:100px; }
 .cal-jieqi-part .cal-jq-current { font-size:14px; font-weight:600; color:#2c3e50; line-height:1.8; padding-top:3.5px; }
 .cal-jieqi-part .cal-jq-next { font-size:13px; color:#555; margin-top:8px; font-weight:500; }
 .cal-jieqi-part .cal-divider { border:none; border-top:1px solid #eee; margin:5px 0; }
