@@ -105,7 +105,7 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .acc-type-btn.active { background:#3498db; color:white; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
 
 /* T1~T5 选择按钮组 */
-.t-index-group { display:flex; gap:8px; }
+.t-index-group { display:flex; gap:8px; justify-content:flex-start; }
 .t-index-btn { padding:8px 18px; border:2px solid #ddd; border-radius:8px; background:white; cursor:pointer; font-size:14px; font-weight:600; color:#666; transition:all 0.15s; }
 .t-index-btn:hover { border-color:#8e44ad; color:#8e44ad; background:#f9f0ff; }
 .t-index-btn.active { border-color:#8e44ad; background:#8e44ad; color:white; }
@@ -124,7 +124,7 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .dot-type-badge.reversed { background:#fde8e8; color:#e74c3c; }
 
 /* 仓位选择按钮组 */
-.pos-group { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; }
+.pos-group { display:flex; gap:8px; align-items:center; flex-wrap:nowrap; justify-content:flex-start; }
 .pos-btn { padding:7px 16px; border:2px solid #ddd; border-radius:8px; background:white; cursor:pointer; font-size:13px; font-weight:600; color:#666; transition:all 0.15s; white-space:nowrap; }
 .pos-btn:hover { border-color:#e67e22; color:#e67e22; background:#fef9f3; }
 .pos-btn.active { border-color:#e67e22; background:#e67e22; color:white; }
