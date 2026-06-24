@@ -1449,7 +1449,7 @@ function renderStockSummary(){
 
       var rowStyle = isOpen ? '' : 'display:none;';
       var bgStyle = isHolding ? 'background:#fffbf0;' : '';
-      var rankNum = ++renderStockSummary._rank; // 全局序号
+      var rankNum = i + 1; // 分组内独立序号
       groupHtml+='<tr class="stock-group-row stock-group-'+groupType+'" style="'+bgStyle+rowStyle+'">';
       groupHtml+='<td style="color:#999;text-align:center;font-size:12px">'+rankNum+'</td>';
       groupHtml+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
@@ -1466,7 +1466,6 @@ function renderStockSummary(){
   }
 
   // 按分组顺序渲染：持仓中 → 盈利 → 亏损 → 持平
-  renderStockSummary._rank = 0; // 初始化全局序号
   html += renderGroup(holdingKeys, 'holding', '🔄 持仓中', '#856404');
   html += renderGroup(profitKeys, 'profit', '📈 盈利', '#e74c3c');
   html += renderGroup(lossKeys, 'loss', '📉 亏损', '#27ae60');
