@@ -2125,12 +2125,27 @@ function autoCalcDoTProfit(){
   if(actualQty <= 0 || (holding && actualQty > holding.quantity)) actualQty = holding ? holding.quantity : 0;
 
   // 基础价差盈亏
-  var profit = (sellPrice - buyBackPrice) * actualQty;
+  // 反T（默认）：doTSellPrice=卖出价，doTBuyBackPrice=买回价 → 盈亏 = 卖出价 - 买回价
+  // 正T（doTReversed）：doTSellPrice=买入价，doTBuyBackPrice=卖出价 → 盈亏 = 卖出价 - 买入价
+  var profit;
+  if(doTReversed){
+    profit = (buyBackPrice - sellPrice) * actualQty; // 正T
+  } else {
+    profit = (sellPrice - buyBackPrice) * actualQty; // 反T
+  }
 
-  // 扣除手续费（卖出时 + 买回时）
+  // 扣除手续费（卖出时 + 买回/买入时）
   var accType = holding ? (holding.accountType || 'normal') : 'normal';
-  var sellFees = calcFees(sellPrice, actualQty, true, accType, holding ? holding.code : '');
-  var buyBackFees = calcFees(buyBackPrice, actualQty, false, accType, holding ? holding.code : '');
+  var sellFees, buyBackFees;
+  if(doTReversed){
+    // 正T：先买后卖 → doTSellPrice是买入价，doTBuyBackPrice是卖出价
+    buyBackFees = calcFees(sellPrice, actualQty, false, accType, holding ? holding.code : ''); // 买入手续费
+    sellFees = calcFees(buyBackPrice, actualQty, true, accType, holding ? holding.code : ''); // 卖出手续费
+  } else {
+    // 反T：先卖后买
+    sellFees = calcFees(sellPrice, actualQty, true, accType, holding ? holding.code : '');
+    buyBackFees = calcFees(buyBackPrice, actualQty, false, accType, holding ? holding.code : '');
+  }
   profit = profit - sellFees.total - buyBackFees.total;
   profit = Math.round(profit * 100) / 100;
   document.getElementById('doTAmount').value = profit;
