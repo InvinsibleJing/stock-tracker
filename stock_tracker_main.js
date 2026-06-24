@@ -1399,11 +1399,12 @@ function renderStockSummary(){
     if(raw) collapseState = JSON.parse(raw);
   } catch(e){}
 
-  var html='<thead><tr><th>股票名称</th><th>做T次数</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
+  var html='<thead><tr><th style="width:36px">#</th><th>股票名称</th><th>做T次数</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
 
   // 汇总行
   var stockRate=totalStocks>0?(profitStocks/totalStocks*100).toFixed(1):0;
   html+='<tr style="background:#f0f4f8;font-weight:bold">';
+  html+='<td></td>';
   html+='<td>📊 合计（'+totalStocks+'只股票）</td>';
   html+='<td>-</td><td>-</td><td>-</td><td>-</td>';
   html+='<td class="'+(totalProfit>=0?'profit':'loss')+'">'+(totalProfit>=0?'+':'')+totalProfit.toFixed(2)+'</td>';
@@ -1418,7 +1419,7 @@ function renderStockSummary(){
 
     // 分组标题行（可点击折叠）
     groupHtml+='<tr class="stock-group-header" data-group="'+groupType+'" onclick="toggleStockGroup(this)" style="cursor:pointer;background:#f8f9fa">';
-    groupHtml+='<td colspan="7" style="padding:8px 12px;text-align:left;font-weight:600;font-size:13px;color:'+groupColor+'">';
+    groupHtml+='<td colspan="8" style="padding:8px 12px;text-align:left;font-weight:600;font-size:13px;color:'+groupColor+'">';
     groupHtml+='<span class="stock-group-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(isOpen?'▼':'▶')+'</span> ';
     groupHtml+=groupLabel+'（'+keys.length+'只）';
     groupHtml+='</td>';
@@ -1448,7 +1449,9 @@ function renderStockSummary(){
 
       var rowStyle = isOpen ? '' : 'display:none;';
       var bgStyle = isHolding ? 'background:#fffbf0;' : '';
+      var rankNum = ++renderStockSummary._rank; // 全局序号
       groupHtml+='<tr class="stock-group-row stock-group-'+groupType+'" style="'+bgStyle+rowStyle+'">';
+      groupHtml+='<td style="color:#999;text-align:center;font-size:12px">'+rankNum+'</td>';
       groupHtml+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
       groupHtml+='<td>'+tCountHtml+'</td>';
       groupHtml+='<td>'+g.trades+'</td>';
@@ -1463,6 +1466,7 @@ function renderStockSummary(){
   }
 
   // 按分组顺序渲染：持仓中 → 盈利 → 亏损 → 持平
+  renderStockSummary._rank = 0; // 初始化全局序号
   html += renderGroup(holdingKeys, 'holding', '🔄 持仓中', '#856404');
   html += renderGroup(profitKeys, 'profit', '📈 盈利', '#e74c3c');
   html += renderGroup(lossKeys, 'loss', '📉 亏损', '#27ae60');
