@@ -438,8 +438,6 @@ function showStatus(type,msg){
 
 // ===== Tab 切换 =====
 function switchTab(name){
-  var tabs = document.querySelectorAll('.tabs .tab');
-  tabs.forEach(function(t,i){ t.classList.remove('active'); });
   // 找到对应的主tab（不是周期tab）
   var mainTabs = document.querySelectorAll('.container > .tabs .tab');
 
