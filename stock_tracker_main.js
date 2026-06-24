@@ -1399,7 +1399,7 @@ function renderStockSummary(){
     if(raw) collapseState = JSON.parse(raw);
   } catch(e){}
 
-  var html='<thead><tr><th style="width:36px">#</th><th>股票名称</th><th>做T次数</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
+  var html='<thead><tr><th style="width:36px;text-align:center">序号</th><th>股票名称</th><th>做T次数</th><th>操作次数</th><th>成功次数</th><th>操作成功率</th><th>综合盈亏</th><th>结果</th></tr></thead><tbody>';
 
   // 汇总行
   var stockRate=totalStocks>0?(profitStocks/totalStocks*100).toFixed(1):0;
@@ -1452,7 +1452,7 @@ function renderStockSummary(){
       var rankNum = i + 1; // 分组内独立序号
       groupHtml+='<tr class="stock-group-row stock-group-'+groupType+'" style="'+bgStyle+rowStyle+'">';
       groupHtml+='<td style="color:#999;text-align:center;font-size:12px">'+rankNum+'</td>';
-      groupHtml+='<td><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
+      groupHtml+='<td style="text-align:left"><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
       groupHtml+='<td>'+tCountHtml+'</td>';
       groupHtml+='<td>'+g.trades+'</td>';
       groupHtml+='<td>'+g.success+'</td>';
