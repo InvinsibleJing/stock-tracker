@@ -1405,7 +1405,7 @@ function renderStockSummary(){
   var stockRate=totalStocks>0?(profitStocks/totalStocks*100).toFixed(1):0;
   html+='<tr style="background:#f0f4f8;font-weight:bold">';
   html+='<td></td>';
-  html+='<td>📊 合计（'+totalStocks+'只股票）</td>';
+  html+='<td style="padding-left:48px">📊 合计（'+totalStocks+'只股票）</td>';
   html+='<td>-</td><td>-</td><td>-</td><td>-</td>';
   html+='<td class="'+(totalProfit>=0?'profit':'loss')+'">'+(totalProfit>=0?'+':'')+totalProfit.toFixed(2)+'</td>';
   html+='<td style="color:'+(stockRate>=50?'#e74c3c':'#27ae60')+'">胜率 '+stockRate+'%</td>';
@@ -1452,7 +1452,7 @@ function renderStockSummary(){
       var rankNum = i + 1; // 分组内独立序号
       groupHtml+='<tr class="stock-group-row stock-group-'+groupType+'" style="'+bgStyle+rowStyle+'">';
       groupHtml+='<td style="color:#999;text-align:center;font-size:12px">'+rankNum+'</td>';
-      groupHtml+='<td style="text-align:left;padding-left:36px"><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
+      groupHtml+='<td style="text-align:left;padding-left:48px"><b>'+escapeHtml(name)+'</b><span style="color:#aaa;font-size:11px;margin-left:6px">'+k+'</span>'+(isHolding?'<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;background:#fff3cd;color:#856404">持仓中</span>':'')+'</td>';
       groupHtml+='<td>'+tCountHtml+'</td>';
       groupHtml+='<td>'+g.trades+'</td>';
       groupHtml+='<td>'+g.success+'</td>';
