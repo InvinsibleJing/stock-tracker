@@ -2735,7 +2735,7 @@ function renderHoldings(){
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
     html+='<td>'+availShow+'</td>';
-    html+='<td>';
+    html+='<td style="text-align:right">';
     html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
     html+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
     html+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore">补仓</button>';
