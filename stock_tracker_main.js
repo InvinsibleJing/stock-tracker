@@ -2695,16 +2695,36 @@ function renderHoldings(){
 
   filtered.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
+  var today = todayStr();
   var html='';
   var cardHtml='';
   for(var i=0;i<filtered.length;i++){
     var h=filtered[i];
     var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
-    var noteShow=escapeHtml(h.note||'-');
     var stockName=escapeHtml(getStockName(h.code))||'-';
     var buyPriceShow = h.buyPrice ? (parseFloat(h.buyPrice).toFixed(3)) : '-';
     var accType = h.accountType || 'normal';
     var accBadge = '<span class="acc-badge '+(accType==='margin'?'acc-margin':'acc-normal')+'">'+(accType==='margin'?'两融':'正常')+'</span>';
+
+    // 计算可用/持仓
+    var totalQty = h.quantity || 0;
+    var availableQty;
+    if(h.date === today){
+      // T日买入，当天不可用
+      availableQty = 0;
+    } else {
+      // T+1后可用，但今日做T的open记录会占用可用额度
+      var todayDoTQty = 0;
+      for(var j=0;j<trades.length;j++){
+        var tr=trades[j];
+        if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
+          todayDoTQty += (tr.quantity||0);
+        }
+      }
+      availableQty = Math.max(0, totalQty - todayDoTQty);
+    }
+    var availColor = availableQty === 0 ? '#e74c3c' : (availableQty < totalQty ? '#e67e22' : '#27ae60');
+    var availShow = '<span style="color:'+availColor+';font-weight:600">'+availableQty+'</span><span style="color:#666">/'+totalQty+'</span>';
 
     // 桌面端表格行
     html+='<tr>';
@@ -2714,7 +2734,7 @@ function renderHoldings(){
     html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</td>';
+    html+='<td>'+availShow+'</td>';
     html+='<td>';
     html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
     html+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
@@ -2732,7 +2752,7 @@ function renderHoldings(){
     cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></span></div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">买入逻辑</span><span class="editable" data-id="'+h.id+'" data-field="note">'+noteShow+'</span></div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">可用/持仓</span><span>'+availShow+'</span></div>';
     cardHtml+='<div class="hold-card-footer">';
     cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
     cardHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT" style="background:#8e44ad;color:white">做T</button>';
