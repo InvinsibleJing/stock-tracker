@@ -2775,3 +2775,106 @@ function formatDate(d){
   if(isNaN(date.getTime())) return s;
   return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
 }
+
+// ===== 分红（红利入账）=====
+function openDividend(){
+  var modal = document.getElementById('dividendModal');
+  var sel = document.getElementById('dividendStockSelect');
+  sel.innerHTML = '<option value="">-- 请选择 --</option>';
+  for(var i=0;i<holdings.length;i++){
+    var h = holdings[i];
+    var label = getStockName(h.code) + '（' + h.code + '）';
+    var accType = h.accountType || 'normal';
+    if(accType === 'margin') label += ' [两融]';
+    var opt = document.createElement('option');
+    opt.value = h.id;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  document.getElementById('dividendQtyDisplay').textContent = '-';
+  document.getElementById('dividendCostDisplay').textContent = '-';
+  document.getElementById('dividendAmount').value = '';
+  document.getElementById('dividendPreview').style.display = 'none';
+  modal.classList.add('active');
+}
+
+function closeDividend(){
+  document.getElementById('dividendModal').classList.remove('active');
+}
+
+function onDividendStockChange(){
+  var sel = document.getElementById('dividendStockSelect');
+  var id = sel.value;
+  if(!id){ return; }
+  var h = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ h=holdings[i]; break; }
+  }
+  if(!h) return;
+  document.getElementById('dividendQtyDisplay').textContent = h.quantity || 0;
+  document.getElementById('dividendCostDisplay').textContent = (parseFloat(h.buyPrice)||0).toFixed(3);
+  autoCalcDividend();
+}
+
+function autoCalcDividend(){
+  var amount = parseFloat(document.getElementById('dividendAmount').value);
+  var sel = document.getElementById('dividendStockSelect');
+  var id = sel.value;
+  if(!id || isNaN(amount) || amount <= 0){
+    document.getElementById('dividendPreview').style.display = 'none';
+    return;
+  }
+  var h = null;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ h=holdings[i]; break; }
+  }
+  if(!h) return;
+  var qty = h.quantity || 0;
+  if(qty <= 0) return;
+  var perShare = Math.round(amount / qty * 100) / 100;
+  var oldCost = parseFloat(h.buyPrice) || 0;
+  var newCost = Math.round((oldCost - perShare) * 1000) / 1000;
+  var preview = document.getElementById('dividendPreview');
+  preview.style.display = 'block';
+  preview.innerHTML = '✅ 每股红利 ¥' + perShare.toFixed(2) + '，新成本价 = ' + oldCost.toFixed(3) + ' − ' + perShare.toFixed(2) + ' = <b>' + newCost.toFixed(3) + '</b> 元';
+}
+
+function submitDividend(){
+  var sel = document.getElementById('dividendStockSelect');
+  var id = sel.value;
+  var amount = parseFloat(document.getElementById('dividendAmount').value);
+  if(!id){ alert('请选择持仓股票！'); return; }
+  if(isNaN(amount) || amount <= 0){ alert('请输入红利入账金额！'); return; }
+
+  var h = null, hIdx = -1;
+  for(var i=0;i<holdings.length;i++){
+    if(String(holdings[i].id)===String(id)){ h=holdings[i]; hIdx=i; break; }
+  }
+  if(!h){ alert('持仓记录不存在！'); return; }
+
+  var qty = h.quantity || 0;
+  if(qty <= 0){ alert('持仓数量为0！'); return; }
+  var perShare = Math.round(amount / qty * 100) / 100;
+  var oldCost = parseFloat(h.buyPrice) || 0;
+  var newCost = Math.round((oldCost - perShare) * 1000) / 1000;
+
+  closeDividend();
+
+  // 乐观更新
+  var savedHoldings = JSON.parse(JSON.stringify(holdings));
+  holdings[hIdx].buyPrice = newCost;
+  refreshUI();
+  showStatus('ok', '✅ 红利入账成功：' + getStockName(h.code) + ' 成本价 ' + oldCost.toFixed(3) + ' → ' + newCost.toFixed(3) + ' 元');
+
+  // 后台同步
+  apiCall({action:'updateHolding',id:id,field:'buyPrice',value:newCost}, function(res){
+    if(!res||!res.success){
+      holdings = savedHoldings;
+      refreshUI();
+      showStatus('err','❌ 红利入账失败');
+    } else {
+      try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+      _checkSyncStatus();
+    }
+  });
+}

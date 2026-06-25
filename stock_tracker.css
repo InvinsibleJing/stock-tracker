@@ -39,6 +39,8 @@ h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
 .btn-red:hover { background:#c0392b; }
 .btn-green { background:#27ae60; color:white; }
 .btn-green:hover { background:#219a52; }
+.btn-orange { background:#e67e22; color:white; }
+.btn-orange:hover { background:#d35400; }
 
 /* 表格 */
 .table-box { background:white; border-radius:12px; padding:22px 26px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
