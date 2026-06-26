@@ -1250,6 +1250,8 @@ function fetchStockPrices(){
       var close = parseFloat(parts[3]) || 0;
       currentPrices[padded] = { close: close };
     }
+    // 存入localStorage持久化
+    try { localStorage.setItem('stock_current_prices', JSON.stringify(currentPrices)); } catch(e){}
     renderHoldings();
     if(btn) btn.disabled = false;
   }).catch(function(){
@@ -1258,25 +1260,34 @@ function fetchStockPrices(){
   });
 }
 
+// 从localStorage恢复缓存价格并渲染
+function loadCachedPrices(){
+  try {
+    var cached = localStorage.getItem('stock_current_prices');
+    if(cached){ currentPrices = JSON.parse(cached) || {}; }
+  } catch(e){ currentPrices = {}; }
+}
+
 // 交易日15:01自动刷新价格
 (function(){
   var _lp = 0;
   setInterval(function(){
     var now = new Date();
     var h = now.getHours(), m = now.getMinutes();
-    // 工作日(1-5) 15:01 触发一次
-    if(now.getDay()>=1 && now.getDay()<=5 && h===15 && m===1){
+    // 工作日(1-5) 15:01~15:05 触发一次
+    if(now.getDay()>=1 && now.getDay()<=5 && h===15 && m>=1 && m<=5){
       var ymd = now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
       if(_lp!==ymd){ _lp=ymd; fetchStockPrices(); }
     }
-  }, 20000); // 每20秒检查一次
+  }, 30000); // 每30秒检查一次
 })();
 
-// 页面加载时自动抓一次价格
+// 页面加载：先恢复缓存价格并渲染，不自动抓取
+loadCachedPrices();
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', function(){ fetchStockPrices(); });
+  document.addEventListener('DOMContentLoaded', function(){ renderHoldings(); });
 } else {
-  fetchStockPrices();
+  renderHoldings();
 }
 
 function renderAnalysis(){
