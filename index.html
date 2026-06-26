@@ -252,12 +252,13 @@
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <button class="btn btn-orange" onclick="openDividend()" style="font-size:13px;padding:6px 16px;background:#e67e22">💰 分红</button>
+          <button class="btn btn-blue" onclick="fetchStockPrices()" style="font-size:13px;padding:6px 16px;background:#2980b9" id="btnRefreshPrice">🔄 刷新价格</button>
           <button class="btn btn-green" onclick="openAddHolding()" style="font-size:13px;padding:6px 16px">+ 添加持仓</button>
         </div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead style="background:#2c6e49"><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>买入数量</th><th>成本价</th><th>可用/持仓</th><th>操作</th></tr></thead>
+          <thead style="background:#2c6e49"><tr><th>序号</th><th>交易日期</th><th>股票名称</th><th>板块</th><th>买入数量</th><th>成本价</th><th>可用/持仓</th><th>收盘价</th><th>当前盈亏</th><th>操作</th></tr></thead>
           <tbody id="holdBody"></tbody>
         </table>
       </div>

@@ -5,6 +5,7 @@ var MAX_RETRIES = 3;
 var RETRY_DELAY = 2000;
 var trades = [];
 var holdings = [];
+var currentPrices = {}; // 持仓实时价格缓存 { code: { close: Number } }
 var isLoading = false;
 var isLoadingHoldings = false;
 var trendChart = null;
@@ -1219,7 +1220,65 @@ function updateStats(){
   document.getElementById('stFees').textContent='¥'+tf.toFixed(2);
 }
 
-// ===== 数据分析 =====
+// ===== 抓取持仓实时价格（腾讯财经API）=====
+function fetchStockPrices(){
+  var codes = [];
+  for(var i=0;i<holdings.length;i++){
+    var c = (holdings[i].code||'').padStart(6,'0');
+    if(!c) continue;
+    var prefix = c.substring(0,1);
+    var market = (prefix==='6')?'sh':'sz';
+    codes.push(market + c);
+  }
+  if(codes.length===0) return;
+  var url = 'https://qt.gtimg.cn/q=' + codes.join(',');
+  var btn = document.getElementById('btnRefreshPrice');
+  if(btn) btn.disabled = true;
+  fetch(url).then(function(r){ return r.text(); }).then(function(text){
+    // 解析腾讯API返回格式：v_sh600000="名称~开盘~昨收~当前价~最高~最低~...";
+    var lines = text.trim().split('\n');
+    for(var i=0;i<lines.length;i++){
+      var line = lines[i];
+      var m = line.match(/^v_([a-z0-9]+)="([^"]*)"/);
+      if(!m) continue;
+      var key = m[1]; // sh600000
+      var parts = m[2].split('~');
+      var code6 = key.substring(2); // 600000
+      // 补齐前导零到6位，和holdings.code对齐
+      var padded = code6.padStart(6,'0');
+      // parts[3] = 当前价
+      var close = parseFloat(parts[3]) || 0;
+      currentPrices[padded] = { close: close };
+    }
+    renderHoldings();
+    if(btn) btn.disabled = false;
+  }).catch(function(){
+    console.warn('抓取价格失败');
+    if(btn) btn.disabled = false;
+  });
+}
+
+// 交易日15:01自动刷新价格
+(function(){
+  var _lp = 0;
+  setInterval(function(){
+    var now = new Date();
+    var h = now.getHours(), m = now.getMinutes();
+    // 工作日(1-5) 15:01 触发一次
+    if(now.getDay()>=1 && now.getDay()<=5 && h===15 && m===1){
+      var ymd = now.getFullYear()*10000+(now.getMonth()+1)*100+now.getDate();
+      if(_lp!==ymd){ _lp=ymd; fetchStockPrices(); }
+    }
+  }, 20000); // 每20秒检查一次
+})();
+
+// 页面加载时自动抓一次价格
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', function(){ fetchStockPrices(); });
+} else {
+  fetchStockPrices();
+}
+
 function renderAnalysis(){
   renderTrendChart();
   renderCatStats();
@@ -2735,6 +2794,21 @@ function renderHoldings(){
     html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
     html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
     html+='<td>'+availShow+'</td>';
+    // 收盘价 & 当前盈亏
+    var paddedCode = (h.code||'').padStart(6,'0');
+    var cp = currentPrices[paddedCode];
+    var priceShow = (cp && cp.close > 0) ? parseFloat(cp.close).toFixed(3) : '-';
+    var pnl = '';
+    if(cp && cp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
+      var pnlVal = (cp.close - h.buyPrice) * h.quantity;
+      var pnlCls = pnlVal >= 0 ? 'red' : 'green';
+      var pnlSign = pnlVal >= 0 ? '+' : '';
+      pnl = '<span class="'+pnlCls+'" style="font-weight:600">'+pnlSign+pnlVal.toFixed(2)+'</span>';
+    } else {
+      pnl = '-';
+    }
+    html+='<td>'+priceShow+'</td>';
+    html+='<td>'+pnl+'</td>';
     html+='<td style="text-align:right">';
     html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
     html+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
@@ -2753,6 +2827,20 @@ function renderHoldings(){
     cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></span></div>';
     cardHtml+='<div class="hold-card-row"><span class="label">可用/持仓</span><span>'+availShow+'</span></div>';
+    // 移动端：收盘价 & 当前盈亏
+    var mCp = currentPrices[paddedCode];
+    var mPriceShow = (mCp && mCp.close > 0) ? parseFloat(mCp.close).toFixed(3) : '-';
+    var mPnlHtml = '-';
+    if(mCp && mCp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
+      var mPnlVal = (mCp.close - h.buyPrice) * h.quantity;
+      var cls = mPnlVal >= 0 ? 'red' : 'green';
+      var sign = mPnlVal >= 0 ? '+' : '';
+      mPnlHtml = '<span class="'+cls+'" style="font-weight:600">'+sign+mPnlVal.toFixed(2)+'</span>';
+    }
+    var priceCls = (mCp && mCp.close > 0 && h.buyPrice > 0 && mCp.close > h.buyPrice) ? 'red' : 'green';
+    var priceHtml = mPriceShow!=='-' ? '<span class="'+priceCls+'">'+mPriceShow+'</span>' : '-';
+    cardHtml+='<div class="hold-card-row"><span class="label">收盘价</span><span>'+priceHtml+'</span></div>';
+    cardHtml+='<div class="hold-card-row"><span class="label">当前盈亏</span><span>'+mPnlHtml+'</span></div>';
     cardHtml+='<div class="hold-card-footer">';
     cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
     cardHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT" style="background:#8e44ad;color:white">做T</button>';
