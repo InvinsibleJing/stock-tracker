@@ -12,8 +12,93 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="./stock_dict.js"></script>
 <link rel="stylesheet" href="./stock_tracker.css">
+<style>
+/* 密码遮罩层 */
+.password-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.password-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 48px 40px 36px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  min-width: 340px;
+}
+.password-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.password-title {
+  font-size: 22px;
+  color: #2c3e50;
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+.password-hint {
+  font-size: 14px;
+  color: #999;
+  margin: 0 0 24px;
+}
+.password-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  text-align: center;
+  letter-spacing: 4px;
+}
+.password-input:focus {
+  border-color: #3498db;
+}
+.password-btn {
+  margin-top: 18px;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.password-btn:hover {
+  background: linear-gradient(135deg, #2980b9, #1c5a80);
+}
+.password-error {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+</style>
 </head>
 <body>
+
+<!-- 密码验证遮罩层 -->
+<div id="passwordOverlay" class="password-overlay">
+  <div class="password-box">
+    <div class="password-icon">🔒</div>
+    <h2 class="password-title">股票交易记录</h2>
+    <p class="password-hint">请输入访问密码</p>
+    <input type="password" id="passwordInput" class="password-input" placeholder="请输入密码" autocomplete="off" onkeydown="if(event.key==='Enter')checkPassword()">
+    <button class="password-btn" onclick="checkPassword()">进入系统</button>
+    <p id="passwordError" class="password-error" style="display:none">密码错误，请重试</p>
+  </div>
+</div>
 
 <div class="container">
   <h1>📈 股票交易记录</h1>
@@ -615,6 +700,39 @@
     </div>
   </div>
 </div>
+
+<script>
+// ===== 密码保护 =====
+// 修改 ACCESS_PASSWORD 的值来设置你的访问密码
+const ACCESS_PASSWORD = "comp1234";
+
+function checkPassword() {
+  var input = document.getElementById("passwordInput").value;
+  var errorEl = document.getElementById("passwordError");
+  if (input === ACCESS_PASSWORD) {
+    localStorage.setItem("stockTrackerAuth", "1");
+    document.getElementById("passwordOverlay").style.display = "none";
+  } else {
+    errorEl.style.display = "block";
+    document.getElementById("passwordInput").value = "";
+    document.getElementById("passwordInput").focus();
+  }
+}
+
+// 页面加载时检查是否已认证
+(function() {
+  var overlay = document.getElementById("passwordOverlay");
+  if (localStorage.getItem("stockTrackerAuth") === "1") {
+    overlay.style.display = "none";
+  } else {
+    overlay.style.display = "flex";
+    setTimeout(function() {
+      var inp = document.getElementById("passwordInput");
+      if (inp) inp.focus();
+    }, 100);
+  }
+})();
+</script>
 
 </body>
 </html>
