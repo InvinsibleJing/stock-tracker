@@ -1,6 +1,6 @@
 
 // ===== 配置 =====
-var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbzEUvaFoT8HMmg1S9vZpY6wQvCUQ4KrJJvN1fThfgJn5xztvplzP0Ay8mfkXxU0lkJdWg/exec';
+var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbztk8PitzQZQjlzm0joNM3aqFRgMfxqio-SObuPNv4SL2xcGUfgtEUiGbepn0F_AkjqJA/exec';
 var MAX_RETRIES = 3;
 var RETRY_DELAY = 2000;
 var trades = [];
