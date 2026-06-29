@@ -1282,12 +1282,13 @@ function loadCachedPrices(){
   }, 30000); // 每30秒检查一次
 })();
 
-// 页面加载：先恢复缓存价格并渲染，不自动抓取
+// 页面加载：先恢复缓存价格并渲染，然后自动刷新价格
 loadCachedPrices();
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', function(){ renderHoldings(); });
+  document.addEventListener('DOMContentLoaded', function(){ renderHoldings(); fetchStockPrices(); });
 } else {
   renderHoldings();
+  fetchStockPrices();
 }
 
 function renderAnalysis(){
