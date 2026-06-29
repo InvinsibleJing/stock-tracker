@@ -1812,6 +1812,7 @@ function submitAddHolding(){
     }
     if(note) holdings[existingIdx].note = (holdings[existingIdx].note ? holdings[existingIdx].note+'; ' : '') + note;
     refreshUI();
+    fetchStockPrices();
     showStatus('ok','✅ 补仓成功：' + getStockName(code) + ' ' + oldQty + '→'+newQty + '股，成本价更新为' + newBP.toFixed(3) + '元');
 
     // 后台同步：更新 quantity、buyPrice、lastAddDate、lastAddQty
@@ -1839,6 +1840,7 @@ function submitAddHolding(){
     var savedHoldings = JSON.parse(JSON.stringify(holdings));
     holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType, lastAddDate:date, lastAddQty:quantity});
     refreshUI();
+    fetchStockPrices();
     showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
 
     apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType,lastAddDate:date,lastAddQty:quantity}, function(res){
