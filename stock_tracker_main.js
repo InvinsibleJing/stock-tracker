@@ -1837,11 +1837,11 @@ function submitAddHolding(){
     // ===== 新持仓 =====
     var tmpId = genTempId();
     var savedHoldings = JSON.parse(JSON.stringify(holdings));
-    holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType, lastAddDate:'', lastAddQty:0});
+    holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType, lastAddDate:date, lastAddQty:quantity});
     refreshUI();
     showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
 
-    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType,lastAddDate:'',lastAddQty:0}, function(res){
+    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType,lastAddDate:date,lastAddQty:quantity}, function(res){
       if(res&&res.success){
         for(var i=0;i<holdings.length;i++){
           if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
@@ -2788,8 +2788,17 @@ function renderHoldings(){
 
     // 计算可用/持仓
     var totalQty = h.quantity || 0;
-    // 今日新买入数量（T+1规则，当日买入部分不可用）
-    var todayBuyQty = (h.lastAddDate === today) ? (h.lastAddQty || 0) : 0;
+    // T+1规则：当日买入部分不可用
+    // 新持仓：date===today → 全部不可用
+    // 补仓：lastAddDate===today → 仅当日补仓部分不可用
+    var todayBuyQty = 0;
+    if(h.date === today){
+      // 当天建仓，全部不可用
+      todayBuyQty = totalQty;
+    } else if(h.lastAddDate === today){
+      // 之前建仓，今天补仓，仅补仓部分不可用
+      todayBuyQty = (h.lastAddQty || 0);
+    }
     // 今日做T的open记录占用的数量
     var todayDoTQty = 0;
     for(var j=0;j<trades.length;j++){
