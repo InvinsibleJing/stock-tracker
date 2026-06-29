@@ -1803,20 +1803,30 @@ function submitAddHolding(){
     var savedHoldings = JSON.parse(JSON.stringify(holdings));
     holdings[existingIdx].quantity = newQty;
     holdings[existingIdx].buyPrice = newBP;
-    holdings[existingIdx].date = date;
+    // 补仓：记录最近一次补仓日期和数量（用于可用数量计算）
+    if(holdings[existingIdx].lastAddDate === date){
+      holdings[existingIdx].lastAddQty = (holdings[existingIdx].lastAddQty||0) + quantity;
+    } else {
+      holdings[existingIdx].lastAddDate = date;
+      holdings[existingIdx].lastAddQty = quantity;
+    }
     if(note) holdings[existingIdx].note = (holdings[existingIdx].note ? holdings[existingIdx].note+'; ' : '') + note;
     refreshUI();
     showStatus('ok','✅ 补仓成功：' + getStockName(code) + ' ' + oldQty + '→'+newQty + '股，成本价更新为' + newBP.toFixed(3) + '元');
 
-    // 后台同步
+    // 后台同步：更新 quantity、buyPrice、lastAddDate、lastAddQty
     apiCall({action:'updateHolding',id:old.id,field:'quantity',value:newQty}, function(r1){
       if(r1&&r1.success){
         apiCall({action:'updateHolding',id:old.id,field:'buyPrice',value:newBP}, function(r2){
           if(r2&&r2.success){
-            apiCall({action:'updateHolding',id:old.id,field:'date',value:date}, function(r3){
+            apiCall({action:'updateHolding',id:old.id,field:'lastAddDate',value:date}, function(r3){
               if(r3&&r3.success){
-                try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
-                _checkSyncStatus();
+                apiCall({action:'updateHolding',id:old.id,field:'lastAddQty',value:holdings[existingIdx].lastAddQty}, function(r4){
+                  if(r4&&r4.success){
+                    try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+                    _checkSyncStatus();
+                  }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r4?r4.error:''));}
+                });
               }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r3?r3.error:''));}
             });
           }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r2?r2.error:''));}
@@ -1827,11 +1837,11 @@ function submitAddHolding(){
     // ===== 新持仓 =====
     var tmpId = genTempId();
     var savedHoldings = JSON.parse(JSON.stringify(holdings));
-    holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType});
+    holdings.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, note:note, buyPrice:buyPrice, accountType:selectedAccountType, lastAddDate:'', lastAddQty:0});
     refreshUI();
     showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
 
-    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType}, function(res){
+    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType,lastAddDate:'',lastAddQty:0}, function(res){
       if(res&&res.success){
         for(var i=0;i<holdings.length;i++){
           if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
@@ -2778,21 +2788,17 @@ function renderHoldings(){
 
     // 计算可用/持仓
     var totalQty = h.quantity || 0;
-    var availableQty;
-    if(h.date === today){
-      // T日买入，当天不可用
-      availableQty = 0;
-    } else {
-      // T+1后可用，但今日做T的open记录会占用可用额度
-      var todayDoTQty = 0;
-      for(var j=0;j<trades.length;j++){
-        var tr=trades[j];
-        if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
-          todayDoTQty += (tr.quantity||0);
-        }
+    // 今日新买入数量（T+1规则，当日买入部分不可用）
+    var todayBuyQty = (h.lastAddDate === today) ? (h.lastAddQty || 0) : 0;
+    // 今日做T的open记录占用的数量
+    var todayDoTQty = 0;
+    for(var j=0;j<trades.length;j++){
+      var tr=trades[j];
+      if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
+        todayDoTQty += (tr.quantity||0);
       }
-      availableQty = Math.max(0, totalQty - todayDoTQty);
     }
+    var availableQty = Math.max(0, totalQty - todayBuyQty - todayDoTQty);
     var availColor = availableQty === 0 ? '#e74c3c' : (availableQty < totalQty ? '#e67e22' : '#27ae60');
     var availShow = '<span style="color:'+availColor+';font-weight:600">'+availableQty+'</span><span style="color:#666">/'+totalQty+'</span>';
 
