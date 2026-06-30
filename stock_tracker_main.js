@@ -2781,6 +2781,8 @@ function renderHoldings(){
   var today = todayStr();
   var html='';
   var cardHtml='';
+  var totalPnl = 0;
+  var hasAnyPnl = false;
   for(var i=0;i<filtered.length;i++){
     var h=filtered[i];
     var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
@@ -2830,6 +2832,8 @@ function renderHoldings(){
     var pnl = '';
     if(cp && cp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
       var pnlVal = (cp.close - h.buyPrice) * h.quantity;
+      totalPnl += pnlVal;
+      hasAnyPnl = true;
       var pnlCls = pnlVal >= 0 ? 'red' : 'green';
       var pnlSign = pnlVal >= 0 ? '+' : '';
       pnl = '<span class="'+pnlCls+'" style="font-weight:600">'+pnlSign+pnlVal.toFixed(2)+'</span>';
@@ -2878,6 +2882,30 @@ function renderHoldings(){
     cardHtml+='</div>';
     cardHtml+='</div>';
   }
+
+  // 综合盈亏汇总行（桌面端）
+  if(hasAnyPnl){
+    var totalCls = totalPnl >= 0 ? 'red' : 'green';
+    var totalSign = totalPnl >= 0 ? '+' : '';
+    html += '<tr style="background:#f0f4f8;font-weight:bold;border-top:2px solid #2c6e49">';
+    html += '<td colspan="8" style="text-align:right;padding:10px 12px;color:#2c3e50;font-size:14px">综合盈亏：</td>';
+    html += '<td class="'+totalCls+'" style="font-size:16px;padding:10px 8px">' + totalSign + totalPnl.toFixed(2) + '</td>';
+    html += '<td></td>';
+    html += '</tr>';
+  }
+
+  // 综合盈亏汇总卡片（移动端）
+  if(hasAnyPnl){
+    var totalCls2 = totalPnl >= 0 ? 'red' : 'green';
+    var totalSign2 = totalPnl >= 0 ? '+' : '';
+    cardHtml += '<div class="hold-card-item" style="background:#f0f4f8;border:2px solid #2c6e49;margin-top:8px">';
+    cardHtml += '<div class="hold-card-header">';
+    cardHtml += '<span class="hold-card-name" style="font-size:15px;color:#2c3e50">综合盈亏</span>';
+    cardHtml += '<span class="' + totalCls2 + '" style="font-size:18px;font-weight:700">' + totalSign2 + totalPnl.toFixed(2) + '</span>';
+    cardHtml += '</div>';
+    cardHtml += '</div>';
+  }
+
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
 }
