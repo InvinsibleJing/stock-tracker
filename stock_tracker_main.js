@@ -1816,24 +1816,14 @@ function submitAddHolding(){
     fetchStockPrices();
     showStatus('ok','✅ 补仓成功：' + getStockName(code) + ' ' + oldQty + '→'+newQty + '股，成本价更新为' + newBP.toFixed(3) + '元');
 
-    // 后台同步：更新 quantity、buyPrice、lastAddDate、lastAddQty
-    apiCall({action:'updateHolding',id:old.id,field:'quantity',value:newQty}, function(r1){
-      if(r1&&r1.success){
-        apiCall({action:'updateHolding',id:old.id,field:'buyPrice',value:newBP}, function(r2){
-          if(r2&&r2.success){
-            apiCall({action:'updateHolding',id:old.id,field:'lastAddDate',value:date}, function(r3){
-              if(r3&&r3.success){
-                apiCall({action:'updateHolding',id:old.id,field:'lastAddQty',value:holdings[existingIdx].lastAddQty}, function(r4){
-                  if(r4&&r4.success){
-                    try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
-                    _checkSyncStatus();
-                  }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r4?r4.error:''));}
-                });
-              }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r3?r3.error:''));}
-            });
-          }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r2?r2.error:''));}
-        });
-      }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r1?r1.error:''));}
+    // 后台同步：批量更新 quantity、buyPrice、lastAddDate、lastAddQty（原子操作，杜绝竞态）
+    apiCall({action:'updateHoldingBatch',id:old.id,
+      fields:'quantity,buyPrice,lastAddDate,lastAddQty',
+      values:newQty+','+newBP+','+date+','+holdings[existingIdx].lastAddQty}, function(r){
+      if(r&&r.success){
+        try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+        _checkSyncStatus();
+      }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r?r.error:''));}
     });
   } else {
     // ===== 新持仓 =====
