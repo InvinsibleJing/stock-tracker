@@ -373,6 +373,18 @@
     <!-- 盈亏趋势图 -->
     <div class="analysis-box">
       <h2>📈 累计盈亏趋势</h2>
+      <div class="trend-filter">
+        <span class="trend-filter-label">时间范围：</span>
+        <select id="trendRangeMode" onchange="onTrendRangeChange()" class="trend-range-select">
+          <option value="all">全部</option>
+          <option value="custom">自定义</option>
+        </select>
+        <span id="trendCustomInputs" style="display:none">
+          <input type="date" id="trendDateStart" onchange="onTrendDateChange()" class="trend-date-input">
+          <span style="margin:0 4px;color:#666">至</span>
+          <input type="date" id="trendDateEnd" onchange="onTrendDateChange()" class="trend-date-input">
+        </span>
+      </div>
       <div class="chart-container">
         <canvas id="trendChart"></canvas>
       </div>

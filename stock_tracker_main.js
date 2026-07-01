@@ -1298,10 +1298,53 @@ function renderAnalysis(){
   renderPeriodTable();
 }
 
+// 趋势图过滤模式（默认全部）
+var trendRangeMode = 'all';
+var trendDateStart = '';
+var trendDateEnd = '';
+
+function onTrendRangeChange(){
+  var mode = document.getElementById('trendRangeMode').value;
+  trendRangeMode = mode;
+  var customInputs = document.getElementById('trendCustomInputs');
+  if(mode === 'custom'){
+    customInputs.style.display = '';
+    // 默认设置为数据范围内的首尾
+    var closedTrades = trades.filter(function(t){ return (t.tIndex || 0) === 0; });
+    if(closedTrades.length > 0){
+      var sorted = closedTrades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+      var startEl = document.getElementById('trendDateStart');
+      var endEl = document.getElementById('trendDateEnd');
+      if(!startEl.value) startEl.value = sorted[0].date;
+      if(!endEl.value) endEl.value = sorted[sorted.length-1].date;
+      trendDateStart = startEl.value;
+      trendDateEnd = endEl.value;
+    }
+    renderTrendChart();
+  } else {
+    customInputs.style.display = 'none';
+    renderTrendChart();
+  }
+}
+
+function onTrendDateChange(){
+  trendDateStart = document.getElementById('trendDateStart').value;
+  trendDateEnd = document.getElementById('trendDateEnd').value;
+  if(trendDateStart && trendDateEnd) renderTrendChart();
+}
+
 // 趋势图（排除做T记录）
 function renderTrendChart(){
   var closedTrades = trades.filter(function(t){ return (t.tIndex || 0) === 0; });
   var sorted=closedTrades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+
+  // 自定义时间范围过滤
+  if(trendRangeMode === 'custom' && trendDateStart && trendDateEnd){
+    sorted = sorted.filter(function(t){
+      return t.date >= trendDateStart && t.date <= trendDateEnd;
+    });
+  }
+
   // 按天汇总盈亏
   var dayMap={};
   var dayOrder=[];
@@ -1350,7 +1393,31 @@ function renderTrendChart(){
       },
       scales:{
         y:{
-          ticks:{ callback:function(v){ return '¥'+v; } }
+          ticks:{
+            callback:function(v){
+              var isMilestone = v>0 && v%10000===0;
+              var prefix = isMilestone ? '🏆 ¥' : '¥';
+              return prefix+v;
+            },
+            color:function(ctx){
+              var v=ctx.tick&&ctx.tick.value;
+              return (v>0 && v%10000===0) ? '#e74c3c' : '#666';
+            },
+            font:function(ctx){
+              var v=ctx.tick&&ctx.tick.value;
+              return (v>0 && v%10000===0) ? {weight:'bold',size:12} : {size:11};
+            }
+          },
+          grid:{
+            color:function(ctx){
+              if(ctx.tick && ctx.tick.value>0 && ctx.tick.value%10000===0) return '#e74c3c';
+              return '#e0e0e0';
+            },
+            lineWidth:function(ctx){
+              if(ctx.tick && ctx.tick.value>0 && ctx.tick.value%10000===0) return 2;
+              return 1;
+            }
+          }
         },
         x:{
           ticks:{ maxRotation:45, font:{size:10} }

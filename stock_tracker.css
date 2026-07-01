@@ -145,6 +145,11 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .analysis-box h2 { color:#2c3e50; margin-bottom:16px; font-size:17px; }
 
 .chart-container { position:relative; height:300px; margin-bottom:20px; }
+.trend-filter { display:flex; align-items:center; gap:8px; margin-bottom:12px; padding:8px 12px; background:#f0f4f8; border-radius:8px; font-size:13px; }
+.trend-filter-label { color:#555; font-weight:600; white-space:nowrap; }
+.trend-range-select { padding:5px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px; background:#fff; cursor:pointer; }
+.trend-date-input { padding:5px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px; background:#fff; }
+.trend-date-input:focus, .trend-range-select:focus { border-color:#3498db; outline:none; }
 
 /* 分类统计 */
 .cat-stats { display:flex; gap:16px; flex-wrap:wrap; margin-top:16px; }
