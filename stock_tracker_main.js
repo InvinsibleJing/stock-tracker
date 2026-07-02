@@ -1107,7 +1107,7 @@ function renderTable(){
 
       // 日期标题行（样式跟月份一致：深色背景+三角符号，左侧缩进）
       html+='<tr class="day-header day-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+' onclick="toggleDay(this)">';
-      html+='<td colspan="10" style="padding:8px 12px 8px 32px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd">';
+      html+='<td colspan="10" style="padding:8px 12px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd">';
       html+='<span class="day-toggle" style="display:inline-block;width:16px;font-size:12px;transition:transform 0.2s;color:#7f8c8d;margin-right:6px">▼</span> ';
       html+='<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
       html+='<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dgCount+'笔</span>';
