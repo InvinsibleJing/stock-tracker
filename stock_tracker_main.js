@@ -1057,7 +1057,7 @@ function renderTable(){
   for(var gi=0;gi<groups.length;gi++){
     var g = groups[gi];
     var gTrades = g.trades;
-  // 计算该月统计（排除做T记录，与顶部总盈亏口径一致）
+    // 计算该月统计（排除做T记录，与顶部总盈亏口径一致）
     var gCount = gTrades.length;
     var gProfit = 0, gFees = 0;
     for(var k=0;k<gTrades.length;k++){
@@ -1079,10 +1079,47 @@ function renderTable(){
     html+='<td colspan="3"></td>';
     html+='</tr>';
 
+    // ===== 按日期分组 =====
+    var dayGroups = [];
+    var curDay = '';
+    for(var di=0;di<gTrades.length;di++){
+      var dt = gTrades[di].date; // "2026-07-02"
+      if(dt !== curDay){
+        curDay = dt;
+        dayGroups.push({ day: dt, label: dt.substring(5).replace('-','月')+'日', trades: [] });
+      }
+      dayGroups[dayGroups.length-1].trades.push(gTrades[di]);
+    }
+
     // 桌面端的行样式（按月份隐藏）
     var rowStyle = gOpen ? '' : ' style="display:none"';
+    // 默认展开所有日期（因为月份控制整体显示）
+    var dOpenDefault = true;
 
-    for(var j=0;j<gTrades.length;j++){
+    for(var di=0;di<dayGroups.length;di++){
+      var dg = dayGroups[di];
+      var dgTrades = dg.trades;
+      var dgCount = dgTrades.length;
+      var dgProfit = 0;
+      for(var dk=0;dk<dgTrades.length;dk++){
+        if((dgTrades[dk].tIndex||0)===0) dgProfit += dgTrades[dk].amount;
+      }
+      var dgCls = dgProfit >= 0 ? 'profit' : 'loss';
+      var dgSign = dgProfit >= 0 ? '+' : '';
+
+      // 日期标题行（缩进，浅色背景）
+      html+='<tr class="day-header day-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+'>';
+      html+='  <td colspan="10" style="padding:4px 12px 4px 32px;cursor:pointer;background:#fafbfc;border-bottom:1px solid #eee" onclick="toggleDay(this)">';
+      html+='  <span class="day-toggle" style="display:inline-block;width:14px;font-size:11px;transition:transform 0.2s;color:#95a5a6;margin-right:4px">▾</span> ';
+      html+=escapeHtml(dg.label);
+      html+=' <span style="color:#aaa;font-weight:400;font-size:11px">'+dgCount+'笔</span>';
+      if(dgProfit !== 0){
+        html+=' <span class="'+dgCls+'" style="font-weight:500;font-size:11px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
+      }
+      html+='  </td>';
+      html+='</tr>';
+
+      for(var j=0;j<dgTrades.length;j++){
       seq++;
       var t=gTrades[j], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
     var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').replace('[补录]','').trim();
@@ -1124,8 +1161,8 @@ function renderTable(){
     var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
     var feesTooltip = (t.fees && t.fees > 0) ? getFeesTooltip(t) : '';
 
-    // 桌面端表格行
-    html+='<tr class="month-row-'+g.month+'"'+rowStyle+'>';
+    // 桌面端表格行（带日期分组class，用于日期折叠）
+    html+='<tr class="month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
     html+='<td>'+seq+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
     html+='<td class="editable" data-id="'+t.id+'" data-field="code" style="text-align:left">'+stockName+tBadgeHtml+sourceHtml+'</td>';
@@ -1138,8 +1175,8 @@ function renderTable(){
     html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
     html+='</tr>';
 
-    // 移动端卡片（按月份分组包裹）
-    cardHtml+='<div class="trade-card-item month-row-'+g.month+'"'+rowStyle+'>';
+    // 移动端卡片（按月份+日期分组包裹）
+    cardHtml+='<div class="trade-card-item month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
     cardHtml+='<div class="trade-card-header">';
     cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
     cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
@@ -1154,8 +1191,9 @@ function renderTable(){
     cardHtml+='<button class="trade-card-del" data-id="'+t.id+'" data-action="deleteTrade">删除</button>';
     cardHtml+='</div>';
     cardHtml+='</div>';
-    } // end group trades loop
-  } // end groups loop
+    } // end day trades loop (j)
+  } // end day groups loop (di)
+  } // end groups loop (gi)
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
   // 恢复月份折叠状态
@@ -1166,44 +1204,104 @@ function renderTable(){
 function toggleMonth(el){
   var month = el.getAttribute('data-month');
   var rows = document.querySelectorAll('.month-row-'+month);
+  var dayHeaders = document.querySelectorAll('.day-header[data-month="'+month+'"]');
   var toggle = el.querySelector('.month-toggle');
   var isOpen = toggle.textContent === '▼';
   for(var i=0;i<rows.length;i++){
     rows[i].style.display = isOpen ? 'none' : '';
   }
+  for(var i=0;i<dayHeaders.length;i++){
+    dayHeaders[i].style.display = isOpen ? 'none' : '';
+    // 同步日期折叠图标
+    var dt = dayHeaders[i].querySelector('.day-toggle');
+    if(dt) dt.textContent = isOpen ? '▸' : '▾';
+  }
   toggle.textContent = isOpen ? '▶' : '▼';
   // 持久化折叠状态
-  saveMonthCollapseState();
+  saveCollapseState();
 }
 
-// 保存月份折叠状态到localStorage
-function saveMonthCollapseState(){
-  var headers = document.querySelectorAll('.month-header');
-  var state = {};
-  for(var i=0;i<headers.length;i++){
-    var m = headers[i].getAttribute('data-month');
-    var t = headers[i].querySelector('.month-toggle');
-    if(t) state[m] = (t.textContent === '▶'); // true=收缩, false=展开
+// 切换日期折叠（桌面端行 + 移动端卡片同步）
+function toggleDay(el){
+  var day = el.getAttribute('data-day');
+  var rows = document.querySelectorAll('.day-row-'+day);
+  var toggle = el.querySelector('.day-toggle');
+  var isOpen = toggle.textContent === '▾';
+  for(var i=0;i<rows.length;i++){
+    // 跳过day-header本身（class同时包含day-row-）
+    if(rows[i].classList.contains('day-header')) continue;
+    rows[i].style.display = isOpen ? 'none' : '';
   }
-  try{ localStorage.setItem('month_collapse', JSON.stringify(state)); }catch(e){}
+  toggle.textContent = isOpen ? '▸' : '▾';
+  // 持久化折叠状态
+  saveCollapseState();
 }
 
-// 从localStorage恢复月份折叠状态（在renderTable后调用）
+// 保存折叠状态到localStorage（月份+日期）
+function saveCollapseState(){
+  var monthHeaders = document.querySelectorAll('.month-header');
+  var dayHeaders = document.querySelectorAll('.day-header');
+  var mState = {};
+  var dState = {};
+  for(var i=0;i<monthHeaders.length;i++){
+    var m = monthHeaders[i].getAttribute('data-month');
+    var t = monthHeaders[i].querySelector('.month-toggle');
+    if(t) mState[m] = (t.textContent === '▶'); // true=收缩, false=展开
+  }
+  for(var i=0;i<dayHeaders.length;i++){
+    var d = dayHeaders[i].getAttribute('data-day');
+    var t = dayHeaders[i].querySelector('.day-toggle');
+    if(t) dState[d] = (t.textContent === '▸'); // true=收缩, false=展开
+  }
+  try{ localStorage.setItem('month_collapse', JSON.stringify(mState)); }catch(e){}
+  try{ localStorage.setItem('day_collapse', JSON.stringify(dState)); }catch(e){}
+}
+
+// 从localStorage恢复折叠状态（月份+日期，在renderTable后调用）
 function restoreMonthCollapseState(){
   var raw;
+  // 恢复月份折叠
   try{ raw = localStorage.getItem('month_collapse'); }catch(e){ return; }
   if(!raw) return;
-  var state;
-  try{ state = JSON.parse(raw); }catch(e){ return; }
-  for(var m in state){
-    if(state[m] === true){ // 需要收缩
+  var mState;
+  try{ mState = JSON.parse(raw); }catch(e){ return; }
+  for(var m in mState){
+    if(mState[m] === true){ // 需要收缩
       var rows = document.querySelectorAll('.month-row-'+m);
-      var header = document.querySelector('.month-header[data-month="'+m+'"]');
+      var dayHeaders = document.querySelectorAll('.day-header[data-month="'+m+'"]');
       for(var j=0;j<rows.length;j++){ rows[j].style.display = 'none'; }
+      for(var k=0;k<dayHeaders.length;k++){
+        dayHeaders[k].style.display = 'none';
+        var dt = dayHeaders[k].querySelector('.day-toggle');
+        if(dt) dt.textContent = '▸';
+      }
+      var header = document.querySelector('.month-header[data-month="'+m+'"]');
       if(header){
         var toggle = header.querySelector('.month-toggle');
         if(toggle) toggle.textContent = '▶';
       }
+    }
+  }
+
+  // 恢复日期折叠（只处理展开的月份内的日期）
+  var dRaw;
+  try{ dRaw = localStorage.getItem('day_collapse'); }catch(e){}
+  if(!dRaw) return;
+  var dState;
+  try{ dState = JSON.parse(dRaw); }catch(e){ return; }
+  for(var d in dState){
+    if(dState[d] === true){ // 需要收缩
+      // 检查该日期所在的月份是否已展开
+      var dh = document.querySelector('.day-header[data-day="'+d+'"]');
+      if(!dh || dh.style.display === 'none') continue; // 月份已收，跳过
+      var dRows = document.querySelectorAll('.day-row-'+d);
+      for(var j=0;j<dRows.length;j++){
+        if(!dRows[j].classList.contains('day-header')){
+          dRows[j].style.display = 'none';
+        }
+      }
+      var dtoggle = dh.querySelector('.day-toggle');
+      if(dtoggle) dtoggle.textContent = '▸';
     }
   }
 }
