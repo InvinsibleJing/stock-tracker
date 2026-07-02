@@ -2,7 +2,7 @@ body { font-family: "Microsoft YaHei", sans-serif; background:#f5f7fa; color:#33
 .container { max-width:1200px; margin:0 auto; }
 
 h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
-.subtitle { text-align:center; color:#4a6072; margin-bottom:24px; font-size:13px; }
+.subtitle { text-align:center; color:#5a6c7d; margin-top:-2px; margin-bottom:20px; font-size:16px; letter-spacing:3px; font-weight:500; padding-left:500px; }
 
 /* 统计卡片 */
 .stats { display:flex; justify-content:center; gap:14px; margin-bottom:28px; flex-wrap:wrap; }
