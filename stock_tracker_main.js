@@ -1105,9 +1105,10 @@ function renderTable(){
       var dgCls = dgProfit >= 0 ? 'profit' : 'loss';
       var dgSign = dgProfit >= 0 ? '+' : '';
 
-      // 日期标题行（样式跟月份一致：深色背景+三角符号，左侧缩进）
+      // 日期标题行（列结构与月份标题行完全一致，保证三角在同一垂直线）
       html+='<tr class="day-header day-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+' onclick="toggleDay(this)">';
-      html+='<td colspan="10" style="padding:8px 12px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd">';
+      // 第1格 colspan=5，与月份第一格同宽 → 三角绝对对齐
+      html+='<td colspan="5" style="padding:8px 12px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd;text-align:left">';
       html+='<span class="day-toggle" style="display:inline-block;width:16px;font-size:12px;transition:transform 0.2s;color:#7f8c8d;margin-right:6px">▼</span> ';
       html+='<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
       html+='<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dgCount+'笔</span>';
@@ -1115,6 +1116,12 @@ function renderTable(){
         html+='<span class="'+dgCls+'" style="font-weight:500;font-size:11px;margin-left:10px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
       }
       html+='</td>';
+      // 第2格：盈亏列（与月份第2格同宽）
+      html+='<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
+      // 第3格：手续费列（与月份第3格同宽）
+      html+='<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
+      // 第4格：colspan=3，与月份最后一格同宽
+      html+='<td colspan="3" style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
       html+='</tr>';
 
       // ===== 当天交易记录 =====
