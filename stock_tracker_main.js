@@ -2848,10 +2848,8 @@ function submitDoT(){
 
     // 构建备注：不等量做T格式
     var uAbsAmt = Math.abs(amount).toFixed(2);
-    var uDoTNote = 'T'+selectedTIndex+' ' + (amount >= 0 ? '盈利'+uAbsAmt+'元' : '亏损'+uAbsAmt+'元');
-    uDoTNote += ' 卖'+uSellQtyActual+'买'+uBuyQtyActual+'/原'+holding.quantity+'股';
+    var uDoTNote = 'T'+selectedTIndex+' ' + (amount >= 0 ? '盈利'+uAbsAmt+'元' : '亏损'+uAbsAmt+'元') + '，不等量T';
     if(note) uDoTNote += '（' + note + '）';
-    uDoTNote += '['+accLabel+']';
 
     // 乐观更新
     var uSavedTrades = JSON.parse(JSON.stringify(trades));
