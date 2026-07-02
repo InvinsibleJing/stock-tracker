@@ -1108,7 +1108,7 @@ function renderTable(){
       // 日期标题行（列结构与月份标题行完全一致，保证三角在同一垂直线）
       html+='<tr class="day-header day-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+' onclick="toggleDay(this)">';
       // 第1格 colspan=5，与月份第一格同宽 → 三角绝对对齐
-      html+='<td colspan="5" style="padding:8px 12px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd;text-align:left">';
+      html+='<td colspan="5" style="padding:8px 12px 8px 36px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd;text-align:left">';
       html+='<span class="day-toggle" style="display:inline-block;width:16px;font-size:12px;transition:transform 0.2s;color:#7f8c8d;margin-right:6px">▼</span> ';
       html+='<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
       html+='<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dgCount+'笔</span>';
@@ -1204,24 +1204,44 @@ function renderTable(){
   restoreMonthCollapseState();
 }
 
-// 切换月份折叠（桌面端行 + 移动端卡片同步）
+// 切换月份折叠（桌面端行 + 移动端卡片同步，日期折叠状态有记忆）
 function toggleMonth(el){
   var month = el.getAttribute('data-month');
   var rows = document.querySelectorAll('.month-row-'+month);
   var dayHeaders = document.querySelectorAll('.day-header[data-month="'+month+'"]');
   var toggle = el.querySelector('.month-toggle');
   var isOpen = toggle.textContent === '▼';
-  for(var i=0;i<rows.length;i++){
-    rows[i].style.display = isOpen ? 'none' : '';
-  }
-  for(var i=0;i<dayHeaders.length;i++){
-    dayHeaders[i].style.display = isOpen ? 'none' : '';
-    // 同步日期折叠图标
-    var dt = dayHeaders[i].querySelector('.day-toggle');
-    if(dt) dt.textContent = isOpen ? '▶' : '▼';
+  if(isOpen){
+    // 折叠：隐藏所有行和日期标题，不改日期图标状态（保留记忆）
+    for(var i=0;i<rows.length;i++){
+      rows[i].style.display = 'none';
+    }
+    for(var i=0;i<dayHeaders.length;i++){
+      dayHeaders[i].style.display = 'none';
+    }
+  } else {
+    // 展开：先显示所有行和日期标题
+    for(var i=0;i<rows.length;i++){
+      rows[i].style.display = '';
+    }
+    for(var i=0;i<dayHeaders.length;i++){
+      dayHeaders[i].style.display = '';
+    }
+    // 按每个日期的图标状态恢复：图标为▶的日期，隐藏其下记录行
+    for(var i=0;i<dayHeaders.length;i++){
+      var dt = dayHeaders[i].querySelector('.day-toggle');
+      if(dt && dt.textContent === '▶'){
+        var d = dayHeaders[i].getAttribute('data-day');
+        var dRows = document.querySelectorAll('.day-row-'+d);
+        for(var j=0;j<dRows.length;j++){
+          if(!dRows[j].classList.contains('day-header')){
+            dRows[j].style.display = 'none';
+          }
+        }
+      }
+    }
   }
   toggle.textContent = isOpen ? '▶' : '▼';
-  // 持久化折叠状态
   saveCollapseState();
 }
 
@@ -1262,50 +1282,56 @@ function saveCollapseState(){
 }
 
 // 从localStorage恢复折叠状态（月份+日期，在renderTable后调用）
+// 两步：先恢复日期图标，再恢复月份状态，展开时按日期图标重新隐藏记录行
 function restoreMonthCollapseState(){
-  var raw;
-  // 恢复月份折叠
+  var raw, dRaw;
   try{ raw = localStorage.getItem('month_collapse'); }catch(e){ return; }
   if(!raw) return;
   var mState;
   try{ mState = JSON.parse(raw); }catch(e){ return; }
-  for(var m in mState){
-    if(mState[m] === true){ // 需要收缩
-      var rows = document.querySelectorAll('.month-row-'+m);
-      var dayHeaders = document.querySelectorAll('.day-header[data-month="'+m+'"]');
-      for(var j=0;j<rows.length;j++){ rows[j].style.display = 'none'; }
-      for(var k=0;k<dayHeaders.length;k++){
-        dayHeaders[k].style.display = 'none';
-        var dt = dayHeaders[k].querySelector('.day-toggle');
-        if(dt) dt.textContent = '▶';
-      }
-      var header = document.querySelector('.month-header[data-month="'+m+'"]');
-      if(header){
-        var toggle = header.querySelector('.month-toggle');
-        if(toggle) toggle.textContent = '▶';
-      }
-    }
+  try{ dRaw = localStorage.getItem('day_collapse'); }catch(e){}
+  var dState = {};
+  try{ if(dRaw) dState = JSON.parse(dRaw); }catch(e){}
+
+  // 第一步：恢复所有日期图标（先设图标，再根据图标隐藏行）
+  var dayHeaders = document.querySelectorAll('.day-header');
+  for(var i=0;i<dayHeaders.length;i++){
+    var d = dayHeaders[i].getAttribute('data-day');
+    var dt = dayHeaders[i].querySelector('.day-toggle');
+    if(dt) dt.textContent = (dState[d] === true) ? '▶' : '▼';
   }
 
-  // 恢复日期折叠（只处理展开的月份内的日期）
-  var dRaw;
-  try{ dRaw = localStorage.getItem('day_collapse'); }catch(e){}
-  if(!dRaw) return;
-  var dState;
-  try{ dState = JSON.parse(dRaw); }catch(e){ return; }
-  for(var d in dState){
-    if(dState[d] === true){ // 需要收缩
-      // 检查该日期所在的月份是否已展开
-      var dh = document.querySelector('.day-header[data-day="'+d+'"]');
-      if(!dh || dh.style.display === 'none') continue; // 月份已收，跳过
-      var dRows = document.querySelectorAll('.day-row-'+d);
-      for(var j=0;j<dRows.length;j++){
-        if(!dRows[j].classList.contains('day-header')){
-          dRows[j].style.display = 'none';
+  // 第二步：恢复月份折叠状态
+  for(var m in mState){
+    var header = document.querySelector('.month-header[data-month="'+m+'"]');
+    if(!header) continue;
+    var toggle = header.querySelector('.month-toggle');
+    if(mState[m] === true){
+      // 月份需收缩：隐藏所有行和日期标题
+      var rows = document.querySelectorAll('.month-row-'+m);
+      var dh = document.querySelectorAll('.day-header[data-month="'+m+'"]');
+      for(var j=0;j<rows.length;j++){ rows[j].style.display = 'none'; }
+      for(var k=0;k<dh.length;k++){ dh[k].style.display = 'none'; }
+      if(toggle) toggle.textContent = '▶';
+    } else {
+      // 月份需展开：先全部显示，再按日期图标状态隐藏已折叠的日期
+      var rows = document.querySelectorAll('.month-row-'+m);
+      var dh = document.querySelectorAll('.day-header[data-month="'+m+'"]');
+      for(var j=0;j<rows.length;j++){ rows[j].style.display = ''; }
+      for(var k=0;k<dh.length;k++){ dh[k].style.display = ''; }
+      for(var k=0;k<dh.length;k++){
+        var dt = dh[k].querySelector('.day-toggle');
+        if(dt && dt.textContent === '▶'){
+          var d = dh[k].getAttribute('data-day');
+          var dRows = document.querySelectorAll('.day-row-'+d);
+          for(var j=0;j<dRows.length;j++){
+            if(!dRows[j].classList.contains('day-header')){
+              dRows[j].style.display = 'none';
+            }
+          }
         }
       }
-      var dtoggle = dh.querySelector('.day-toggle');
-      if(dtoggle) dtoggle.textContent = '▶';
+      if(toggle) toggle.textContent = '▼';
     }
   }
 }
