@@ -1068,7 +1068,7 @@ function renderTable(){
     var gSign = gProfit >= 0 ? '+' : '';
     var gOpen = gi === 0; // 默认展开最新月份
 
-    // 桌面端：月份标题行（盈亏对齐盈亏列，手续费对齐手续费列）
+    // 桌面端：月份标题行
     html+='<tr class="month-header" data-month="'+g.month+'" onclick="toggleMonth(this)" style="cursor:pointer;background:#f0f4f8">';
     html+='<td colspan="5" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
     html+='<span class="month-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(gOpen?'▼':'▶')+'</span> ';
@@ -1093,8 +1093,6 @@ function renderTable(){
 
     // 桌面端的行样式（按月份隐藏）
     var rowStyle = gOpen ? '' : ' style="display:none"';
-    // 默认展开所有日期（因为月份控制整体显示）
-    var dOpenDefault = true;
 
     for(var di=0;di<dayGroups.length;di++){
       var dg = dayGroups[di];
@@ -1107,93 +1105,92 @@ function renderTable(){
       var dgCls = dgProfit >= 0 ? 'profit' : 'loss';
       var dgSign = dgProfit >= 0 ? '+' : '';
 
-      // 日期标题行（缩进，浅色背景）
+      // 日期标题行（样式跟月份一致：深色背景+三角符号，左侧缩进）
       html+='<tr class="day-header day-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+'>';
-      html+='  <td colspan="10" style="padding:4px 12px 4px 32px;cursor:pointer;background:#fafbfc;border-bottom:1px solid #eee" onclick="toggleDay(this)">';
-      html+='  <span class="day-toggle" style="display:inline-block;width:14px;font-size:11px;transition:transform 0.2s;color:#95a5a6;margin-right:4px">▾</span> ';
-      html+=escapeHtml(dg.label);
-      html+=' <span style="color:#aaa;font-weight:400;font-size:11px">'+dgCount+'笔</span>';
+      html+='<td colspan="10" style="padding:8px 12px 8px 32px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd" onclick="toggleDay(this)">';
+      html+='<span class="day-toggle" style="display:inline-block;width:16px;font-size:12px;transition:transform 0.2s;color:#7f8c8d;margin-right:6px">▼</span> ';
+      html+='<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
+      html+='<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dgCount+'笔</span>';
       if(dgProfit !== 0){
-        html+=' <span class="'+dgCls+'" style="font-weight:500;font-size:11px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
+        html+='<span class="'+dgCls+'" style="font-weight:500;font-size:11px;margin-left:10px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
       }
-      html+='  </td>';
+      html+='</td>';
       html+='</tr>';
 
+      // ===== 当天交易记录 =====
       for(var j=0;j<dgTrades.length;j++){
       seq++;
-      var t=gTrades[j], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
-    var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').replace('[补录]','').trim();
-    var noteShow=escapeHtml(rawNote||'-');
-    var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
-    var stockName=escapeHtml(getStockName(t.code))||'-';
+      var t=dgTrades[j], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
+      var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').replace('[补录]','').trim();
+      var noteShow=escapeHtml(rawNote||'-');
+      var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
+      var stockName=escapeHtml(getStockName(t.code))||'-';
 
-    // T 标徽章：做T记录显示 T1~T5，盈利红色，亏损绿色
-    var tIdx = t.tIndex || 0;
-    var tBadgeHtml = '';
-    if(tIdx > 0){
-      var tBadgeCls = ip ? 't-badge-profit' : 't-badge-loss';
-      tBadgeHtml = '<span class="t-badge '+tBadgeCls+'">T'+tIdx+'</span>';
-      // 做T记录显示账户徽章（从备注中解析[正常]/[两融]）
-      var tNote = t.note || '';
-      if(tNote.indexOf('[两融]')!==-1){
-        tBadgeHtml += '<span class="acc-badge acc-margin" style="font-size:10px">两融</span>';
-      } else if(tNote.indexOf('[正常]')!==-1){
-        tBadgeHtml += '<span class="acc-badge acc-normal" style="font-size:10px">正常</span>';
+      // T 标徽章
+      var tIdx = t.tIndex || 0;
+      var tBadgeHtml = '';
+      if(tIdx > 0){
+        var tBadgeCls = ip ? 't-badge-profit' : 't-badge-loss';
+        tBadgeHtml = '<span class="t-badge '+tBadgeCls+'">T'+tIdx+'</span>';
+        var tNote = t.note || '';
+        if(tNote.indexOf('[两融]')!==-1){
+          tBadgeHtml += '<span class="acc-badge acc-margin" style="font-size:10px">两融</span>';
+        } else if(tNote.indexOf('[正常]')!==-1){
+          tBadgeHtml += '<span class="acc-badge acc-normal" style="font-size:10px">正常</span>';
+        }
       }
-    }
 
-    // 清仓来源徽章（绿色，标识该记录由清仓操作产生）
-    var sourceHtml = '';
-    var tSource = t.source || '';
-    if(tSource === 'clear'){
-      sourceHtml = '<span class="source-clear">清仓</span>';
-      // 清仓记录显示账户徽章（从备注中解析[正常]/[两融]）
-      var cNote = t.note || '';
-      if(cNote.indexOf('[两融]')!==-1){
-        sourceHtml += '<span class="acc-badge acc-margin" style="font-size:10px;margin-left:4px">两融</span>';
-      } else if(cNote.indexOf('[正常]')!==-1){
-        sourceHtml += '<span class="acc-badge acc-normal" style="font-size:10px;margin-left:4px">正常</span>';
+      // 清仓来源徽章
+      var sourceHtml = '';
+      var tSource = t.source || '';
+      if(tSource === 'clear'){
+        sourceHtml = '<span class="source-clear">清仓</span>';
+        var cNote = t.note || '';
+        if(cNote.indexOf('[两融]')!==-1){
+          sourceHtml += '<span class="acc-badge acc-margin" style="font-size:10px;margin-left:4px">两融</span>';
+        } else if(cNote.indexOf('[正常]')!==-1){
+          sourceHtml += '<span class="acc-badge acc-normal" style="font-size:10px;margin-left:4px">正常</span>';
+        }
       }
-    }
 
-    // 手续费显示 + tooltip
-    var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
-    var feesTooltip = (t.fees && t.fees > 0) ? getFeesTooltip(t) : '';
+      // 手续费显示 + tooltip
+      var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
+      var feesTooltip = (t.fees && t.fees > 0) ? getFeesTooltip(t) : '';
 
-    // 桌面端表格行（带日期分组class，用于日期折叠）
-    html+='<tr class="month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
-    html+='<td>'+seq+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="code" style="text-align:left">'+stockName+tBadgeHtml+sourceHtml+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
-    html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="fees" style="color:#7f8c8d">'+feesShow+(feesTooltip?'<div class="tooltip-box">'+feesTooltip+'</div>':'')+'</td>';
-    html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
-    html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
-    html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
-    html+='</tr>';
+      // 桌面端表格行
+      html+='<tr class="month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
+      html+='<td>'+seq+'</td>';
+      html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
+      html+='<td class="editable" data-id="'+t.id+'" data-field="code" style="text-align:left">'+stockName+tBadgeHtml+sourceHtml+'</td>';
+      html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
+      html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
+      html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
+      html+='<td class="editable" data-id="'+t.id+'" data-field="fees" style="color:#7f8c8d">'+feesShow+(feesTooltip?'<div class="tooltip-box">'+feesTooltip+'</div>':'')+'</td>';
+      html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
+      html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
+      html+='<td><button class="del-btn" data-id="'+t.id+'" data-action="deleteTrade">删除</button></td>';
+      html+='</tr>';
 
-    // 移动端卡片（按月份+日期分组包裹）
-    cardHtml+='<div class="trade-card-item month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
-    cardHtml+='<div class="trade-card-header">';
-    cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
-    cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
-    cardHtml+='</div>';
-    cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
-    cardHtml+='<div class="trade-card-row"><span class="label">数量</span><span class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</span></div>';
-    if(t.fees && t.fees > 0) cardHtml+='<div class="trade-card-row"><span class="label">手续费</span><span style="color:#7f8c8d">¥'+t.fees.toFixed(2)+'</span></div>';
-    cardHtml+='<div class="trade-card-row"><span class="label">备注</span><span class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</span></div>';
-    cardHtml+='<div class="trade-card-footer">';
-    cardHtml+='<span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span>';
-    cardHtml+='<span class="'+(ip?'red':'green')+'" style="font-size:12px;font-weight:500">'+(ip?'✅ 成功':'❌ 失败')+'</span>';
-    cardHtml+='<button class="trade-card-del" data-id="'+t.id+'" data-action="deleteTrade">删除</button>';
-    cardHtml+='</div>';
-    cardHtml+='</div>';
-    } // end day trades loop (j)
-  } // end day groups loop (di)
-  } // end groups loop (gi)
+      // 移动端卡片
+      cardHtml+='<div class="trade-card-item month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
+      cardHtml+='<div class="trade-card-header">';
+      cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
+      cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
+      cardHtml+='</div>';
+      cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
+      cardHtml+='<div class="trade-card-row"><span class="label">数量</span><span class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</span></div>';
+      if(t.fees && t.fees > 0) cardHtml+='<div class="trade-card-row"><span class="label">手续费</span><span style="color:#7f8c8d">¥'+t.fees.toFixed(2)+'</span></div>';
+      cardHtml+='<div class="trade-card-row"><span class="label">备注</span><span class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</span></div>';
+      cardHtml+='<div class="trade-card-footer">';
+      cardHtml+='<span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span>';
+      cardHtml+='<span class="'+(ip?'red':'green')+'" style="font-size:12px;font-weight:500">'+(ip?'✅ 成功':'❌ 失败')+'</span>';
+      cardHtml+='<button class="trade-card-del" data-id="'+t.id+'" data-action="deleteTrade">删除</button>';
+      cardHtml+='</div>';
+      cardHtml+='</div>';
+      } // end day trades loop (j)
+    } // end day groups loop (di)
+  } // end month groups loop (gi)
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
   // 恢复月份折叠状态
@@ -1214,7 +1211,7 @@ function toggleMonth(el){
     dayHeaders[i].style.display = isOpen ? 'none' : '';
     // 同步日期折叠图标
     var dt = dayHeaders[i].querySelector('.day-toggle');
-    if(dt) dt.textContent = isOpen ? '▸' : '▾';
+    if(dt) dt.textContent = isOpen ? '▶' : '▼';
   }
   toggle.textContent = isOpen ? '▶' : '▼';
   // 持久化折叠状态
@@ -1226,13 +1223,13 @@ function toggleDay(el){
   var day = el.getAttribute('data-day');
   var rows = document.querySelectorAll('.day-row-'+day);
   var toggle = el.querySelector('.day-toggle');
-  var isOpen = toggle.textContent === '▾';
+  var isOpen = toggle.textContent === '▼';
   for(var i=0;i<rows.length;i++){
     // 跳过day-header本身（class同时包含day-row-）
     if(rows[i].classList.contains('day-header')) continue;
     rows[i].style.display = isOpen ? 'none' : '';
   }
-  toggle.textContent = isOpen ? '▸' : '▾';
+  toggle.textContent = isOpen ? '▶' : '▼';
   // 持久化折叠状态
   saveCollapseState();
 }
@@ -1251,7 +1248,7 @@ function saveCollapseState(){
   for(var i=0;i<dayHeaders.length;i++){
     var d = dayHeaders[i].getAttribute('data-day');
     var t = dayHeaders[i].querySelector('.day-toggle');
-    if(t) dState[d] = (t.textContent === '▸'); // true=收缩, false=展开
+    if(t) dState[d] = (t.textContent === '▶'); // true=收缩, false=展开
   }
   try{ localStorage.setItem('month_collapse', JSON.stringify(mState)); }catch(e){}
   try{ localStorage.setItem('day_collapse', JSON.stringify(dState)); }catch(e){}
@@ -1273,7 +1270,7 @@ function restoreMonthCollapseState(){
       for(var k=0;k<dayHeaders.length;k++){
         dayHeaders[k].style.display = 'none';
         var dt = dayHeaders[k].querySelector('.day-toggle');
-        if(dt) dt.textContent = '▸';
+        if(dt) dt.textContent = '▶';
       }
       var header = document.querySelector('.month-header[data-month="'+m+'"]');
       if(header){
@@ -1301,7 +1298,7 @@ function restoreMonthCollapseState(){
         }
       }
       var dtoggle = dh.querySelector('.day-toggle');
-      if(dtoggle) dtoggle.textContent = '▸';
+      if(dtoggle) dtoggle.textContent = '▶';
     }
   }
 }
