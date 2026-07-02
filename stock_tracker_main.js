@@ -372,7 +372,20 @@ window.addEventListener('DOMContentLoaded', function(){
   });
 
   // ===== 做T弹窗 仓位按钮事件 =====
-  setupPosGroup('doTPosGroup', 'doTCustomQty', 'doTQtyDisplay', function(pos){ selectedDoTPos = pos; autoCalcDoTProfit(); });
+  setupPosGroup('doTPosGroup', 'doTCustomQty', 'doTQtyDisplay', function(pos){
+    selectedDoTPos = pos;
+    // 不等量区域显示/隐藏
+    var unequalArea = document.getElementById('doTUnequalArea');
+    if(unequalArea) unequalArea.style.display = (pos === 'unequal') ? 'block' : 'none';
+    // 选非不等量时清空不等量输入框
+    if(pos !== 'unequal'){
+      var sq = document.getElementById('doTSellQty');
+      var bq = document.getElementById('doTBuyQty');
+      if(sq) sq.value = '';
+      if(bq) bq.value = '';
+    }
+    autoCalcDoTProfit();
+  });
 
   if(!isOnline){
     document.getElementById('offlineTip').classList.add('show');
@@ -2260,6 +2273,61 @@ function autoCalcDoTProfit(){
     if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
   }
 
+  // ===== 不等量做T：差价法计算展示盈亏，现金流法提示成本冲减 =====
+  if(selectedDoTPos === 'unequal'){
+    var uSellQty = parseInt(document.getElementById('doTSellQty').value) || 0;
+    var uBuyQty = parseInt(document.getElementById('doTBuyQty').value) || 0;
+
+    // 更新数量显示
+    updateQtyDisplay(document.getElementById('doTQtyDisplay'), 'unequal', 0, 'doTPosGroup');
+
+    if(uSellQty <= 0 || uBuyQty <= 0) return; // 数量未填完，不计算
+
+    var uAccType = holding ? (holding.accountType || 'normal') : 'normal';
+    var uStockCode = holding ? holding.code : '';
+
+    // 确定实际卖出价/买入价和数量（区分正T/反T）
+    var uSellPrice, uBuyPrice, uSellQtyActual, uBuyQtyActual;
+    if(doTReversed){
+      // 正T：doTSellPrice=买入价，doTBuyBackPrice=卖出价
+      uBuyPrice = sellPrice;
+      uSellPrice = buyBackPrice;
+      uBuyQtyActual = uSellQty;  // doTSellQty输入框对应买入
+      uSellQtyActual = uBuyQty;  // doTBuyQty输入框对应卖出
+    } else {
+      // 反T：doTSellPrice=卖出价，doTBuyBackPrice=买回价
+      uSellPrice = sellPrice;
+      uBuyPrice = buyBackPrice;
+      uSellQtyActual = uSellQty;
+      uBuyQtyActual = uBuyQty;
+    }
+
+    // 差价法（展示用）：等量部分 × 价差
+    var equalQty = Math.min(uSellQtyActual, uBuyQtyActual);
+    var priceDiff = uSellPrice - uBuyPrice; // 正=盈利
+    var displayProfit = priceDiff * equalQty;
+
+    // 手续费（按实际卖出/买入数量分别计算）
+    var uSellFees = calcFees(uSellPrice, uSellQtyActual, true, uAccType, uStockCode);
+    var uBuyFees = calcFees(uBuyPrice, uBuyQtyActual, false, uAccType, uStockCode);
+    displayProfit = displayProfit - uSellFees.total - uBuyFees.total;
+    displayProfit = Math.round(displayProfit * 100) / 100;
+
+    document.getElementById('doTAmount').value = displayProfit;
+    document.getElementById('doTAutoCalcHint').style.display = 'block';
+
+    var uTotalFees = Math.round((uSellFees.total + uBuyFees.total) * 100) / 100;
+    var uTip = '✅ <b>不等量做T（差价法展示）</b>';
+    uTip += '<br>等量部分：' + equalQty + '股 × 价差' + (priceDiff >= 0 ? '+' : '') + priceDiff.toFixed(3) + ' = ' + Math.round(priceDiff * equalQty * 100) / 100 + '元';
+    if(uTotalFees > 0){
+      uTip += '<br>手续费：卖出' + uSellFees.total.toFixed(2) + ' + 买入' + uBuyFees.total.toFixed(2) + ' = ' + uTotalFees.toFixed(2) + '元';
+    }
+    uTip += '<br>💰 成本冲减用现金流法：' + uSellPrice + '×' + uSellQtyActual + ' - ' + uBuyPrice + '×' + uBuyQtyActual + ' - ' + uTotalFees + ' = <b style="color:#e67e22">' + (Math.round((uSellPrice * uSellQtyActual - uBuyPrice * uBuyQtyActual - uTotalFees) * 100) / 100) + '元</b>';
+    document.getElementById('doTAutoCalcHint').innerHTML = uTip;
+    return;
+  }
+
+  // ===== 等量做T：原有逻辑 =====
   // 计算实际做T数量
   var customQty = parseInt(document.getElementById('doTCustomQty').value) || 0;
   var actualQty = holding ? calcActualQty(holding.quantity, selectedDoTPos, customQty) : 0;
@@ -2331,6 +2399,16 @@ function updateQtyDisplay(displayEl, posType, customQty, groupId){
     displayEl.textContent = '操作数量：' + actualQty + ' 股（' + totalQty + ' 的 1/2）';
   } else if(posType === 'third'){
     displayEl.textContent = '操作数量：' + actualQty + ' 股（' + totalQty + ' 的 1/3）';
+  } else if(posType === 'unequal'){
+    // 不等量做T：读取卖出/买入数量
+    var sellQty = parseInt(document.getElementById('doTSellQty').value) || 0;
+    var buyQty = parseInt(document.getElementById('doTBuyQty').value) || 0;
+    if(sellQty > 0 || buyQty > 0){
+      var newQty = totalQty - sellQty + buyQty;
+      displayEl.textContent = '卖出' + sellQty + '股 / 买入' + buyQty + '股 → 新持仓' + newQty + '股（原' + totalQty + '股）';
+    } else {
+      displayEl.textContent = '请输入卖出/买入数量（当前持仓' + totalQty + '股）';
+    }
   } else {
     displayEl.textContent = '操作数量：' + (customQty || '?') + ' 股（自定义）';
   }
@@ -2514,6 +2592,13 @@ function openDoT(id){
   selectedDoTPos = 'full';
   document.querySelectorAll('#doTPosGroup .pos-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-pos')==='full'); });
   document.getElementById('doTCustomQty').value = '';
+  // 重置不等量输入区
+  var unequalArea = document.getElementById('doTUnequalArea');
+  if(unequalArea) unequalArea.style.display = 'none';
+  var doTSellQtyInput = document.getElementById('doTSellQty');
+  var doTBuyQtyInput = document.getElementById('doTBuyQty');
+  if(doTSellQtyInput) doTSellQtyInput.value = '';
+  if(doTBuyQtyInput) doTBuyQtyInput.value = '';
   updateQtyDisplay(document.getElementById('doTQtyDisplay'), 'full', 0, 'doTPosGroup');
 
   // 自动检测该持仓已做T次数（按code+账户类型分开计数）
@@ -2563,6 +2648,21 @@ function swapDoTPrices(){
     badge.textContent = '反T';
     badge.classList.remove('reversed');
   }
+  // 不等量做T时，同步交换卖出/买入数量的label和value
+  var sellQtyEl = document.getElementById('doTSellQty');
+  var buyQtyEl = document.getElementById('doTBuyQty');
+  if(sellQtyEl && buyQtyEl && selectedDoTPos === 'unequal'){
+    var sellLabel = sellQtyEl.previousElementSibling;
+    var buyLabel = buyQtyEl.previousElementSibling;
+    if(sellLabel && buyLabel){
+      var tmpLabel = sellLabel.textContent;
+      sellLabel.textContent = buyLabel.textContent;
+      buyLabel.textContent = tmpLabel;
+    }
+    var tmpVal = sellQtyEl.value;
+    sellQtyEl.value = buyQtyEl.value;
+    buyQtyEl.value = tmpVal;
+  }
   autoCalcDoTProfit();
 }
 function closeDoT(){ document.getElementById('doTModal').classList.remove('active'); pendingDoTId=''; }
@@ -2574,14 +2674,114 @@ function submitDoT(){
 
   var id = pendingDoTId;
 
-  // 计算实际做T数量
-  var customQty = parseInt(document.getElementById('doTCustomQty').value) || 0;
   var holding = null;
   for(var i=0;i<holdings.length;i++){
     if(String(holdings[i].id)===String(id)){ holding=holdings[i]; break; }
   }
   if(!holding) return;
 
+  var accType = holding.accountType || 'normal';
+  var accLabel = accType === 'margin' ? '两融' : '正常';
+  var inputSellPrice = parseFloat(document.getElementById('doTSellPrice').value) || 0;
+  var inputBuyBackPrice = parseFloat(document.getElementById('doTBuyBackPrice').value) || 0;
+
+  // ===== 不等量做T：差价法展示 + 现金流法冲减成本 =====
+  if(selectedDoTPos === 'unequal'){
+    var uSellQty = parseInt(document.getElementById('doTSellQty').value) || 0;
+    var uBuyQty = parseInt(document.getElementById('doTBuyQty').value) || 0;
+    if(uSellQty <= 0){ alert('请填写卖出数量！'); return; }
+    if(uBuyQty <= 0){ alert('请填写买入数量！'); return; }
+    if(uSellQty > holding.quantity){ alert('卖出数量不能超过持仓数量（'+holding.quantity+'股）！'); return; }
+
+    // 确定实际卖出/买入的价格和数量（区分正T/反T）
+    var uSellPriceActual, uBuyPriceActual, uSellQtyActual, uBuyQtyActual;
+    if(doTReversed){
+      // 正T：doTSellPrice=买入价，doTBuyBackPrice=卖出价
+      uBuyPriceActual = inputSellPrice;
+      uSellPriceActual = inputBuyBackPrice;
+      uBuyQtyActual = uSellQty;  // doTSellQty输入框对应买入
+      uSellQtyActual = uBuyQty;  // doTBuyQty输入框对应卖出
+    } else {
+      // 反T：doTSellPrice=卖出价，doTBuyBackPrice=买回价
+      uSellPriceActual = inputSellPrice;
+      uBuyPriceActual = inputBuyBackPrice;
+      uSellQtyActual = uSellQty;
+      uBuyQtyActual = uBuyQty;
+    }
+
+    // 手续费（按实际卖出/买入数量分别计算）
+    var uSellFees = calcFees(uSellPriceActual, uSellQtyActual, true, accType, holding.code);
+    var uBuyFees = calcFees(uBuyPriceActual, uBuyQtyActual, false, accType, holding.code);
+    var uDoTFees = Math.round((uSellFees.total + uBuyFees.total) * 100) / 100;
+
+    // 现金流法盈亏（用于成本冲减，前端不展示这个数）
+    var cashFlowProfit = uSellPriceActual * uSellQtyActual - uBuyPriceActual * uBuyQtyActual - uDoTFees;
+    cashFlowProfit = Math.round(cashFlowProfit * 100) / 100;
+
+    // 构建备注：不等量做T格式
+    var uAbsAmt = Math.abs(amount).toFixed(2);
+    var uDoTNote = 'T'+selectedTIndex+' ' + (amount >= 0 ? '盈利'+uAbsAmt+'元' : '亏损'+uAbsAmt+'元');
+    uDoTNote += ' 卖'+uSellQtyActual+'买'+uBuyQtyActual+'/原'+holding.quantity+'股';
+    if(note) uDoTNote += '（' + note + '）';
+    uDoTNote += '['+accLabel+']';
+
+    // 乐观更新
+    var uSavedTrades = JSON.parse(JSON.stringify(trades));
+    var uSavedHoldings = JSON.parse(JSON.stringify(holdings));
+
+    var uTmpTradeId = genTempId();
+    var uToday = new Date();
+    var uTodayStr = uToday.getFullYear() + '-' + String(uToday.getMonth() + 1).padStart(2, '0') + '-' + String(uToday.getDate()).padStart(2, '0');
+    // 交易记录：amount=差价法展示盈亏，quantity=卖出量，fees=实际总手续费
+    trades.push({id:uTmpTradeId, date:uTodayStr, code:holding.code, tag:holding.tag, quantity:uSellQtyActual, amount:amount, note:uDoTNote, tIndex:selectedTIndex, status:'open', source:'doT', fees:uDoTFees});
+
+    // 乐观更新：持仓量 + 成本价（现金流法冲减）
+    var uNewQty = holding.quantity - uSellQtyActual + uBuyQtyActual;
+    if(holding.buyPrice > 0 && uNewQty > 0){
+      var uTotalCost = holding.buyPrice * holding.quantity;
+      var uNewTotalCost = uTotalCost - cashFlowProfit;
+      if(uNewTotalCost < 0) uNewTotalCost = 0;
+      var uNewBuyPrice = uNewTotalCost / uNewQty;
+      if(uNewBuyPrice < 0) uNewBuyPrice = 0;
+      holding.buyPrice = Math.round(uNewBuyPrice * 1000) / 1000;
+    }
+    holding.quantity = uNewQty;
+
+    closeDoT();
+    refreshUI();
+    showStatus('ok','✅ 不等量做T'+selectedTIndex+'已记录（卖'+uSellQtyActual+'买'+uBuyQtyActual+'，展示盈亏'+amount+'元）');
+
+    // 后台同步：传sellQty/buyQty/sellPrice/buyPrice，后端用现金流法冲减
+    apiCall({action:'doT',id:id,amount:amount,note:uDoTNote,tIndex:selectedTIndex,quantity:uSellQtyActual,fees:uDoTFees,
+             sellQty:uSellQtyActual,buyQty:uBuyQtyActual,sellPrice:uSellPriceActual,buyPrice:uBuyPriceActual}, function(res){
+      if(res&&res.success){
+        if(res.tradeId){
+          for(var j=0;j<trades.length;j++){
+            if(trades[j].id===uTmpTradeId){ trades[j].id=res.tradeId; break; }
+          }
+          cacheData(trades);
+        }
+        // 后端返回新的成本价和持仓量，同步到前端
+        for(var k=0;k<holdings.length;k++){
+          if(String(holdings[k].id)===String(id)){
+            if(res.newBuyPrice !== undefined) holdings[k].buyPrice = res.newBuyPrice;
+            if(res.newQuantity !== undefined) holdings[k].quantity = res.newQuantity;
+            break;
+          }
+        }
+        try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+        refreshUI();
+        _checkSyncStatus();
+      } else {
+        rollbackOptimistic(uSavedTrades, uSavedHoldings, '❌ 做T记录失败：'+(res?res.error:''));
+      }
+    });
+    return;
+  }
+
+  // ===== 等量做T：原有逻辑 =====
+  // 计算实际做T数量
+  var customQty = parseInt(document.getElementById('doTCustomQty').value) || 0;
   var actualQty = calcActualQty(holding.quantity, selectedDoTPos, customQty);
   if(actualQty <= 0){ alert('做T数量不能为0！'); return; }
   if(actualQty > holding.quantity){ actualQty = holding.quantity; }
@@ -2594,13 +2794,11 @@ function submitDoT(){
   }
   if(note) doTNote += '（' + note + '）';
   // 做T备注末尾加账户标记，用于T序号按账户分开计数
-  var accLabel = (holding.accountType || 'normal') === 'margin' ? '两融' : '正常';
   doTNote += '['+accLabel+']';
 
   // 计算做T手续费（卖出+买回）
-  var accType = holding.accountType || 'normal';
-  var sellPrice = parseFloat(document.getElementById('doTSellPrice').value) || 0;
-  var buyBackPrice = parseFloat(document.getElementById('doTBuyBackPrice').value) || 0;
+  var sellPrice = inputSellPrice;
+  var buyBackPrice = inputBuyBackPrice;
   var sellFees = calcFees(sellPrice, actualQty, true, accType, holding.code);
   var buyBackFees = calcFees(buyBackPrice, actualQty, false, accType, holding.code);
   var doTFees = Math.round((sellFees.total + buyBackFees.total) * 100) / 100;
