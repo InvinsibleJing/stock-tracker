@@ -2616,7 +2616,7 @@ function submitClearHolding(){
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   var finalNote = note || holding.note || '';
   if(isPartial){
-     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + actualQty + '/' + holding.quantity + '股';
+     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓';
   }
   // 清仓备注末尾加账户标记，用于显示账户徽章
   var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
