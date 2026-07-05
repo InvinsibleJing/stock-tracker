@@ -2852,6 +2852,8 @@ function submitDoT(){
     var uAbsAmt = Math.abs(amount).toFixed(2);
     var uDoTNote = 'T'+selectedTIndex+' ' + (amount >= 0 ? '盈利'+uAbsAmt+'元' : '亏损'+uAbsAmt+'元') + '，不等量T';
     if(note) uDoTNote += '（' + note + '）';
+    // 备注末尾加账户标记，用于显示账户徽章
+    uDoTNote += '['+accLabel+']';
 
     // 乐观更新
     var uSavedTrades = JSON.parse(JSON.stringify(trades));
