@@ -2953,8 +2953,8 @@ function submitDoT(){
   refreshUI();
   showStatus('ok','✅ 做T'+selectedTIndex+'已记录（'+actualQty+'股）');
 
-  // 后台同步
-  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty,fees:doTFees}, function(res){
+  // 后台同步（等量做T：buyQty=quantity）
+  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty,buyQty:actualQty,fees:doTFees}, function(res){
     if(res&&res.success){
       // 用云端真ID替换临时ID
       if(res.tradeId){
