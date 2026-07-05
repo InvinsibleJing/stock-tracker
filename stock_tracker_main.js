@@ -3187,12 +3187,13 @@ function renderHoldings(){
       // 之前建仓，今天补仓，仅补仓部分不可用
       todayBuyQty = (h.lastAddQty || 0);
     }
-    // 今日做T的open记录占用的数量
+    // 今日做T的open记录占用的数量（买回部分T+1锁定）
     var todayDoTQty = 0;
     for(var j=0;j<trades.length;j++){
       var tr=trades[j];
       if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
-        todayDoTQty += (tr.quantity||0);
+        // 使用 buyQty（买回数量）计算T+1锁定，如果没有则使用 quantity（兼容旧数据）
+        todayDoTQty += (tr.buyQty || tr.quantity || 0);
       }
     }
     var availableQty = Math.max(0, totalQty - todayBuyQty - todayDoTQty);
