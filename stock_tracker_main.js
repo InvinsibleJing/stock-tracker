@@ -2729,12 +2729,14 @@ function openDoT(id){
   if(doTBuyQtyInput) doTBuyQtyInput.value = '';
   updateQtyDisplay(document.getElementById('doTQtyDisplay'), 'full', 0, 'doTPosGroup');
 
-  // 自动检测该持仓已做T次数（按code+账户类型分开计数）
-  // 判断方式：做T备注中包含"[正常]"或"[两融]"标识
+  // 自动检测该持仓已做T次数（按code+账户类型+建仓日期分开计数）
+  // 只统计建仓日期（h.date）之后的做T记录，清仓后再买入应从T1重新开始
   var accLabel = (h.accountType || 'normal') === 'margin' ? '两融' : '正常';
   var maxT = 0;
   for(var i=0;i<trades.length;i++){
     if(trades[i].code === h.code && trades[i].tIndex > 0 && trades[i].source === 'doT'){
+      // 持仓有建仓日期时，只统计建仓日之后的做T记录（清仓后再买入不继承上一轮的T序号）
+      if(h.date && trades[i].date < h.date) continue;
       // 通过备注中的账户标记来区分是否属于当前账户类型
       if(trades[i].note.indexOf('['+accLabel+']') !== -1){
         if(trades[i].tIndex > maxT) maxT = trades[i].tIndex;
