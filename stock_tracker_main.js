@@ -482,7 +482,53 @@ function getStockName(code) {
   return entry ? entry[0] : code;
 }
 
+// ===== 股票字典搜索：建一次索引 + 前缀匹配（供 4 处复用）=====
+var _stockDictIdx = null;
+function buildStockDictIndex() {
+  if (_stockDictIdx) return;
+  _stockDictIdx = { all: [], byCode1: {}, byPy1: {} };
+  if (typeof STOCK_DICT === 'undefined') return;
+  for (var code in STOCK_DICT) {
+    var arr = STOCK_DICT[code];
+    var rec = { code: code, name: arr[0], pinyin: (arr[1] || '') };
+    _stockDictIdx.all.push(rec);
+    var c1 = code.charAt(0);
+    (_stockDictIdx.byCode1[c1] = _stockDictIdx.byCode1[c1] || []).push(rec);
+    var p1 = rec.pinyin.charAt(0);
+    if (p1) (_stockDictIdx.byPy1[p1] = _stockDictIdx.byPy1[p1] || []).push(rec);
+  }
+}
+function searchStockDict(query, limit) {
+  buildStockDictIndex();
+  var val = (query || '').trim().toLowerCase();
+  var res = [];
+  if (!val || !_stockDictIdx) return res;
+  limit = limit || 30;
+  var c1 = val.charAt(0);
+  var pools = [];
+  if (_stockDictIdx.byCode1[c1]) pools.push(_stockDictIdx.byCode1[c1]);
+  if (_stockDictIdx.byPy1[c1]) pools.push(_stockDictIdx.byPy1[c1]);
+  if (pools.length === 0) pools.push(_stockDictIdx.all);
+  for (var p = 0; p < pools.length; p++) {
+    var pool = pools[p];
+    for (var i = 0; i < pool.length; i++) {
+      var it = pool[i];
+      if (it.code.indexOf(val) === 0 || it.pinyin.indexOf(val) === 0) {
+        res.push({ code: it.code, name: it.name, pinyin: it.pinyin });
+        if (res.length >= limit) return res;
+      }
+    }
+  }
+  return res;
+}
+
+// ===== 交易代码联想（带防抖）=====
+var _onCodeInputTimer = null;
 function onCodeInput() {
+  if (_onCodeInputTimer) clearTimeout(_onCodeInputTimer);
+  _onCodeInputTimer = setTimeout(_doCodeInput, 150);
+}
+function _doCodeInput() {
   var input = document.getElementById('inpCode');
   var val = input.value.trim().toLowerCase();
   var list = document.getElementById('acList');
@@ -494,17 +540,7 @@ function onCodeInput() {
     return;
   }
 
-  acResults = [];
-  var count = 0;
-  for (var code in STOCK_DICT) {
-    if (count >= 30) break;
-    var name = STOCK_DICT[code][0];
-    var py = STOCK_DICT[code][1];
-    if (code.indexOf(val) === 0 || py.indexOf(val) === 0) {
-      acResults.push({ code: code, name: name, pinyin: py });
-      count++;
-    }
-  }
+  acResults = searchStockDict(val, 30);
 
   if (acResults.length === 0) {
     list.classList.remove('show');
@@ -932,12 +968,7 @@ function beginEdit(cell, id, field){
     input.addEventListener('input',function(){
       var v=input.value.trim().toLowerCase();
       if(!v||typeof STOCK_DICT==='undefined'){editAc.classList.remove('show');editAcResults=[];return;}
-      editAcResults=[];editAcIndex=-1;var cnt=0;
-      for(var c in STOCK_DICT){
-        if(cnt>=15)break;
-        var n=STOCK_DICT[c][0],py=STOCK_DICT[c][1];
-        if(c.indexOf(v)===0||py.indexOf(v)===0){editAcResults.push({code:c,name:n});cnt++;}
-      }
+      editAcResults=searchStockDict(v,15);editAcIndex=-1;
       if(editAcResults.length===0){editAc.classList.remove('show');return;}
       var ah='';
       for(var j=0;j<editAcResults.length;j++){
@@ -1130,7 +1161,6 @@ function renderTable(){
       var t=dgTrades[j], ip=t.amount>0, cls=ip?'profit':'loss', sign=t.amount>=0?'+':'';
       var rawNote = (t.note||'').replace('[正常]','').replace('[两融]','').replace('[补录]','').trim();
       var noteShow=escapeHtml(rawNote||'-');
-      var noteForOnclick=(t.note||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       var tagClass=t.tag==='创业板'?'tag-gem':t.tag==='科创板'?'tag-star':'tag-main';
       var stockName=escapeHtml(getStockName(t.code))||'-';
 
@@ -1840,7 +1870,13 @@ function renderPeriodTable(){
 }
 
 // ===== 持仓联想搜索 =====
+// ===== 持仓代码联想（带防抖）=====
+var _onHoldCodeInputTimer = null;
 function onHoldCodeInput() {
+  if (_onHoldCodeInputTimer) clearTimeout(_onHoldCodeInputTimer);
+  _onHoldCodeInputTimer = setTimeout(_doHoldCodeInput, 150);
+}
+function _doHoldCodeInput() {
   var input = document.getElementById('holdCode');
   var val = input.value.trim().toLowerCase();
   var list = document.getElementById('holdAcList');
@@ -1852,17 +1888,7 @@ function onHoldCodeInput() {
     return;
   }
 
-  holdAcResults = [];
-  var count = 0;
-  for (var code in STOCK_DICT) {
-    if (count >= 30) break;
-    var name = STOCK_DICT[code][0];
-    var py = STOCK_DICT[code][1];
-    if (code.indexOf(val) === 0 || py.indexOf(val) === 0) {
-      holdAcResults.push({ code: code, name: name, pinyin: py });
-      count++;
-    }
-  }
+  holdAcResults = searchStockDict(val, 30);
 
   if (holdAcResults.length === 0) {
     list.classList.remove('show');
@@ -3054,12 +3080,7 @@ function beginEditHolding(cell, id, field){
     input.addEventListener('input',function(){
       var v=input.value.trim().toLowerCase();
       if(!v||typeof STOCK_DICT==='undefined'){editAc.classList.remove('show');editAcResults=[];return;}
-      editAcResults=[];var cnt=0;
-      for(var c in STOCK_DICT){
-        if(cnt>=15)break;
-        var n=STOCK_DICT[c][0],py=STOCK_DICT[c][1];
-        if(c.indexOf(v)===0||py.indexOf(v)===0){editAcResults.push({code:c,name:n});cnt++;}
-      }
+      editAcResults=searchStockDict(v,15);
       if(editAcResults.length===0){editAc.classList.remove('show');return;}
       var ah='';
       for(var j=0;j<editAcResults.length;j++){

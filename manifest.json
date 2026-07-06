@@ -1,6 +1,8 @@
 {
+  "id": "stock-tracker",
   "name": "股票交易记录",
   "short_name": "交易记录",
+  "lang": "zh-CN",
   "description": "收盘前买入·次日开盘卖出·数据云端同步",
   "start_url": "./index.html",
   "display": "standalone",

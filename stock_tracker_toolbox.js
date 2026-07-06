@@ -1514,10 +1514,10 @@ var saveBaziMarkdown = saveBaziMarkdown || function(md, birthDate) {
         folderId: ''
       }).then(function(resp) {
         statusEl.className = 'bazi-save-status success';
-        statusEl.innerHTML = '✅ 已成功保存到IMA知识库！（标题：' + title + '）';
+        statusEl.textContent = '✅ 已成功保存到IMA知识库！（标题：' + title + '）';
       }).catch(function(err) {
         statusEl.className = 'bazi-save-status error';
-        statusEl.innerHTML = '❌ 保存失败：' + (err.message || JSON.stringify(err)) + '<br><span style="font-size:11px">提示：请确认IMA连接正常，或手动复制下方内容保存</span>';
+        statusEl.textContent = '❌ 保存失败：' + (err.message || JSON.stringify(err)) + ' 提示：请确认IMA连接正常，或手动复制下方内容保存';
         showBaziFallbackSave(md);
       });
     } catch(e) {

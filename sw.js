@@ -3,10 +3,15 @@
  * 缓存策略：Network First（优先网络，离线时用缓存）
  */
 
-var CACHE_NAME = 'stock-tracker-v4';
+var CACHE_NAME = 'stock-tracker-v5';
 var CACHE_URLS = [
   './index.html',
   './manifest.json',
+  './stock_tracker_main.js',
+  './stock_tracker.css',
+  './stock_tracker_toolbox.js',
+  './stock_tracker_calendar.js',
+  './stock_dict.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4'
 ];
 
