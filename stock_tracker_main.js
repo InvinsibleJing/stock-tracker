@@ -3190,108 +3190,172 @@ function renderHoldings(){
   var cardHtml='';
   var totalPnl = 0;
   var hasAnyPnl = false;
+  var seq = 0;
+
+  // 按建仓月份分组（YYYY-MM） —— 独立命名空间 hold-，不与交易记录冲突
+  var groups = [];
+  var curMonth = '';
   for(var i=0;i<filtered.length;i++){
-    var h=filtered[i];
-    var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
-    var stockName=escapeHtml(getStockName(h.code))||'-';
-    var buyPriceShow = h.buyPrice ? (parseFloat(h.buyPrice).toFixed(3)) : '-';
-    var accType = h.accountType || 'normal';
-    var accBadge = '<span class="acc-badge '+(accType==='margin'?'acc-margin':'acc-normal')+'">'+(accType==='margin'?'两融':'正常')+'</span>';
-
-    // 计算可用/持仓
-    var totalQty = h.quantity || 0;
-    // T+1规则：当日买入部分不可用
-    // 新持仓：date===today → 全部不可用
-    // 补仓：lastAddDate===today → 仅当日补仓部分不可用
-    var todayBuyQty = 0;
-    if(h.date === today){
-      // 当天建仓，全部不可用
-      todayBuyQty = totalQty;
-    } else if(h.lastAddDate === today){
-      // 之前建仓，今天补仓，仅补仓部分不可用
-      todayBuyQty = (h.lastAddQty || 0);
+    var h0 = filtered[i];
+    var m0 = h0.date.substring(0,7);
+    if(m0 !== curMonth){
+      curMonth = m0;
+      groups.push({ month: m0, label: m0.replace('-','年')+'月', holdings: [] });
     }
-    // 今日做T的open记录占用的数量（买回部分T+1锁定）
-    var todayDoTQty = 0;
-    for(var j=0;j<trades.length;j++){
-      var tr=trades[j];
-      if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
-        // 使用 buyQty（买回数量）计算T+1锁定，如果没有则使用 quantity（兼容旧数据）
-        todayDoTQty += (tr.buyQty || tr.quantity || 0);
-      }
-    }
-    var availableQty = Math.max(0, totalQty - todayBuyQty - todayDoTQty);
-    var availColor = availableQty === 0 ? '#e74c3c' : (availableQty < totalQty ? '#e67e22' : '#27ae60');
-    var availShow = '<span style="color:'+availColor+';font-weight:600">'+availableQty+'</span><span style="color:#666">/'+totalQty+'</span>';
-
-    // 桌面端表格行
-    html+='<tr>';
-    html+='<td>'+(i+1)+'</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="code" style="text-align:left">'+stockName+accBadge+'</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
-    html+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
-    html+='<td>'+availShow+'</td>';
-    // 收盘价 & 当前盈亏
-    var paddedCode = (h.code||'').padStart(6,'0');
-    var cp = currentPrices[paddedCode];
-    var priceShow = (cp && cp.close > 0) ? parseFloat(cp.close).toFixed(3) : '-';
-    var pnl = '';
-    if(cp && cp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
-      var pnlVal = (cp.close - h.buyPrice) * h.quantity;
-      totalPnl += pnlVal;
-      hasAnyPnl = true;
-      var pnlCls = pnlVal >= 0 ? 'red' : 'green';
-      var pnlSign = pnlVal >= 0 ? '+' : '';
-      pnl = '<span class="'+pnlCls+'" style="font-weight:600">'+pnlSign+pnlVal.toFixed(2)+'</span>';
-    } else {
-      pnl = '-';
-    }
-    html+='<td>'+priceShow+'</td>';
-    html+='<td>'+pnl+'</td>';
-    html+='<td style="text-align:right">';
-    html+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
-    html+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
-    html+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore">补仓</button>';
-    html+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding">删除</button>';
-    html+='</td>';
-    html+='</tr>';
-
-    // 移动端卡片
-    cardHtml+='<div class="hold-card-item">';
-    cardHtml+='<div class="hold-card-header">';
-    cardHtml+='<span class="hold-card-name">'+stockName+accBadge+'</span>';
-    cardHtml+='<span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span>';
-    cardHtml+='</div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></span></div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">可用/持仓</span><span>'+availShow+'</span></div>';
-    // 移动端：收盘价 & 当前盈亏
-    var mCp = currentPrices[paddedCode];
-    var mPriceShow = (mCp && mCp.close > 0) ? parseFloat(mCp.close).toFixed(3) : '-';
-    var mPnlHtml = '-';
-    if(mCp && mCp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
-      var mPnlVal = (mCp.close - h.buyPrice) * h.quantity;
-      var cls = mPnlVal >= 0 ? 'red' : 'green';
-      var sign = mPnlVal >= 0 ? '+' : '';
-      mPnlHtml = '<span class="'+cls+'" style="font-weight:600">'+sign+mPnlVal.toFixed(2)+'</span>';
-    }
-    var priceCls = (mCp && mCp.close > 0 && h.buyPrice > 0 && mCp.close > h.buyPrice) ? 'red' : 'green';
-    var priceHtml = mPriceShow!=='-' ? '<span class="'+priceCls+'">'+mPriceShow+'</span>' : '-';
-    cardHtml+='<div class="hold-card-row"><span class="label">收盘价</span><span>'+priceHtml+'</span></div>';
-    cardHtml+='<div class="hold-card-row"><span class="label">当前盈亏</span><span>'+mPnlHtml+'</span></div>';
-    cardHtml+='<div class="hold-card-footer">';
-    cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
-    cardHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT" style="background:#8e44ad;color:white">做T</button>';
-    cardHtml+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore" style="background:#27ae60;color:white">补仓</button>';
-    cardHtml+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding" style="background:#e74c3c;color:white">删除</button>';
-    cardHtml+='</div>';
-    cardHtml+='</div>';
+    groups[groups.length-1].holdings.push(h0);
   }
 
-  // 综合盈亏汇总行（桌面端）
+  for(var gi=0;gi<groups.length;gi++){
+    var g = groups[gi];
+    var gOpen = gi === 0;
+    var rowStyle = gOpen ? '' : ' style="display:none"';
+    var gProfit = 0;
+    var gHtml = '';
+    var gCount = g.holdings.length;
+
+    var dayGroups = [];
+    var curDay = '';
+    for(var k=0;k<g.holdings.length;k++){
+      var hh = g.holdings[k];
+      if(hh.date !== curDay){
+        curDay = hh.date;
+        dayGroups.push({ day: hh.date, label: hh.date.substring(5).replace('-','月')+'日', holdings: [], profit: 0 });
+      }
+      dayGroups[dayGroups.length-1].holdings.push(hh);
+    }
+
+    for(var di=0;di<dayGroups.length;di++){
+      var dg = dayGroups[di];
+      var dgProfit = 0;
+      var dgHtml = '';
+      seq = 0;
+
+      for(var j=0;j<dg.holdings.length;j++){
+        seq++;
+        var h=dg.holdings[j];
+        var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
+        var stockName=escapeHtml(getStockName(h.code))||'-';
+        var buyPriceShow = h.buyPrice ? (parseFloat(h.buyPrice).toFixed(3)) : '-';
+        var accType = h.accountType || 'normal';
+        var accBadge = '<span class="acc-badge '+(accType==='margin'?'acc-margin':'acc-normal')+'">'+(accType==='margin'?'两融':'正常')+'</span>';
+
+        var totalQty = h.quantity || 0;
+        var todayBuyQty = 0;
+        if(h.date === today){
+          todayBuyQty = totalQty;
+        } else if(h.lastAddDate === today){
+          todayBuyQty = (h.lastAddQty || 0);
+        }
+        var todayDoTQty = 0;
+        for(var j2=0;j2<trades.length;j2++){
+          var tr=trades[j2];
+          if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
+            todayDoTQty += (tr.buyQty || tr.quantity || 0);
+          }
+        }
+        var availableQty = Math.max(0, totalQty - todayBuyQty - todayDoTQty);
+        var availColor = availableQty === 0 ? '#e74c3c' : (availableQty < totalQty ? '#e67e22' : '#27ae60');
+        var availShow = '<span style="color:'+availColor+';font-weight:600">'+availableQty+'</span><span style="color:#666">/'+totalQty+'</span>';
+
+        var paddedCode = (h.code||'').padStart(6,'0');
+        var cp = currentPrices[paddedCode];
+        var priceShow = (cp && cp.close > 0) ? parseFloat(cp.close).toFixed(3) : '-';
+        var pnl = '';
+        var pnlVal = 0;
+        if(cp && cp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
+          pnlVal = (cp.close - h.buyPrice) * h.quantity;
+          totalPnl += pnlVal;
+          gProfit += pnlVal;
+          dgProfit += pnlVal;
+          hasAnyPnl = true;
+          var pnlCls = pnlVal >= 0 ? 'red' : 'green';
+          var pnlSign = pnlVal >= 0 ? '+' : '';
+          pnl = '<span class="'+pnlCls+'" style="font-weight:600">'+pnlSign+pnlVal.toFixed(2)+'</span>';
+        } else {
+          pnl = '-';
+        }
+
+        var rowHtml='';
+        rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
+        rowHtml+='<td>'+seq+'</td>';
+        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
+        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="code" style="text-align:left">'+stockName+accBadge+'</td>';
+        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
+        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
+        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
+        rowHtml+='<td>'+availShow+'</td>';
+        rowHtml+='<td>'+priceShow+'</td>';
+        rowHtml+='<td>'+pnl+'</td>';
+        rowHtml+='<td style="text-align:right">';
+        rowHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
+        rowHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
+        rowHtml+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore">补仓</button>';
+        rowHtml+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding">删除</button>';
+        rowHtml+='</td>';
+        rowHtml+='</tr>';
+        dgHtml += rowHtml;
+
+        cardHtml+='<div class="hold-card-item hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
+        cardHtml+='<div class="hold-card-header">';
+        cardHtml+='<span class="hold-card-name">'+stockName+accBadge+'</span>';
+        cardHtml+='<span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span>';
+        cardHtml+='</div>';
+        cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
+        cardHtml+='<div class="hold-card-row"><span class="label">持有数量</span><span class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</span></div>';
+        cardHtml+='<div class="hold-card-row"><span class="label">成本价</span><span class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></span></div>';
+        cardHtml+='<div class="hold-card-row"><span class="label">可用/持仓</span><span>'+availShow+'</span></div>';
+        var mCp = currentPrices[paddedCode];
+        var mPriceShow = (mCp && mCp.close > 0) ? parseFloat(mCp.close).toFixed(3) : '-';
+        var mPnlHtml = '-';
+        if(mCp && mCp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
+          var mPnlVal = (mCp.close - h.buyPrice) * h.quantity;
+          var mCls = mPnlVal >= 0 ? 'red' : 'green';
+          var mSign = mPnlVal >= 0 ? '+' : '';
+          mPnlHtml = '<span class="'+mCls+'" style="font-weight:600">'+mSign+mPnlVal.toFixed(2)+'</span>';
+        }
+        var priceCls = (mCp && mCp.close > 0 && h.buyPrice > 0 && mCp.close > h.buyPrice) ? 'red' : 'green';
+        var priceHtml = mPriceShow!=='-' ? '<span class="'+priceCls+'">'+mPriceShow+'</span>' : '-';
+        cardHtml+='<div class="hold-card-row"><span class="label">收盘价</span><span>'+priceHtml+'</span></div>';
+        cardHtml+='<div class="hold-card-row"><span class="label">当前盈亏</span><span>'+mPnlHtml+'</span></div>';
+        cardHtml+='<div class="hold-card-footer">';
+        cardHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding" style="background:#e67e22;color:white">清仓</button>';
+        cardHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT" style="background:#8e44ad;color:white">做T</button>';
+        cardHtml+='<button class="op-btn btn-add-more" data-id="'+h.id+'" data-action="addMore" style="background:#27ae60;color:white">补仓</button>';
+        cardHtml+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding" style="background:#e74c3c;color:white">删除</button>';
+        cardHtml+='</div>';
+        cardHtml+='</div>';
+      }
+
+      var dgCls = dgProfit >= 0 ? 'red' : 'green';
+      var dgSign = dgProfit >= 0 ? '+' : '';
+      gHtml += '<tr class="hold-day-header hold-month-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+' onclick="toggleHoldDay(this)">';
+      gHtml += '<td colspan="8" style="padding:8px 12px 8px 36px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd;text-align:left">';
+      gHtml += '<span class="hold-day-toggle" style="display:inline-block;width:16px;font-size:12px;transition:transform 0.2s;color:#7f8c8d;margin-right:6px">▼</span> ';
+      gHtml += '<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
+      gHtml += '<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dg.holdings.length+'笔</span>';
+      if(dgProfit !== 0){
+        gHtml += '<span class="'+dgCls+'" style="font-weight:500;font-size:11px;margin-left:10px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
+      }
+      gHtml += '</td>';
+      gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
+      gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
+      gHtml += '</tr>';
+      gHtml += dgHtml;
+    }
+
+    var gCls = gProfit >= 0 ? 'red' : 'green';
+    var gSign = gProfit >= 0 ? '+' : '';
+    html += '<tr class="hold-month-header" data-month="'+g.month+'" onclick="toggleHoldMonth(this)" style="cursor:pointer;background:#f0f4f8">';
+    html += '<td colspan="8" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
+    html += '<span class="hold-month-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(gOpen?'▼':'▶')+'</span> ';
+    html += escapeHtml(g.label)+' <span style="color:#888;font-weight:400">'+gCount+'笔</span>';
+    html += '</td>';
+    html += '<td class="'+gCls+'" style="font-weight:600;text-align:center">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</td>';
+    html += '<td></td>';
+    html += '</tr>';
+    html += gHtml;
+  }
+
   if(hasAnyPnl){
     var totalCls = totalPnl >= 0 ? 'red' : 'green';
     var totalSign = totalPnl >= 0 ? '+' : '';
@@ -3302,7 +3366,6 @@ function renderHoldings(){
     html += '</tr>';
   }
 
-  // 综合盈亏汇总卡片（移动端）
   if(hasAnyPnl){
     var totalCls2 = totalPnl >= 0 ? 'red' : 'green';
     var totalSign2 = totalPnl >= 0 ? '+' : '';
@@ -3316,6 +3379,112 @@ function renderHoldings(){
 
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
+  restoreHoldCollapseState();
+}
+
+function toggleHoldMonth(el){
+  var month = el.getAttribute('data-month');
+  var rows = document.querySelectorAll('.hold-month-row-'+month);
+  var dayHeaders = document.querySelectorAll('.hold-day-header[data-month="'+month+'"]');
+  var toggle = el.querySelector('.hold-month-toggle');
+  var isOpen = toggle.textContent === '▼';
+  if(isOpen){
+    for(var i=0;i<rows.length;i++){ rows[i].style.display = 'none'; }
+    for(var i=0;i<dayHeaders.length;i++){ dayHeaders[i].style.display = 'none'; }
+  } else {
+    for(var i=0;i<rows.length;i++){ rows[i].style.display = ''; }
+    for(var i=0;i<dayHeaders.length;i++){ dayHeaders[i].style.display = ''; }
+    for(var i=0;i<dayHeaders.length;i++){
+      var dt = dayHeaders[i].querySelector('.hold-day-toggle');
+      if(dt && dt.textContent === '▶'){
+        var d = dayHeaders[i].getAttribute('data-day');
+        var dRows = document.querySelectorAll('.hold-day-row-'+d);
+        for(var j=0;j<dRows.length;j++){
+          if(!dRows[j].classList.contains('hold-day-header')){ dRows[j].style.display = 'none'; }
+        }
+      }
+    }
+  }
+  toggle.textContent = isOpen ? '▶' : '▼';
+  saveHoldCollapseState();
+}
+
+function toggleHoldDay(el){
+  var day = el.getAttribute('data-day');
+  var rows = document.querySelectorAll('.hold-day-row-'+day);
+  var toggle = el.querySelector('.hold-day-toggle');
+  var isOpen = toggle.textContent === '▼';
+  for(var i=0;i<rows.length;i++){
+    if(rows[i].classList.contains('hold-day-header')) continue;
+    rows[i].style.display = isOpen ? 'none' : '';
+  }
+  toggle.textContent = isOpen ? '▶' : '▼';
+  saveHoldCollapseState();
+}
+
+function saveHoldCollapseState(){
+  var monthHeaders = document.querySelectorAll('.hold-month-header');
+  var dayHeaders = document.querySelectorAll('.hold-day-header');
+  var mState = {};
+  var dState = {};
+  for(var i=0;i<monthHeaders.length;i++){
+    var m = monthHeaders[i].getAttribute('data-month');
+    var t = monthHeaders[i].querySelector('.hold-month-toggle');
+    if(t) mState[m] = (t.textContent === '▶');
+  }
+  for(var i=0;i<dayHeaders.length;i++){
+    var d = dayHeaders[i].getAttribute('data-day');
+    var t = dayHeaders[i].querySelector('.hold-day-toggle');
+    if(t) dState[d] = (t.textContent === '▶');
+  }
+  try{ localStorage.setItem('hold_month_collapse', JSON.stringify(mState)); }catch(e){}
+  try{ localStorage.setItem('hold_day_collapse', JSON.stringify(dState)); }catch(e){}
+}
+
+function restoreHoldCollapseState(){
+  var raw, dRaw;
+  try{ raw = localStorage.getItem('hold_month_collapse'); }catch(e){ return; }
+  if(!raw) return;
+  var mState;
+  try{ mState = JSON.parse(raw); }catch(e){ return; }
+  try{ dRaw = localStorage.getItem('hold_day_collapse'); }catch(e){}
+  var dState = {};
+  try{ if(dRaw) dState = JSON.parse(dRaw); }catch(e){}
+
+  var dayHeaders = document.querySelectorAll('.hold-day-header');
+  for(var i=0;i<dayHeaders.length;i++){
+    var d = dayHeaders[i].getAttribute('data-day');
+    var dt = dayHeaders[i].querySelector('.hold-day-toggle');
+    if(dt) dt.textContent = (dState[d] === true) ? '▶' : '▼';
+  }
+
+  for(var m in mState){
+    var header = document.querySelector('.hold-month-header[data-month="'+m+'"]');
+    if(!header) continue;
+    var toggle = header.querySelector('.hold-month-toggle');
+    if(mState[m] === true){
+      var rows = document.querySelectorAll('.hold-month-row-'+m);
+      var dh = document.querySelectorAll('.hold-day-header[data-month="'+m+'"]');
+      for(var j=0;j<rows.length;j++){ rows[j].style.display = 'none'; }
+      for(var k=0;k<dh.length;k++){ dh[k].style.display = 'none'; }
+      if(toggle) toggle.textContent = '▶';
+    } else {
+      var rows = document.querySelectorAll('.hold-month-row-'+m);
+      var dh = document.querySelectorAll('.hold-day-header[data-month="'+m+'"]');
+      for(var j=0;j<rows.length;j++){ rows[j].style.display = ''; }
+      for(var k=0;k<dh.length;k++){ dh[k].style.display = ''; }
+      for(var k=0;k<dh.length;k++){
+        var dt = dh[k].querySelector('.hold-day-toggle');
+        if(dt && dt.textContent === '▶'){
+          var d = dh[k].getAttribute('data-day');
+          var dRows = document.querySelectorAll('.hold-day-row-'+d);
+          for(var jj=0;jj<dRows.length;jj++){
+            if(!dRows[jj].classList.contains('hold-day-header')){ dRows[jj].style.display = 'none'; }
+          }
+        }
+      }
+    }
+  }
 }
 
 // ===== 工具 =====
