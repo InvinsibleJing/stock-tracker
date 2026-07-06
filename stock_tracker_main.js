@@ -394,15 +394,15 @@ window.addEventListener('DOMContentLoaded', function(){
     loadAll();
   }
 
-  // 跨终端同步：页面从不可见变为可见时，立即同步一次（零配额消耗）
-  document.addEventListener('visibilitychange', function(){
-    if(!document.hidden && isOnline) _silentSync();
-  });
+  // 跨终端同步：页面从不可见变为可见时，立即同步一次（已临时关闭，避免频繁切页触发过多拉取）
+  // document.addEventListener('visibilitychange', function(){
+  //   if(!document.hidden && isOnline) _silentSync();
+  // });
 
-  // 跨终端自动同步：每30秒静默拉取一次，有变化才刷新
+  // 跨终端自动同步：每5分钟静默拉取一次，有变化才刷新
   setInterval(function(){
     if(!document.hidden && isOnline) _silentSync();
-  }, 30000);
+  }, 300000);
 
   // 当前时间（每秒刷新）
   updateCurrentTime();
