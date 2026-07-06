@@ -1127,6 +1127,7 @@ function renderTable(){
 
     for(var di=0;di<dayGroups.length;di++){
       var dg = dayGroups[di];
+      seq = 0; // 每个交易日序号从 1 重新开始
       var dgTrades = dg.trades;
       var dgCount = dgTrades.length;
       var dgProfit = 0;
