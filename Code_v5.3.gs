@@ -1068,8 +1068,15 @@ function refreshMarginFromJin10() {
       existingDates[ds] = true;
     }
 
+    // 找到 Sheet 中最新的日期，只补这之后的数据
+    var lastExistingDate = '';
+    var existingKeys = Object.keys(existingDates).sort();
+    if (existingKeys.length > 0) {
+      lastExistingDate = existingKeys[existingKeys.length - 1];
+    }
+
     // values[index]: [融资买入额, 融资余额, 融券卖出量, 融券余量, 融券余额, 融资融券余额]
-    // 智能补全：遍历沪深都有的日期，补充缺失的
+    // 智能补全：只处理 Sheet 最后日期之后的数据（不回溯历史）
     var allDates = Object.keys(shValues).sort();  // 按日期升序
     var addedCount = 0;
     var updatedCount = 0;
@@ -1079,6 +1086,7 @@ function refreshMarginFromJin10() {
     for (var j = 0; j < allDates.length; j++) {
       var date = allDates[j];
       if (!szValues[date]) continue;  // 沪深必须都有数据
+      if (lastExistingDate && date < lastExistingDate) continue;  // 跳过历史数据
 
       var shBalance = Number(shValues[date][1]);
       var szBalance = Number(szValues[date][1]);
@@ -1088,8 +1096,15 @@ function refreshMarginFromJin10() {
       latestBalance = total;
 
       if (existingDates[date]) {
+        // 更新已有日期（覆盖最新余额）
+        for (var r = 1; r < data.length; r++) {
+          var match = data[r][0];
+          if (typeof match === 'string' && match === date) {
+            sheet.getRange(r + 1, 2).setValue(total);
+            break;
+          }
+        }
         updatedCount++;
-        sheet.getRange(Object.keys(existingDates).indexOf(date) + 2, 2).setValue(total);
       } else {
         sheet.appendRow([date, total]);
         existingDates[date] = true;
