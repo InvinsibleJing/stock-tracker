@@ -1636,8 +1636,11 @@ function setupMarginRefreshBtn() {
       btn.textContent = '🔄 刷新数据';
 
       if (res && res.success) {
-        var label = res.updated ? '已更新' : '已新增';
-        status.textContent = '✅ ' + label + '：' + res.date + ' = ' + res.balance + '亿元';
+        if (res.added > 0) {
+          status.textContent = '✅ 新增 ' + res.added + ' 条，最新 ' + res.date + ' = ' + res.balance + '亿元';
+        } else {
+          status.textContent = '✅ 已是最新：' + res.date + ' = ' + res.balance + '亿元';
+        }
         status.style.color = '#27ae60';
         status.style.display = 'inline';
         // 清除缓存，重新拉取图表

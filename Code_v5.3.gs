@@ -1050,49 +1050,81 @@ function refreshMarginFromJin10() {
     var shValues = shData.values;
     var szValues = szData.values;
 
-    // 取最新日期
-    var shDates = Object.keys(shValues).sort().reverse();
-    var szDates = Object.keys(szValues).sort().reverse();
-    var latestDate = shDates[0] >= szDates[0] ? shDates[0] : szDates[0];
-
-    // values[index] 格式: [融资买入额, 融资余额, 融券卖出量, 融券余量, 融券余额, 融资融券余额]
-    var shBalance = shValues[latestDate] ? Number(shValues[latestDate][1]) : 0;
-    var szBalance = szValues[latestDate] ? Number(szValues[latestDate][1]) : 0;
-    var total = Math.round((shBalance + szBalance) / 1e8);
-
-    // 写入 Sheet（去重）
+    // 读取 Sheet 现有日期
     var sheet = getMarginSheet();
     var data = sheet.getDataRange().getValues();
-    var updated = false;
-
+    var existingDates = {};
     for (var i = 1; i < data.length; i++) {
-      var existingDate = data[i][0];
-      if (!existingDate) continue;
-      var dateStr;
-      if (typeof existingDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(existingDate)) {
-        dateStr = existingDate;
+      if (!data[i][0]) continue;
+      var ds;
+      if (typeof data[i][0] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data[i][0])) {
+        ds = data[i][0];
       } else {
-        var y = existingDate.getFullYear();
-        var m = String(existingDate.getMonth() + 1).padStart(2, '0');
-        var d = String(existingDate.getDate()).padStart(2, '0');
-        dateStr = y + '-' + m + '-' + d;
+        var y = data[i][0].getFullYear();
+        var m = String(data[i][0].getMonth() + 1).padStart(2, '0');
+        var d = String(data[i][0].getDate()).padStart(2, '0');
+        ds = y + '-' + m + '-' + d;
       }
-      if (dateStr === latestDate) {
-        sheet.getRange(i + 1, 2).setValue(total);
-        updated = true;
-        break;
+      existingDates[ds] = true;
+    }
+
+    // values[index]: [融资买入额, 融资余额, 融券卖出量, 融券余量, 融券余额, 融资融券余额]
+    // 智能补全：遍历沪深都有的日期，补充缺失的
+    var allDates = Object.keys(shValues).sort();  // 按日期升序
+    var addedCount = 0;
+    var updatedCount = 0;
+    var latestDate = '';
+    var latestBalance = 0;
+
+    for (var j = 0; j < allDates.length; j++) {
+      var date = allDates[j];
+      if (!szValues[date]) continue;  // 沪深必须都有数据
+
+      var shBalance = Number(shValues[date][1]);
+      var szBalance = Number(szValues[date][1]);
+      var total = Math.round((shBalance + szBalance) / 1e8);
+
+      latestDate = date;
+      latestBalance = total;
+
+      if (existingDates[date]) {
+        updatedCount++;
+        sheet.getRange(Object.keys(existingDates).indexOf(date) + 2, 2).setValue(total);
+      } else {
+        sheet.appendRow([date, total]);
+        existingDates[date] = true;
+        addedCount++;
       }
     }
 
-    if (!updated) {
-      sheet.appendRow([latestDate, total]);
+    // 按日期排序（新追加的行可能乱序）
+    if (addedCount > 0) {
+      var allData = sheet.getDataRange().getValues();
+      var header = allData[0];
+      var rows = allData.slice(1);
+      rows.sort(function(a, b) {
+        var da = typeof a[0] === 'string' ? a[0] : '';
+        var db = typeof b[0] === 'string' ? b[0] : '';
+        return da.localeCompare(db);
+      });
+      var sorted = [header];
+      for (var k = 0; k < rows.length; k++) {
+        sorted.push(rows[k]);
+      }
+      sheet.getRange(1, 1, sorted.length, 2).setValues(sorted);
     }
 
     return {
       success: true,
       date: latestDate,
-      balance: total,
-      updated: updated,
+      balance: latestBalance,
+      added: addedCount,
+      updated: updatedCount
+    };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
       source: 'jin10'
     };
   } catch (err) {
