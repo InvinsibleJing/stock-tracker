@@ -1140,12 +1140,6 @@ function refreshMarginFromJin10() {
     return { success: false, error: err.toString() };
   }
 }
-      source: 'jin10'
-    };
-  } catch (err) {
-    return { success: false, error: err.toString() };
-  }
-}
 
 // ===== 账户余额相关功能 =====
 
