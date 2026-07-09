@@ -9,6 +9,7 @@ var currentPrices = {}; // 持仓实时价格缓存 { code: { close: Number } }
 var isLoading = false;
 var isLoadingHoldings = false;
 var trendChart = null;
+var marginChart = null;
 var currentPeriod = 'week';
 var isOnline = navigator.onLine;
 var deferredPrompt = null; // PWA 安装事件
@@ -403,6 +404,9 @@ window.addEventListener('DOMContentLoaded', function(){
   setInterval(function(){
     if(!document.hidden && isOnline) _silentSync();
   }, 300000);
+
+  // 融资余额刷新按钮
+  setupMarginRefreshBtn();
 
   // 当前时间（每秒刷新）
   updateCurrentTime();
@@ -1464,6 +1468,7 @@ if(document.readyState==='loading'){
 }
 
 function renderAnalysis(){
+  fetchMarginChartData();
   renderTrendChart();
   renderCatStats();
   renderStockSummary();
@@ -1598,6 +1603,191 @@ function renderTrendChart(){
     }
   });
 }
+
+// 融资余额刷新按钮
+function setupMarginRefreshBtn() {
+  var btn = document.getElementById('refreshMarginBtn');
+  var status = document.getElementById('refreshMarginStatus');
+  if (!btn) return;
+
+  btn.addEventListener('click', function() {
+    var api = localStorage.getItem('stock_api_url');
+    if (!api) { alert('请先在"设置"页配置API地址'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ 更新中...';
+    status.style.display = 'none';
+
+    var url = api + '?action=refreshMargin&callback=marginRefreshCb';
+    var script = document.createElement('script');
+    script.src = url;
+    script.onerror = function() {
+      btn.disabled = false;
+      btn.textContent = '🔄 刷新数据';
+      status.textContent = '❌ 网络错误';
+      status.style.color = '#e74c3c';
+      status.style.display = 'inline';
+      document.body.removeChild(script);
+    };
+    window.marginRefreshCb = function(res) {
+      delete window.marginRefreshCb;
+      document.body.removeChild(script);
+      btn.disabled = false;
+      btn.textContent = '🔄 刷新数据';
+
+      if (res && res.success) {
+        var label = res.updated ? '已更新' : '已新增';
+        status.textContent = '✅ ' + label + '：' + res.date + ' = ' + res.balance + '亿元';
+        status.style.color = '#27ae60';
+        status.style.display = 'inline';
+        // 清除缓存，重新拉取图表
+        localStorage.removeItem('margin_cache');
+        fetchMarginChartData();
+      } else {
+        status.textContent = '❌ ' + ((res && res.error) || '未知错误');
+        status.style.color = '#e74c3c';
+        status.style.display = 'inline';
+      }
+    };
+    document.body.appendChild(script);
+  });
+}
+
+// 融资余额趋势图（双Y轴：左=融资余额 亿，右=上证指数）
+function fetchMarginChartData() {
+  var api = localStorage.getItem('stock_api_url');
+  if (!api) return;
+
+  // 先用缓存数据瞬间渲染
+  var cacheKey = 'margin_cache';
+  var cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      var cacheData = JSON.parse(cached);
+      if (cacheData && cacheData.length) {
+        renderMarginChart(cacheData);
+      }
+    } catch(e) {}
+  }
+
+  // 再拉取最新数据（后台更新）
+  var url = api + '?action=marginData&callback=marginCb';
+  var script = document.createElement('script');
+  script.src = url;
+  script.onerror = function() { console.warn('融资余额数据加载失败'); };
+  window.marginCb = function(res) {
+    delete window.marginCb;
+    document.body.removeChild(script);
+    if (res && res.success && res.data) {
+      // 与缓存比较，有变化才更新
+      var fresh = JSON.stringify(res.data);
+      if (fresh !== cached) {
+        localStorage.setItem(cacheKey, fresh);
+        renderMarginChart(res.data);
+      }
+    }
+  };
+  document.body.appendChild(script);
+}
+
+function renderMarginChart(data) {
+  if (!data || data.length === 0) return;
+
+  var labels = [];
+  var marginData = [];
+
+  // 只展示最近365天（滚动一年窗口，截止到昨天收盘）
+  var today = new Date();
+  var yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  var endDate = yesterday.toISOString().slice(0, 10);
+  var oneYearAgo = new Date(today);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  var cutoff = oneYearAgo.toISOString().slice(0, 10);
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].date < cutoff || data[i].date > endDate) continue;
+    labels.push(data[i].date);
+    marginData.push(data[i].balance);
+  }
+
+  var ctx = document.getElementById('marginChart');
+  if (!ctx) return;
+  ctx = ctx.getContext('2d');
+  if (marginChart) marginChart.destroy();
+
+  marginChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '融资余额（亿元）',
+        data: marginData,
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231,76,60,0.08)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#e74c3c',
+        yAxisID: 'y',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'nearest',
+        axis: 'x',
+        intersect: false
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ctx.dataset.label + '：' + ctx.raw + '亿元';
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: '融资余额（亿元）', font: {size:11} },
+          ticks: {
+            font: {size:10}
+          },
+          grid: { color: '#e8e8e8' }
+        },
+        x: {
+          ticks: { maxRotation: 45, font: {size:9}, autoSkip: true, maxTicksLimit: 20 }
+        }
+      }
+    },
+    plugins: [{
+      id: 'line30000',
+      afterDraw: function(chart) {
+        var yScale = chart.scales['y'];
+        var yPixel = yScale.getPixelForValue(30000);
+        if (yPixel < chart.chartArea.top || yPixel > chart.chartArea.bottom) return;
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+        ctx.moveTo(chart.chartArea.left, yPixel);
+        ctx.lineTo(chart.chartArea.right, yPixel);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }]
+  });
+}
+
 
 // 分类统计（排除做T记录）
 function renderCatStats(){

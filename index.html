@@ -370,6 +370,19 @@
 
   <!-- 数据分析 -->
   <div id="tabAnalysis" style="display:none">
+    <!-- 融资余额趋势图 -->
+    <div class="analysis-box">
+      <h2>🏦 融资余额趋势</h2>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <p style="font-size:12px;color:#999;margin:0">沪深两市每日融资余额走势</p>
+        <button id="refreshMarginBtn" style="padding:4px 14px;font-size:12px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer">🔄 刷新数据</button>
+        <span id="refreshMarginStatus" style="font-size:12px;color:#27ae60;display:none"></span>
+      </div>
+      <div class="chart-container">
+        <canvas id="marginChart"></canvas>
+      </div>
+    </div>
+
     <!-- 盈亏趋势图 -->
     <div class="analysis-box">
       <h2>📈 累计盈亏趋势</h2>
