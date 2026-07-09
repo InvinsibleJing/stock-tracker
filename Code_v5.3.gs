@@ -13,6 +13,7 @@
 var SHEET_NAME = '交易记录';
 var HOLDING_SHEET_NAME = '当前持仓';
 var NOTES_SHEET_NAME = '备忘笔记';
+var NOTES_HEADERS = ['id', 'date', 'code', 'content', 'createdAt'];
 var MARGIN_SHEET_NAME = '融资余额';
 var MARGIN_HEADERS = ['date', 'balance'];
 
