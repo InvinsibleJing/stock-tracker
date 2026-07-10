@@ -232,7 +232,9 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
   .cat-card { min-width:auto; }
   body { padding:12px; }
   h1 { font-size:20px; }
+  .subtitle { padding-left:0; letter-spacing:1px; font-size:14px; }
   .input-box, .table-box, .holding-box, .analysis-box { padding:14px 16px; margin-bottom:14px; }
+  .holding-box > div:first-child { flex-wrap:wrap; gap:8px; }
   .table-wrap { display:none; }
   .analysis-wrap { display:block !important; overflow-x:auto; }
   .trade-card { display:block; }
