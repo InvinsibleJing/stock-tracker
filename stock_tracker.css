@@ -52,11 +52,9 @@ th { padding:10px 8px; font-weight:500; white-space:nowrap; }
 /* 股票名称列左对齐（与数据行对齐） */
 th:nth-child(3) { text-align:left; padding-left:12px; }
 td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
-/* 交易记录/持仓表 灰白交替（直接渲染 td，更可靠） */
-.table-box #tbBody tr:nth-child(odd) td,
-.holding-box #holdBody tr:nth-child(odd) td { background: #fafbfc; }
-.table-box #tbBody tr:nth-child(even) td,
-.holding-box #holdBody tr:nth-child(even) td { background: white; }
+/* 交易记录/持仓表 统一白色背景（与日期头形成对比，不交替变色） */
+.table-box #tbBody tr td,
+.holding-box #holdBody tr td { background: white; }
 /* hover 覆盖斑马纹 */
 .table-box #tbBody tr:hover td,
 .holding-box #holdBody tr:hover td { background: #f0f4f8; }
