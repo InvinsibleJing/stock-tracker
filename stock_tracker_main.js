@@ -1611,8 +1611,7 @@ function setupMarginRefreshBtn() {
   if (!btn) return;
 
   btn.addEventListener('click', function() {
-    var api = localStorage.getItem('stock_api_url');
-    if (!api) { alert('请先在"设置"页配置API地址'); return; }
+    var api = API_URL;
 
     btn.disabled = true;
     btn.textContent = '⏳ 更新中...';
@@ -1658,7 +1657,7 @@ function setupMarginRefreshBtn() {
 
 // 融资余额趋势图（双Y轴：左=融资余额 亿，右=上证指数）
 function fetchMarginChartData() {
-  var api = localStorage.getItem('stock_api_url');
+  var api = API_URL;
   if (!api) return;
 
   // 先用缓存数据瞬间渲染
