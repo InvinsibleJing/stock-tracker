@@ -57,7 +57,7 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .holding-box #holdBody tr td { background: white; }
 /* hover 覆盖斑马纹 */
 .table-box #tbBody tr:hover td,
-.holding-box #holdBody tr:hover td { background: #f0f4f8; }
+.holding-box #holdBody tr:hover td { background: #fdf4e3; }
 
 .profit { color:#e74c3c; font-weight:bold; }
 .loss { color:#27ae60; font-weight:bold; }
