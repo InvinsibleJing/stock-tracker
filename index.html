@@ -158,6 +158,7 @@
     <div class="tab tab-toolbox" onclick="switchTab('toolbox')">🧰 工具箱</div>
     <div class="tab tab-list active" onclick="switchTab('table')">📋 交易列表</div>
     <div class="tab tab-analysis" onclick="switchTab('analysis')">📊 数据分析</div>
+    <div class="tab tab-bond" onclick="switchTab('bond')">📜 可转债</div>
   </div>
 
   <!-- 隐藏元素：兼容旧JS引用（补录弹窗已替代原添加记录Tab） -->
@@ -430,6 +431,33 @@
       </div>
     </div>
   </div>
+
+  <!-- 可转债打新收益（与股票交易完全隔离） -->
+  <div id="tabBond" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0">📜 可转债打新收益</h2>
+      <div style="display:flex;align-items:center;gap:10px">
+        <label style="font-size:13px;color:#666">年份</label>
+        <select id="bondYearSelect" onchange="onBondYearChange()" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px"></select>
+        <button class="btn btn-green" onclick="openBondModal()" style="font-size:13px;padding:6px 16px">+ 添加中签</button>
+      </div>
+    </div>
+    <div class="stats" id="bondStats">
+      <div class="card"><div class="card-label">当年总盈利</div><div class="card-val red" id="bondTotalProfit">¥0</div></div>
+      <div class="card"><div class="card-label">当年总支出</div><div class="card-val" id="bondTotalExpense" style="color:#8e44ad">¥0</div></div>
+      <div class="card"><div class="card-label">净收益</div><div class="card-val" id="bondNetProfit">¥0</div></div>
+      <div class="card"><div class="card-label">中签笔数</div><div class="card-val" id="bondCount">0</div></div>
+    </div>
+    <div class="table-box" style="margin-top:16px">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>序号</th><th>转债名称</th><th>转债代码</th><th>市场</th><th>中签人</th><th>中签数量(张)</th><th>盈利金额</th><th>支出</th><th>操作</th></tr></thead>
+          <tbody id="bondBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="bondEmpty">暂无记录，点击右上角「+ 添加中签」</div>
+    </div>
+  </div>
 </div>
 
 <button class="gear-btn" onclick="openSettings()" title="设置">⚙</button>
@@ -676,7 +704,7 @@
 
 <script src="./stock_tracker_calendar.js"></script>
 <script src="./stock_tracker_toolbox.js"></script>
-
+<script src="./stock_tracker_bond.js"></script>
 
 <div class="date-picker-modal" id="datePickerModal">
   <div class="date-picker-box">
@@ -731,6 +759,57 @@
     <div class="btns">
       <button class="btn btn-orange" onclick="submitDividend()">确认入账</button>
       <button class="btn btn-red" onclick="closeDividend()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 可转债添加/编辑弹窗 -->
+<div class="modal-bg" id="bondModal">
+  <div class="modal">
+    <h2>📜 <span id="bondModalTitle">添加可转债中签</span></h2>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>转债名称</label><input type="text" id="bondName" placeholder="如 尚太转债"></div>
+      <div class="field"><label>转债代码</label><input type="text" id="bondCode" placeholder="如 113692" maxlength="6"></div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>市场</label>
+        <select id="bondMarket">
+          <option value="沪市">沪市</option>
+          <option value="深市">深市</option>
+        </select>
+      </div>
+      <div class="field"><label>中签数量(张)</label>
+        <select id="bondQty">
+          <option value="10">10</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="flex:2"><label>中签人</label>
+        <input type="text" id="bondSigner" list="bondSignerList" placeholder="输入或选择中签人">
+        <datalist id="bondSignerList"></datalist>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field"><label>盈利金额(¥)</label><input type="number" id="bondProfit" step="0.01" placeholder="如 250.00"></div>
+      <div class="field"><label>支出(¥)</label><input type="number" id="bondExpense" step="0.01" placeholder="如 0"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-green" onclick="saveBond()">保存</button>
+      <button class="btn btn-red" onclick="closeBondModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 可转债删除确认弹窗 -->
+<div class="modal-bg" id="deleteBondModal">
+  <div class="modal">
+    <h2>🗑 删除记录</h2>
+    <p>确定删除这条可转债记录吗？此操作不可撤销。</p>
+    <div class="btns">
+      <button class="btn btn-red" onclick="submitDeleteBond()">确认删除</button>
+      <button class="btn" style="background:#999;color:white" onclick="closeDeleteBond()">取消</button>
     </div>
   </div>
 </div>

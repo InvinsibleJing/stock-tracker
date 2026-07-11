@@ -411,6 +411,16 @@ window.addEventListener('DOMContentLoaded', function(){
   // 当前时间（每秒刷新）
   updateCurrentTime();
   setInterval(updateCurrentTime, 1000);
+
+  // 恢复上次停留的一级 Tab（F5 不跳回交易列表）
+  var _savedTab = null;
+  try { _savedTab = localStorage.getItem('stock_active_tab'); } catch(e){}
+  var _validTabs = ['toolbox','table','analysis','bond'];
+  if (_savedTab && _validTabs.indexOf(_savedTab) !== -1) {
+    switchTab(_savedTab);
+  } else {
+    switchTab('table');
+  }
 });
 
 function updateCurrentTime(){
@@ -462,6 +472,7 @@ function switchTab(name){
   document.getElementById('tabToolbox').style.display = name==='toolbox'?'block':'none';
   document.getElementById('tabTable').style.display = name==='table'?'block':'none';
   document.getElementById('tabAnalysis').style.display = name==='analysis'?'block':'none';
+  document.getElementById('tabBond').style.display = name==='bond'?'block':'none';
 
   // 更新tab样式
   var tabBtns = document.querySelectorAll('.container > .tabs .tab');
@@ -469,10 +480,13 @@ function switchTab(name){
   if(name==='toolbox'){ tabBtns[0].classList.add('active'); switchToolboxTab('calendar'); }
   if(name==='table') tabBtns[1].classList.add('active');
   if(name==='analysis') tabBtns[2].classList.add('active');
+  if(name==='bond') tabBtns[3].classList.add('active');
 
   if(name==='analysis') renderAnalysis();
   if(name==='table'){ renderTable(); renderHoldings(); }
   if(name==='toolbox') switchToolboxTab('calendar');
+  if(name==='bond') openBondTab();
+  try { localStorage.setItem('stock_active_tab', name); } catch(e){}
 }
 
 // ===== 股票联想搜索 =====
