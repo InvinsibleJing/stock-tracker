@@ -1347,6 +1347,41 @@ function importBondsFromData() {
   return { success: true, imported: count };
 }
 
+// ============================================================
+// 【一次性手动函数】sortBondSheet() —— 仅在 GAS 编辑器选中本函数
+//   点「▶ 运行」执行一次即可，无需重新部署 GAS。
+//   作用：把「可转债」sheet 的数据行按年份升序重新排列
+//   （2022 → 2023 → 2024 → 2025 → 2026），同年内保持原来的
+//   顺序不动。重排后，前端 addBond 用 appendRow 追加到最后一行，
+//   天然就接在最新的 2026 后面，无需改 addBond。
+// ============================================================
+
+function sortBondSheet() {
+  var sheet = getBondSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, sorted: 0 };
+  var data = sheet.getRange(2, 1, lastRow - 1, BOND_HEADERS.length).getValues();
+  // 给每行带原始行号，保证同一年内顺序稳定（不重排）
+  var rows = [];
+  for (var i = 0; i < data.length; i++) {
+    rows.push({ r: data[i], idx: i });
+  }
+  rows.sort(function (a, b) {
+    var ya = Number(a.r[1]); // year 在第2列(索引1)
+    var yb = Number(b.r[1]);
+    if (ya !== yb) return ya - yb;
+    return a.idx - b.idx; // 同年内保持原顺序
+  });
+  // 清空原有数据行（保留表头），再按新顺序写回
+  sheet.deleteRows(2, lastRow - 1);
+  for (var j = 0; j < rows.length; j++) {
+    sheet.appendRow(rows[j].r);
+    var rr = sheet.getLastRow();
+    sheet.getRange(rr, 4).setNumberFormat('@'); // 代码列(第4列)存文本，防前导零
+  }
+  return { success: true, sorted: rows.length };
+}
+
 // ===== 融资余额数据（Google Sheets 存储） =====
 
 function getMarginSheet() {
