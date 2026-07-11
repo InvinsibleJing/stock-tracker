@@ -744,22 +744,6 @@ function _silentSync(){
     }
   });
 
-  // 同时静默同步备忘笔记
-  apiCall({action:'getNotes'}, function(res){
-    if(res && res.success && res.data){
-      var newNotes = res.data;
-      var notesChanged = _dataChanged(notes, newNotes);
-      if(notesChanged){
-        notes = newNotes;
-        try{ localStorage.setItem('stock_notes_cache', JSON.stringify(notes)); }catch(e){}
-        // 如果当前在备忘Tab，刷新显示
-        var toolboxNotes = document.getElementById('toolboxNotes');
-        if(toolboxNotes && toolboxNotes.style.display !== 'none'){
-          renderNotes();
-        }
-      }
-    }
-  });
 }
 
 // ===== 乐观更新辅助函数 =====

@@ -1,19 +1,35 @@
 ﻿/**
  * 股票交易记录 - Google Sheets API (v5.3)
  *
- * v5.3 更新（不等量做T）：
- * - doT函数新增 sellQty/buyQty/sellPrice/buyPrice 参数
- * - 不等量做T时：交易记录amount存差价法盈亏（展示用），成本冲减用现金流法
- * - 不等量做T时：持仓量 = 原持仓 - 卖出量 + 买入量
- * - 兼容旧逻辑：不传sellQty/buyQty时走原等量做T逻辑
+ * ── 版本更新记录 ──────────────────────────────────────────────────────
  *
- * 历史版本说明见原文件头注释
+ * v5.3  (早期) 不等量做T支持
+ *   - doT函数新增 sellQty/buyQty/sellPrice/buyPrice 参数
+ *   - 不等量做T：amount存差价法盈亏(展示用)，成本冲减用现金流法
+ *   - 不等量做T：持仓量 = 原持仓 - 卖出量 + 买入量
+ *   - 兼容旧逻辑：不传sellQty/buyQty时走原等量做T逻辑
+ *
+ * v5.3.1 (2026-07-12) 清理「备忘笔记」功能
+ *   - 删除 NOTES_SHEET_NAME/NOTES_HEADERS 常量、doGet 中 5 个备忘 case
+ *   - 删除 getNotesSheet/getNotes/addNote/updateNote/deleteNote/searchNotes 函数
+ *   - 新增一次性函数 deleteNotesSheet()（Run 一次删除 Google Sheet 中「备忘笔记」sheet，已执行）
+ *   - 前端「快速备忘」子Tab此前已删除；交易/持仓的 note 备注字段保留
+ *
+ * v5.3.2 (2026-07-12) 清理一次性/死代码
+ *   - 删除 BOND_IMPORT_DATA、BOND_IMPORT_2022_RAW、getAllBondImportData、importBondsFromData、sortBondSheet、deleteNotesSheet
+ *   - 可转债模块核心功能(列表/增删改)保留，与股票交易数据完全隔离
+ *
+ * v5.3.3 (2026-07-12) 修复股票代码前导0丢失  ★本次改动
+ *   - 根因：appendRow 先写值，Sheets 立即把 "000001" 当成数字解析，前导0 在写入瞬间永久丢失；事后设格式无法找回
+ *   - addHolding / addTrade / clearHolding / doT / addBond：改为「先 appendRow 创建行，再 setNumberFormat('@') 设文本格式，最后以 setValue 文本重写 code/date 列」(双保险)
+ *   - updateTrade / updateHolding / updateHoldingBatch：setValue 前先 setNumberFormat('@')（目标行已存在，预设置格式有效）
+ *   - 全文非标准格式 '@STRING@' 统一改为标准文本格式 '@'
+ *   - 保留一次性修复函数 fixLegacyRecords / fixStockCodeFormat（不改、不删）
+ * ───────────────────────────────────────────────────────────────────────
  */
 
 var SHEET_NAME = '交易记录';
 var HOLDING_SHEET_NAME = '当前持仓';
-var NOTES_SHEET_NAME = '备忘笔记';
-var NOTES_HEADERS = ['id', 'date', 'code', 'content', 'createdAt'];
 var MARGIN_SHEET_NAME = '融资余额';
 var MARGIN_HEADERS = ['date', 'balance'];
 
@@ -242,22 +258,6 @@ function doGet(e) {
       case 'fixCodeFormat':
         result = fixStockCodeFormat();
         break;
-      // ===== 备忘笔记相关 =====
-      case 'getNotes':
-        result = getNotes();
-        break;
-      case 'addNote':
-        result = addNote(e.parameter);
-        break;
-      case 'updateNote':
-        result = updateNote(e.parameter);
-        break;
-      case 'deleteNote':
-        result = deleteNote(e.parameter.id);
-        break;
-      case 'searchNotes':
-        result = searchNotes(e.parameter.keyword);
-        break;
       // ===== 融资余额数据 =====
       case 'marginData':
         result = fetchMarginData();
@@ -348,12 +348,14 @@ function addTrade(params) {
   var source = params.source || 'manual';
   var fees = parseFloat(params.fees) || 0;
 
+  // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
+  // 顺序不能反：对不存在的行预设置格式不会生效，appendRow 之后格式才能正确落到该行
   sheet.appendRow([id, date, code, tag, quantity, amount, note, tIndex, status, source, fees]);
-
-  // 日期列和代码列存为文本（防止002600变成2600）
   var lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow, 2).setNumberFormat('@STRING@');
-  sheet.getRange(lastRow, 3).setNumberFormat('@STRING@');
+  sheet.getRange(lastRow, 2).setNumberFormat('@'); // date 列
+  sheet.getRange(lastRow, 3).setNumberFormat('@'); // code 列
+  sheet.getRange(lastRow, 2).setValue(date); // 以文本重写，双保险确保前导0不丢
+  sheet.getRange(lastRow, 3).setValue(code);
 
   return { success: true, id: id };
 }
@@ -396,8 +398,8 @@ function updateTrade(params) {
       if (field === 'amount') cellValue = parseFloat(value);
       if (field === 'quantity') cellValue = parseInt(value) || 0;
       var cell = sheet.getRange(i + 2, col);
+      if (field === 'date' || field === 'code') cell.setNumberFormat('@');
       cell.setValue(cellValue);
-      if (field === 'date' || field === 'code') cell.setNumberFormat('@STRING@');
       break;
     }
   }
@@ -506,12 +508,14 @@ function addHolding(params) {
   var lastAddDate = params.lastAddDate || '';
   var lastAddQty = parseInt(params.lastAddQty) || 0;
 
+  // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
+  // 顺序不能反：对不存在的行预设置格式不会生效，appendRow 之后格式才能正确落到该行
   sheet.appendRow([id, date, code, tag, quantity, note, buyPrice, accountType, lastAddDate, lastAddQty]);
-
-  // 日期列和代码列存为文本（防止002600变成2600）
   var lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow, 2).setNumberFormat('@STRING@');
-  sheet.getRange(lastRow, 3).setNumberFormat('@STRING@');
+  sheet.getRange(lastRow, 2).setNumberFormat('@'); // date 列
+  sheet.getRange(lastRow, 3).setNumberFormat('@'); // code 列
+  sheet.getRange(lastRow, 2).setValue(date); // 以文本重写，双保险确保前导0不丢
+  sheet.getRange(lastRow, 3).setValue(code);
 
   return { success: true, id: id };
 }
@@ -554,8 +558,8 @@ function updateHolding(params) {
       if (field === 'quantity') cellValue = parseInt(value) || 0;
       if (field === 'buyPrice') cellValue = parseFloat(value) || 0;
       var cell = sheet.getRange(i + 2, col);
+      if (field === 'date' || field === 'code') cell.setNumberFormat('@');
       cell.setValue(cellValue);
-      if (field === 'date' || field === 'code') cell.setNumberFormat('@STRING@');
       break;
     }
   }
@@ -589,8 +593,8 @@ function updateHoldingBatch(params) {
         if (field === 'buyPrice') cellValue = parseFloat(value) || 0;
 
         var cell = sheet.getRange(i + 2, col);
+        if (field === 'date' || field === 'code') cell.setNumberFormat('@');
         cell.setValue(cellValue);
-        if (field === 'date' || field === 'code') cell.setNumberFormat('@STRING@');
       }
       break;
     }
@@ -654,10 +658,13 @@ function clearHolding(params) {
   if (actualIsPartial) {
     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + clearQty + '/' + holding.quantity + '股';
   }
+  // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, clearQty, amount, finalNote, 0, 'closed', 'clear', fees]);
   var tLastRow = tradeSheet.getLastRow();
-  tradeSheet.getRange(tLastRow, 2).setNumberFormat('@STRING@');
-  tradeSheet.getRange(tLastRow, 3).setNumberFormat('@STRING@');
+  tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
+  tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列
+  tradeSheet.getRange(tLastRow, 2).setValue(todayStr); // 以文本重写，双保险确保前导0不丢
+  tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
 
   if (actualIsPartial) {
     // 部分清仓：更新持仓数量（成本价不变，因为剩余股的成本单价不变）
@@ -736,10 +743,13 @@ function doT(params) {
   var tradeSheet = getSheet();
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, doTQty, amount, tNote, tIndex, 'open', 'doT', fees]);
   var tLastRow = tradeSheet.getLastRow();
-  tradeSheet.getRange(tLastRow, 2).setNumberFormat('@STRING@');
-  tradeSheet.getRange(tLastRow, 3).setNumberFormat('@STRING@');
+  tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
+  tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列
+  tradeSheet.getRange(tLastRow, 2).setValue(todayStr); // 以文本重写，双保险确保前导0不丢
+  tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
 
   // 3. 更新持仓
   if (isUnequal) {
@@ -845,7 +855,7 @@ function fixStockCodeFormat() {
     }
     // 整列设为文本格式
     if (tFixed > 0 || tradeLastRow >= 2) {
-      tradeSheet.getRange(2, 3, tradeLastRow - 1, 1).setNumberFormat('@STRING@');
+      tradeSheet.getRange(2, 3, tradeLastRow - 1, 1).setNumberFormat('@');
     }
     results.trades = tFixed;
   }
@@ -865,7 +875,7 @@ function fixStockCodeFormat() {
       }
     }
     if (hFixed > 0 || holdLastRow >= 2) {
-      holdSheet.getRange(2, 3, holdLastRow - 1, 1).setNumberFormat('@STRING@');
+      holdSheet.getRange(2, 3, holdLastRow - 1, 1).setNumberFormat('@');
     }
     results.holdings = hFixed;
   }
@@ -887,138 +897,6 @@ function markHoldingTTradesClosed(code) {
       tradeSheet.getRange(i + 2, 9).setValue('closed');
     }
   }
-}
-
-// ===== 备忘笔记相关功能 =====
-
-// 获取备忘笔记工作表（自动创建）
-function getNotesSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(NOTES_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(NOTES_SHEET_NAME);
-    sheet.appendRow(NOTES_HEADERS);
-    return sheet;
-  }
-
-  // 检查表头是否正确
-  var lastCol = sheet.getLastColumn();
-  if (lastCol < NOTES_HEADERS.length) {
-    sheet.getRange(1, 1, 1, NOTES_HEADERS.length).setValues([NOTES_HEADERS]);
-  }
-
-  return sheet;
-}
-
-// 查询所有笔记
-function getNotes() {
-  var sheet = getNotesSheet();
-  var data = sheet.getDataRange().getValues();
-  var notes = [];
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][0]) {
-      notes.push({
-        id: String(data[i][0]),
-        date: String(data[i][1] || ''),
-        code: String(data[i][2] || ''),
-        content: String(data[i][3] || ''),
-        createdAt: String(data[i][4] || '')
-      });
-    }
-  }
-  return { success: true, data: notes };
-}
-
-// 添加笔记
-function addNote(params) {
-  var sheet = getNotesSheet();
-  var id = String(new Date().getTime());
-  var date = params.date || '';
-  var code = params.code || '';
-  var content = params.content || '';
-  var createdAt = new Date().toISOString();
-
-  sheet.appendRow([id, date, code, content, createdAt]);
-
-  return { success: true, id: id };
-}
-
-// 更新笔记
-function updateNote(params) {
-  var sheet = getNotesSheet();
-  var id = params.id;
-  var field = params.field;
-  var value = params.value;
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: true };
-
-  // 列号映射（1-based）：date=2, code=3, content=4, createdAt=5
-  var colMap = { date: 2, code: 3, content: 4 };
-  var col = colMap[field];
-  if (!col) return { success: true };
-
-  // 只读取ID列定位行
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]) === String(id)) {
-      sheet.getRange(i + 2, col).setValue(value);
-      break;
-    }
-  }
-  return { success: true };
-}
-
-// 删除笔记
-function deleteNote(id) {
-  var sheet = getNotesSheet();
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: true };
-
-  // 只读取ID列定位行
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  for (var i = ids.length - 1; i >= 0; i--) {
-    if (String(ids[i][0]) === String(id)) {
-      sheet.deleteRow(i + 2);
-      break;
-    }
-  }
-  return { success: true };
-}
-
-// 搜索笔记
-function searchNotes(keyword) {
-  var sheet = getNotesSheet();
-  var data = sheet.getDataRange().getValues();
-  var notes = [];
-
-  for (var i = 1; i < data.length; i++) {
-    if (!data[i][0]) continue;
-
-    var date = String(data[i][1] || '');
-    var code = String(data[i][2] || '');
-    var content = String(data[i][3] || '');
-
-    // 如果有关键词，进行模糊匹配
-    if (keyword && keyword !== '') {
-      var kw = keyword.toLowerCase();
-      if (date.toLowerCase().indexOf(kw) === -1 &&
-          code.toLowerCase().indexOf(kw) === -1 &&
-          content.toLowerCase().indexOf(kw) === -1) {
-        continue;
-      }
-    }
-
-    notes.push({
-      id: String(data[i][0]),
-      date: date,
-      code: code,
-      content: content,
-      createdAt: String(data[i][4] || '')
-    });
-  }
-
-  return { success: true, data: notes };
 }
 
 // ===== 可转债打新收益（独立 sheet 存储，与股票交易完全隔离） =====
@@ -1072,11 +950,11 @@ function addBond(params) {
   var profit = parseFloat(params.profit) || 0;
   var expense = parseFloat(params.expense) || 0;
 
+  // 先 appendRow 创建行，再设文本格式，最后以文本重写 code
   sheet.appendRow([id, year, name, code, market, signer, qty, profit, expense]);
-
-  // 转债代码存为文本（防止前导零丢失，如 113692 不会被当成数字）
   var lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow, 4).setNumberFormat('@');
+  sheet.getRange(lastRow, 4).setNumberFormat('@'); // code 列
+  sheet.getRange(lastRow, 4).setValue(code); // 以文本重写，双保险确保前导0不丢
 
   return { success: true, id: id };
 }
@@ -1122,265 +1000,9 @@ function deleteBond(id) {
   return { success: true };
 }
 
-// ============================================================
-// 【一次性手动导入函数】—— 不通过 Web App，仅在 GAS 编辑器里
-//  选中本函数后点「▶ 运行」执行一次即可，无需重新部署 GAS。
-//  数据来源：用户 Notion 导出的 CSV，按年分批给，我逐年追加到
-//            BOND_IMPORT_DATA 数组里，用户每年 Run 一次即可。
-//  字段映射：name/code/market/signer/qty/profit/expense 照 CSV 原样；
-//            market: 深→深市, 沪→沪市；未卖的盈利/支出为空→0。
-//  【安全】只清空「本次 BOND_IMPORT_DATA 包含的年份」对应的旧行，
-//            其他年份的数据原样保留，绝不会弄丢已导入的历史数据。
-// ============================================================
 
-var BOND_IMPORT_DATA = [
-  { year: 2026, name: '尚太转债', code: '127112', market: '深市', signer: '丁宇航', qty: 10, profit: 570, expense: 100 },
-  { year: 2026, name: '尚太转债', code: '127112', market: '深市', signer: '张靖',   qty: 10, profit: 570, expense: 0 },
-  { year: 2026, name: '统联转债', code: '118066', market: '沪市', signer: '陈兆阳', qty: 10, profit: 360, expense: 120 },
-  { year: 2026, name: '统联转债', code: '118066', market: '沪市', signer: '于诗魁', qty: 10, profit: 380, expense: 0 },
-  { year: 2026, name: '长高转债', code: '127113', market: '深市', signer: '张靖',   qty: 10, profit: 470, expense: 0 },
-  { year: 2026, name: '春风转债', code: '113704', market: '沪市', signer: '于诗魁', qty: 10, profit: 570, expense: 0 },
-  { year: 2026, name: '南芯转债', code: '118070', market: '沪市', signer: '于诗魁', qty: 10, profit: 0,   expense: 0 },
-  { year: 2026, name: '宝钛转债', code: '110101', market: '沪市', signer: '陈兆阳', qty: 10, profit: 0,   expense: 0 },
-  { year: 2026, name: '宝钛转债', code: '110101', market: '沪市', signer: '靖鹏新', qty: 10, profit: 0,   expense: 0 },
-  { year: 2026, name: '宜化转债', code: '127114', market: '深市', signer: '靖艳昭', qty: 10, profit: 0,   expense: 0 },
-  // ===== 2023 年（67 条，格式规范，含代码/市场/中签人/支出）=====
-  { year: 2023, name: "天合转债", code: "118031", market: "沪市", signer: "张超", qty: 10, profit: 170, expense: 0 },
-  { year: 2023, name: "爱玛转债", code: "113666", market: "沪市", signer: "张超", qty: 10, profit: 370, expense: 0 },
-  { year: 2023, name: "爱玛转债", code: "113666", market: "沪市", signer: "靖艳秋", qty: 10, profit: 350, expense: 0 },
-  { year: 2023, name: "天合转债", code: "118031", market: "沪市", signer: "井洪涛", qty: 10, profit: 170, expense: 0 },
-  { year: 2023, name: "天合转债", code: "118031", market: "沪市", signer: "李日升", qty: 10, profit: 170, expense: 0 },
-  { year: 2023, name: "爱玛转债", code: "113666", market: "沪市", signer: "李日升", qty: 10, profit: 370, expense: 0 },
-  { year: 2023, name: "爱玛转债", code: "113666", market: "沪市", signer: "靖艳昭", qty: 10, profit: 350, expense: 0 },
-  { year: 2023, name: "天合转债", code: "118031", market: "沪市", signer: "陈兆阳", qty: 10, profit: 0, expense: 0 },
-  { year: 2023, name: "精测转债", code: "123176", market: "深市", signer: "李日升", qty: 10, profit: 300, expense: 0 },
-  { year: 2023, name: "新港转债", code: "111013", market: "沪市", signer: "靖艳秋", qty: 10, profit: 573, expense: 0 },
-  { year: 2023, name: "亚科转债", code: "127082", market: "深市", signer: "陈兆阳", qty: 10, profit: 180, expense: 0 },
-  { year: 2023, name: "神马转债", code: "110093", market: "沪市", signer: "张超", qty: 10, profit: 185, expense: 0 },
-  { year: 2023, name: "华特转债", code: "118033", market: "沪市", signer: "张靖", qty: 10, profit: 573, expense: 0 },
-  { year: 2023, name: "华特转债", code: "118033", market: "沪市", signer: "井洪涛", qty: 10, profit: 560, expense: 0 },
-  { year: 2023, name: "海顺转债", code: "123183", market: "深市", signer: "张靖", qty: 10, profit: 210, expense: 0 },
-  { year: 2023, name: "海顺转债", code: "123183", market: "深市", signer: "张洪涛", qty: 10, profit: 210, expense: 0 },
-  { year: 2023, name: "山路转债", code: "127083", market: "深市", signer: "田园", qty: 10, profit: 186, expense: 0 },
-  { year: 2023, name: "柳工转2", code: "127084", market: "深市", signer: "田园", qty: 10, profit: 248, expense: 0 },
-  { year: 2023, name: "柳工转2", code: "127084", market: "深市", signer: "张超", qty: 10, profit: 200, expense: 0 },
-  { year: 2023, name: "道氏转2", code: "123190", market: "深市", signer: "谭思宇", qty: 10, profit: 98, expense: 0 },
-  { year: 2023, name: "道氏转2", code: "123190", market: "深市", signer: "井洪涛", qty: 10, profit: 110, expense: 0 },
-  { year: 2023, name: "道氏转2", code: "123190", market: "深市", signer: "张超", qty: 10, profit: 100, expense: 300 },
-  { year: 2023, name: "道氏转2", code: "123190", market: "深市", signer: "李柠月", qty: 10, profit: 120, expense: 0 },
-  { year: 2023, name: "蓝晓转2", code: "123195", market: "深市", signer: "田园", qty: 10, profit: 360, expense: 0 },
-  { year: 2023, name: "正元转债", code: "123196", market: "深市", signer: "靖鹏新", qty: 10, profit: 360, expense: 0 },
-  { year: 2023, name: "晶能转债", code: "118034", market: "沪市", signer: "陈兆阳", qty: 10, profit: 200, expense: 100 },
-  { year: 2023, name: "晶能转债", code: "118034", market: "沪市", signer: "靖鹏新", qty: 10, profit: 200, expense: 0 },
-  { year: 2023, name: "晶能转债", code: "118034", market: "沪市", signer: "靖艳秋", qty: 10, profit: 200, expense: 0 },
-  { year: 2023, name: "晶能转债", code: "118034", market: "沪市", signer: "于诗魁", qty: 10, profit: 200, expense: 0 },
-  { year: 2023, name: "金埔转债", code: "123198", market: "深市", signer: "张超", qty: 10, profit: 358, expense: 0 },
-  { year: 2023, name: "金埔转债", code: "123198", market: "深市", signer: "陈兆阳", qty: 10, profit: 348, expense: 0 },
-  { year: 2023, name: "恒邦转债", code: "127086", market: "深市", signer: "田园", qty: 10, profit: 230, expense: 0 },
-  { year: 2023, name: "恒邦转债", code: "127086", market: "深市", signer: "谭思宇", qty: 10, profit: 230, expense: 0 },
-  { year: 2023, name: "力合转债", code: "118036", market: "沪市", signer: "李柠月", qty: 10, profit: 270, expense: 100 },
-  { year: 2023, name: "晶澳传债", code: "127089", market: "深市", signer: "陈兆阳", qty: 10, profit: 170, expense: 0 },
-  { year: 2023, name: "晶澳传债", code: "127089", market: "深市", signer: "靖艳秋", qty: 10, profit: 170, expense: 0 },
-  { year: 2023, name: "晶澳传债", code: "127089", market: "深市", signer: "张靖", qty: 10, profit: 170, expense: 0 },
-  { year: 2023, name: "福蓉转债", code: "113672", market: "沪市", signer: "谭思宇", qty: 10, profit: 660, expense: 0 },
-  { year: 2023, name: "福蓉转债", code: "113672", market: "沪市", signer: "李易东", qty: 10, profit: 720, expense: 0 },
-  { year: 2023, name: "众和转债", code: "110094", market: "沪市", signer: "李日升", qty: 10, profit: 250, expense: 0 },
-  { year: 2023, name: "晶澳传债", code: "127089", market: "深市", signer: "靖艳昭", qty: 10, profit: 60, expense: 0 },
-  { year: 2023, name: "孩王转债", code: "123208", market: "深市", signer: "谭思宇", qty: 10, profit: 230, expense: 0 },
-  { year: 2023, name: "燃23转", code: "113067", market: "沪市", signer: "张超", qty: 10, profit: 180, expense: 0 },
-  { year: 2023, name: "燃23转", code: "113067", market: "沪市", signer: "靖艳秋", qty: 10, profit: 190, expense: 0 },
-  { year: 2023, name: "燃23转", code: "113067", market: "沪市", signer: "李易东", qty: 10, profit: 180, expense: 0 },
-  { year: 2023, name: "燃23转", code: "113067", market: "沪市", signer: "李日升", qty: 10, profit: 180, expense: 0 },
-  { year: 2023, name: "东宝转债", code: "123214", market: "深市", signer: "谭思宇", qty: 10, profit: 195, expense: 0 },
-  { year: 2023, name: "铭利转债", code: "123215", market: "深市", signer: "谭思宇", qty: 10, profit: 173, expense: 0 },
-  { year: 2023, name: "双良转债", code: "110095", market: "沪市", signer: "丁宇航", qty: 10, profit: 154, expense: 0 },
-  { year: 2023, name: "双良转债", code: "110095", market: "沪市", signer: "井洪涛", qty: 10, profit: 154, expense: 0 },
-  { year: 2023, name: "富仕转债", code: "123217", market: "深市", signer: "田园", qty: 10, profit: 230, expense: 0 },
-  { year: 2023, name: "奥维转债", code: "118042", market: "沪市", signer: "于诗魁", qty: 10, profit: 186, expense: 0 },
-  { year: 2023, name: "新23转债", code: "113675", market: "沪市", signer: "陈兆阳", qty: 10, profit: 300, expense: 300 },
-  { year: 2023, name: "中富转债", code: "123226", market: "深市", signer: "陈兆阳", qty: 10, profit: 280, expense: 0 },
-  { year: 2023, name: "章鼓转债", code: "127093", market: "深市", signer: "田园", qty: 10, profit: 560, expense: 0 },
-  { year: 2023, name: "震裕转债", code: "123228", market: "深市", signer: "靖艳秋", qty: 10, profit: 185, expense: 0 },
-  { year: 2023, name: "震裕转债", code: "123228", market: "深市", signer: "王雪娇", qty: 10, profit: 200, expense: 0 },
-  { year: 2023, name: "国城转债", code: "127019", market: "深市", signer: "于诗魁", qty: 10, profit: -3, expense: 0 },
-  { year: 2023, name: "国城转债", code: "127019", market: "深市", signer: "靖艳秋", qty: 10, profit: -3, expense: 0 },
-  { year: 2023, name: "国城转债", code: "127019", market: "深市", signer: "陈兆阳", qty: 10, profit: -3, expense: 0 },
-  { year: 2023, name: "欧晶转债", code: "127098", market: "深市", signer: "张超", qty: 10, profit: 205, expense: 0 },
-  { year: 2023, name: "盛航转债", code: "127099", market: "深市", signer: "张靖", qty: 10, profit: 178, expense: 0 },
-  { year: 2023, name: "中能转债", code: "123234", market: "深市", signer: "靖艳秋", qty: 10, profit: 220, expense: 0 },
-  { year: 2023, name: "亿田转债", code: "123235", market: "深市", signer: "井洪涛", qty: 10, profit: 230, expense: 0 },
-  { year: 2023, name: "豪鹏转债", code: "127101", market: "深市", signer: "丁宇航", qty: 10, profit: 198, expense: 200 },
-  { year: 2023, name: "博23转债", code: "113069", market: "沪市", signer: "李易东", qty: 10, profit: 187, expense: 0 },
-  { year: 2023, name: "博23转债", code: "113069", market: "沪市", signer: "张洪涛", qty: 10, profit: 185, expense: 0 },
-  { year: 2024, name: "东南转债", code: "127103", market: "深市", signer: "谭思宇", qty: 10, profit: 80, expense: 0 },
-  { year: 2024, name: "佳禾转债", code: "123237", market: "深市", signer: "井洪涛", qty: 10, profit: 44, expense: 0 },
-  { year: 2024, name: "楚天转债", code: "123240", market: "深市", signer: "王雪娇", qty: 10, profit: 130, expense: 0 },
-  { year: 2024, name: "龙星转债", code: "127105", market: "深市", signer: "靖艳昭", qty: 10, profit: 18, expense: 0 },
-  { year: 2024, name: "升24转债", code: "113685", market: "沪市", signer: "靖艳秋", qty: 10, profit: 60, expense: 0 },
-  { year: 2024, name: "升24转债", code: "113685", market: "沪市", signer: "丁宇航", qty: 10, profit: 60, expense: 0 },
-  { year: 2024, name: "升24转债", code: "113685", market: "沪市", signer: "李易东", qty: 10, profit: 60, expense: 0 },
-  { year: 2024, name: "安乃达", code: "603350", market: "沪市", signer: "张靖", qty: 500, profit: 10218, expense: 0 },
-  { year: 2024, name: "利杨转债", code: "118048", market: "沪市", signer: "靖艳昭", qty: 10, profit: 230, expense: 0 },
-  { year: 2024, name: "赛龙转债", code: "123242", market: "深市", signer: "靖艳昭", qty: 10, profit: 885, expense: 0 },
-  { year: 2024, name: "严牌转债", code: "123243", market: "深市", signer: "靖鹏新", qty: 10, profit: 350, expense: 0 },
-  { year: 2024, name: "豫光转债", code: "110096", market: "沪市", signer: "田园", qty: 10, profit: 60, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "张超", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "陈兆阳", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "李柠月", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "靖鹏新", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "李日升", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "谭思宇", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "王雪娇", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "万凯转债", code: "123247", market: "深市", signer: "靖艳昭", qty: 10, profit: -68, expense: 0 },
-  { year: 2024, name: "航宇转债", code: "118050", market: "沪市", signer: "王跃", qty: 10, profit: 0, expense: 0 },
-  { year: 2024, name: "英博转债", code: "123249", market: "深市", signer: "张靖", qty: 10, profit: 500, expense: 0 },
-  { year: 2024, name: "和邦转债", code: "113691", market: "沪市", signer: "陈兆阳", qty: 10, profit: 20, expense: 20 },
-  { year: 2024, name: "和邦转债", code: "113691", market: "沪市", signer: "靖鹏新", qty: 10, profit: 17, expense: 0 },
-  { year: 2024, name: "和邦转债", code: "113691", market: "沪市", signer: "田园", qty: 10, profit: 20, expense: 0 },
-  { year: 2024, name: "和邦转债", code: "113691", market: "沪市", signer: "于诗魁", qty: 10, profit: 17, expense: 0 },
-  { year: 2024, name: "和邦转债", code: "113691", market: "沪市", signer: "靖艳昭", qty: 10, profit: 17, expense: 0 },
-  { year: 2024, name: "嘉益转债", code: "123250", market: "深市", signer: "李柠月", qty: 10, profit: 170, expense: 100 },
-  { year: 2024, name: "领益转债", code: "127107", market: "深市", signer: "丁宇航", qty: 10, profit: 239, expense: 100 },
-  { year: 2024, name: "皓元转债", code: "118051", market: "沪市", signer: "田园", qty: 10, profit: 190, expense: 0 },
-  { year: 2025, name: "华医转债", code: "123251", market: "深市", signer: "李日升", qty: 10, profit: 70, expense: 0 },
-  { year: 2025, name: "渝水转债", code: "113070", market: "沪市", signer: "靖鹏新", qty: 10, profit: 200, expense: 0 },
-  { year: 2025, name: "渝水转债", code: "113070", market: "沪市", signer: "靖艳秋", qty: 10, profit: 200, expense: 0 },
-  { year: 2025, name: "渝水转债", code: "113070", market: "沪市", signer: "李日升", qty: 20, profit: 400, expense: 0 },
-  { year: 2025, name: "永贵转债", code: "123253", market: "深市", signer: "张超", qty: 10, profit: 180, expense: 0 },
-  { year: 2025, name: "永贵转债", code: "123253", market: "深市", signer: "田园", qty: 10, profit: 180, expense: 0 },
-  { year: 2025, name: "亿纬转债", code: "123254", market: "深市", signer: "陈兆阳", qty: 10, profit: 140, expense: 0 },
-  { year: 2025, name: "亿纬转债", code: "123254", market: "深市", signer: "靖艳秋", qty: 10, profit: 140, expense: 0 },
-  { year: 2025, name: "亿纬转债", code: "123254", market: "深市", signer: "谭思宇", qty: 10, profit: 140, expense: 0 },
-  { year: 2025, name: "亿纬转债", code: "123254", market: "深市", signer: "王雪娇", qty: 10, profit: 140, expense: 0 },
-  { year: 2025, name: "太能转债", code: "127108", market: "深市", signer: "李易东", qty: 10, profit: 100, expense: 0 },
-  { year: 2025, name: "太能转债", code: "127108", market: "深市", signer: "谭思宇", qty: 10, profit: 100, expense: 0 },
-  { year: 2025, name: "太能转债", code: "127108", market: "深市", signer: "于诗魁", qty: 10, profit: 100, expense: 0 },
-  { year: 2025, name: "太能转债", code: "127108", market: "深市", signer: "王跃", qty: 10, profit: 100, expense: 0 },
-  { year: 2025, name: "清源转债", code: "113694", market: "沪市", signer: "靖艳秋", qty: 10, profit: 160, expense: 0 },
-  { year: 2025, name: "伟测转债", code: "118055", market: "沪市", signer: "丁宇航", qty: 10, profit: 250, expense: 0 },
-  { year: 2025, name: "路维转债", code: "118056", market: "沪市", signer: "张洪涛", qty: 10, profit: 350, expense: 0 },
-  { year: 2025, name: "伯25转债", code: "113696", market: "沪市", signer: "李易东", qty: 10, profit: 290, expense: 0 },
-  { year: 2025, name: "金威转债", code: "127111", market: "深市", signer: "张洪涛", qty: 10, profit: 380, expense: 0 },
-  { year: 2025, name: "应流转债", code: "113697", market: "沪市", signer: "靖鹏新", qty: 10, profit: 530, expense: 0 },
-  { year: 2025, name: "福能转债", code: "110099", market: "沪市", signer: "张超", qty: 10, profit: 420, expense: 0 },
-  { year: 2025, name: "福能转债", code: "110099", market: "沪市", signer: "靖鹏新", qty: 10, profit: 430, expense: 0 },
-  { year: 2025, name: "福能转债", code: "110099", market: "沪市", signer: "靖艳昭", qty: 10, profit: 420, expense: 0 },
-  { year: 2025, name: "锦浪转债", code: "123259", market: "深市", signer: "于诗魁", qty: 10, profit: 450, expense: 0 },
-  { year: 2025, name: "颀中转债", code: "118059", market: "沪市", signer: "张洪涛", qty: 10, profit: 430, expense: 0 },
-  { year: 2025, name: "瑞可转债", code: "118060", market: "沪市", signer: "靖艳昭", qty: 10, profit: 560, expense: 0 },
-  { year: 2025, name: "神宇转债", code: "123262", market: "深市", signer: "靖艳秋", qty: 10, profit: 480, expense: 0 },
-  { year: 2025, name: "神宇转债", code: "123262", market: "深市", signer: "于诗魁", qty: 10, profit: 470, expense: 0 },
-  { year: 2025, name: "鼎捷转债", code: "123263", market: "深市", signer: "于诗魁", qty: 10, profit: 480, expense: 0 }
-];
 
-// 2022 年为最早年份，原始记录不规范：无代码/市场/中签人/支出，名称多为简记。
-// 简写格式 [名称, 中签数量, 盈利金额]；导入时自动去空格、名称补「转债」，
-// code/market/signer 留空，expense=0，year 固定 2022。
-var BOND_IMPORT_2022_RAW = [
-  ['美锦转债',10,115],['浙22转债',10,243],['博汇转债',10,264],['奕瑞转债',10,273],['齐鲁转债',10,-40],
-  ['华自转债',10,20],['金田转债',10,60],['杭银转债',10,110],['温氏转债',10,24],['乐普转债',10,100],
-  ['东财转债',10,267],['中装转债',10,0],['绿茵转债',10,49],['南银转债',20,360],['嘉美转债',2,43],
-  ['江丰转债',10,15],['中特转债',10,137],['博22转债',10,273],['道通转债',10,379],['火星转债',10,173],
-  ['锂科转债',10,289],['福22转债',10,182],['正海转债',10,223],['齐鲁转债',10,-50],['首华转债',10,123],
-  ['兴业转债',10,99],['成银转债',10,209],['中银转债',10,65],['药石转债',10,298],['美锦转债',10,113],
-  ['浙22转债',10,244],['天业转债',10,185],['天赐转债',10,217],['东杰转债',10,317],['兴业转债',10,99],
-  ['中特',10,135],['中银',10,65],['禾丰',10,144],['淮22',10,280],['齐鲁',10,-50],
-  ['三花',10,310],['南银',10,182],['北港',10,131],['国泰',10,610],['贵燃',10,197],
-  ['兴业',20,200],['双箭',10,151],['美锦',10,115],['精工',10,171],['国微',10,430],
-  ['嘉美',10,200],['升21',10,360],['兴业',10,101],['中特',10,113],['中银',10,66],
-  ['九强',10,286],['国泰',10,750],['康泰',10,196],['闻泰',10,290],['宏发',10,350],
-  ['华翔',10,313],['兴业',10,102],['隆基',20,520],['精装',10,259],['成银',10,213],
-  ['重银',10,5],['中银',10,65],['博22',10,274],['上银',10,0],['常银',20,369],
-  ['兴业',10,100],['通22',10,330],['重银',10,47],['美锦',10,115],['蒙泰',10,420],
-  ['立昂',10,290],['兴业',10,100],['中特',10,139],['中银',10,66],['美锦',10,115],
-  ['巨星',10,250],['中银',10,66],['永22',10,364],['升21',10,351],['兴业',10,103],
-  ['隆基',10,261],['中银',10,66],['贵轮',10,140],['天业',10,188],['常银',10,187],
-  ['漱玉',10,175],['上22',10,193],['中银',10,66],['美锦',10,115],['康泰',10,350],
-  ['泉峰',10,400],['希望',10,280],['兴业',10,103],['明新',10,175],['裕兴',10,99],
-  ['湘佳',10,307],['淮22',10,280],['百川',10,265],['希望2',10,334],['城市',10,247],
-  ['锦浪',10,376],['中特',10,107],['重银',10,10],['九强',10,286],['欧22',10,346],
-  ['中宠',10,160],['齐鲁',10,-43],['兴业',10,98],['隆22',10,260],['中银',10,66],
-  ['美锦',10,114],['拓普',10,467],['常银',10,187]
-];
 
-// 汇总所有待导入数据（2026 完整格式 + 2022 简写展开）
-function getAllBondImportData() {
-  var all = BOND_IMPORT_DATA.slice();
-  for (var i = 0; i < BOND_IMPORT_2022_RAW.length; i++) {
-    var r = BOND_IMPORT_2022_RAW[i];
-    var nm = String(r[0]).replace(/^\s+|\s+$/g, '');
-    if (nm.indexOf('转债') === -1) nm = nm + '转债';
-    all.push({ year: 2022, name: nm, code: '', market: '', signer: '', qty: r[1], profit: r[2], expense: 0 });
-  }
-  return all;
-}
-
-function importBondsFromData() {
-  var sheet = getBondSheet();
-  var IMPORT = getAllBondImportData();
-  // 收集本次要导入的年份，只清空这些年份的旧数据，保留其他年份
-  var yearSet = {};
-  for (var i = 0; i < IMPORT.length; i++) {
-    yearSet[IMPORT[i].year] = true;
-  }
-  var years = Object.keys(yearSet);
-  // 删除这些年份已有的行（按 year 列匹配，列2）
-  var lastRow = sheet.getLastRow();
-  if (lastRow > 1) {
-    var rows = sheet.getRange(2, 1, lastRow - 1, BOND_HEADERS.length).getValues();
-    for (var r = rows.length - 1; r >= 0; r--) {
-      if (years.indexOf(String(rows[r][1])) !== -1) {
-        sheet.deleteRow(r + 2);
-      }
-    }
-  }
-  // 写入本次数据
-  var count = 0;
-  for (var j = 0; j < IMPORT.length; j++) {
-    var d = IMPORT[j];
-    var id = String(new Date().getTime()) + '_' + j;
-    sheet.appendRow([id, d.year, d.name, String(d.code), d.market, d.signer, d.qty, d.profit, d.expense]);
-    var rr = sheet.getLastRow();
-    sheet.getRange(rr, 4).setNumberFormat('@'); // 代码列存为文本，防前导零丢失
-    count++;
-  }
-  return { success: true, imported: count };
-}
-
-// ============================================================
-// 【一次性手动函数】sortBondSheet() —— 仅在 GAS 编辑器选中本函数
-//   点「▶ 运行」执行一次即可，无需重新部署 GAS。
-//   作用：把「可转债」sheet 的数据行按年份升序重新排列
-//   （2022 → 2023 → 2024 → 2025 → 2026），同年内保持原来的
-//   顺序不动。重排后，前端 addBond 用 appendRow 追加到最后一行，
-//   天然就接在最新的 2026 后面，无需改 addBond。
-// ============================================================
-
-function sortBondSheet() {
-  var sheet = getBondSheet();
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: true, sorted: 0 };
-  var data = sheet.getRange(2, 1, lastRow - 1, BOND_HEADERS.length).getValues();
-  // 给每行带原始行号，保证同一年内顺序稳定（不重排）
-  var rows = [];
-  for (var i = 0; i < data.length; i++) {
-    rows.push({ r: data[i], idx: i });
-  }
-  rows.sort(function (a, b) {
-    var ya = Number(a.r[1]); // year 在第2列(索引1)
-    var yb = Number(b.r[1]);
-    if (ya !== yb) return ya - yb;
-    return a.idx - b.idx; // 同年内保持原顺序
-  });
-  // 清空原有数据行（保留表头），再按新顺序写回
-  sheet.deleteRows(2, lastRow - 1);
-  for (var j = 0; j < rows.length; j++) {
-    sheet.appendRow(rows[j].r);
-    var rr = sheet.getLastRow();
-    sheet.getRange(rr, 4).setNumberFormat('@'); // 代码列(第4列)存文本，防前导零
-  }
-  return { success: true, sorted: rows.length };
-}
 
 // ===== 融资余额数据（Google Sheets 存储） =====
 
@@ -1539,3 +1161,4 @@ function setBalance(params) {
   PropertiesService.getScriptProperties().setProperty(key, balance.toFixed(2));
   return { success: true, accountType: accType, balance: balance };
 }
+

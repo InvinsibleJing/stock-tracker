@@ -174,8 +174,6 @@
     <div class="toolbox-tabs">
       <div class="toolbox-tab tb-cal active" onclick="switchToolboxTab('calendar')">📅 盈亏日历</div>
       <div class="toolbox-tab tb-hold" onclick="switchToolboxTab('holdings')">📊 持仓分析</div>
-      <div class="toolbox-tab tb-note" onclick="switchToolboxTab('notes')">📝 快速备忘</div>
-      <div class="toolbox-tab tb-bazi" onclick="switchToolboxTab('bazi')">🔮 当月运势</div>
     </div>
     <!-- 盈亏日历 -->
     <div id="toolboxCalendar">
@@ -210,115 +208,6 @@
       <div class="analysis-box">
         <h2>📊 持仓成本</h2>
         <div class="chart-container" style="height:260px"><canvas id="profitBarChart"></canvas></div>
-      </div>
-    </div>
-    <!-- 快速备忘 -->
-    <div id="toolboxNotes" style="display:none">
-      <div class="notes-box">
-        <!-- 搜索框 -->
-        <div class="notes-search-row">
-          <input type="text" id="noteSearch" placeholder="搜索备忘（日期/股票代码/内容）..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px" oninput="searchNotes()" onkeydown="if(event.key==='Enter')searchNotes()">
-          <button class="btn btn-blue" onclick="searchNotes()" style="padding:8px 18px">搜索</button>
-          <button class="btn btn-red" onclick="clearNoteSearch()" style="padding:8px 18px">清除</button>
-        </div>
-        <!-- 添加备忘输入框 -->
-        <div class="notes-input-row">
-          <input type="date" id="noteDate" style="padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
-          <input type="text" id="noteCode" placeholder="股票名称（可选）" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px">
-          <input type="text" id="noteInput" placeholder="写一句备忘..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px" onkeydown="if(event.key==='Enter')addNote()">
-          <button class="btn btn-green" onclick="addNote()" style="padding:8px 18px">添加</button>
-        </div>
-        <div class="notes-list" id="notesList"></div>
-      </div>
-    </div>
-    <!-- 当月运势 / 八字排盘 -->
-    <div id="toolboxBazi" style="display:none">
-      <div class="bazi-box">
-        <!-- 生日输入区 -->
-        <div class="bazi-input-section">
-          <h3 class="bazi-section-title">📅 输入生日信息</h3>
-          <div class="bazi-input-row">
-            <label>日期类型：</label>
-            <div class="bazi-date-type-group">
-              <button class="bazi-type-btn active" data-type="solar" onclick="setBaziDateType('solar')">公历</button>
-              <button class="bazi-type-btn" data-type="lunar" onclick="setBaziDateType('lunar')">农历</button>
-            </div>
-          </div>
-          <div class="bazi-input-row">
-            <label>出生日期：</label>
-            <div class="bazi-date-inputs">
-              <input type="number" id="baziYear" placeholder="1991" min="1900" max="2030" class="bazi-date-part">
-              <span class="bazi-date-sep">/</span>
-              <input type="number" id="baziMonth" placeholder="7" min="1" max="12" class="bazi-date-part">
-              <span class="bazi-date-sep">/</span>
-              <input type="number" id="baziDay" placeholder="27" min="1" max="31" class="bazi-date-part">
-            </div>
-            <label>出生时辰：</label>
-            <div class="bazi-hour-grid" id="baziHourGrid">
-              <span class="bazi-hour-opt" data-val="0">子时<br><small>23-01</small></span>
-              <span class="bazi-hour-opt" data-val="1">丑时<br><small>01-03</small></span>
-              <span class="bazi-hour-opt" data-val="2">寅时<br><small>03-05</small></span>
-              <span class="bazi-hour-opt" data-val="3">卯时<br><small>05-07</small></span>
-              <span class="bazi-hour-opt" data-val="4">辰时<br><small>07-09</small></span>
-              <span class="bazi-hour-opt" data-val="5">巳时<br><small>09-11</small></span>
-              <span class="bazi-hour-opt" data-val="6">午时<br><small>11-13</small></span>
-              <span class="bazi-hour-opt" data-val="7">未时<br><small>13-15</small></span>
-              <span class="bazi-hour-opt" data-val="8">申时<br><small>15-17</small></span>
-              <span class="bazi-hour-opt" data-val="9">酉时<br><small>17-19</small></span>
-              <span class="bazi-hour-opt" data-val="10">戌时<br><small>19-21</small></span>
-              <span class="bazi-hour-opt" data-val="11">亥时<br><small>21-23</small></span>
-            </div>
-            <input type="hidden" id="baziBirthHour" value="">
-            <label>性别：</label>
-            <select id="baziGender">
-              <option value="male">男</option>
-              <option value="female">女</option>
-            </select>
-          </div>
-          <div class="bazi-input-row" id="baziLunarExtraRow" style="display:none">
-            <label>农历闰月：</label>
-            <select id="baziIsLeapMonth">
-              <option value="false">非闰月</option>
-              <option value="true">闰月</option>
-            </select>
-            <span style="font-size:12px;color:#999;margin-left:8px">提示：若出生在农历闰月，请选择"闰月"</span>
-          </div>
-          <button class="btn btn-blue" onclick="calcBazi()" style="margin-top:10px;padding:9px 30px;font-size:15px">🔮 排八字</button>
-        </div>
-
-        <!-- 八字结果区 -->
-        <div id="baziResultSection" style="display:none">
-          <!-- 四柱八字 -->
-          <div class="bazi-result-card">
-            <h3 class="bazi-section-title">🎯 四柱八字</h3>
-            <div id="baziFourPillars" class="bazi-four-pillars"></div>
-            <div id="baziWuxingStats" class="bazi-wuxing-stats"></div>
-          </div>
-
-          <!-- 性格特点 -->
-          <div class="bazi-result-card">
-            <h3 class="bazi-section-title">💡 性格特点分析</h3>
-            <div id="baziPersonality" class="bazi-personality"></div>
-          </div>
-
-          <!-- 大运 -->
-          <div class="bazi-result-card">
-            <h3 class="bazi-section-title">📊 大运走势</h3>
-            <div id="baziDayun" class="bazi-dayun"></div>
-          </div>
-
-          <!-- 当年当月影响 -->
-          <div class="bazi-result-card">
-            <h3 class="bazi-section-title">🌟 当前运势影响</h3>
-            <div id="baziCurrentFortune" class="bazi-current-fortune"></div>
-          </div>
-
-          <!-- 操作按钮 -->
-          <div class="bazi-action-row">
-            <button class="btn btn-green" onclick="saveBaziToIMA()" style="padding:9px 28px;font-size:14px">💾 保存到知识库</button>
-          </div>
-          <div id="baziSaveStatus" class="bazi-save-status" style="display:none"></div>
-        </div>
       </div>
     </div>
   </div>
@@ -726,17 +615,6 @@
   </div>
 </div>
 
-<!-- 删除笔记确认弹窗 -->
-<div class="modal-bg" id="deleteNoteModal">
-  <div class="modal">
-    <h2>🗑️ 删除备忘</h2>
-    <p>确定删除这条备忘吗？此操作不可撤销。</p>
-    <div class="btns">
-      <button class="btn btn-red" onclick="submitDeleteNote()">确认删除</button>
-      <button class="btn" style="background:#999;color:white" onclick="closeDeleteNote()">取消</button>
-    </div>
-  </div>
-</div>
 
 <!-- 分红弹窗 -->
 <div class="modal-bg" id="dividendModal">

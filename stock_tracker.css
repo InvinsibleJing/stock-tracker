@@ -317,103 +317,6 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .toolbox-tab.active { color:white; font-weight:600; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
 .toolbox-tab.tb-cal.active { background:#2980b9; box-shadow:0 2px 8px rgba(41,128,185,0.35); }
 .toolbox-tab.tb-hold.active { background:#27ae60; box-shadow:0 2px 8px rgba(39,174,96,0.35); }
-.toolbox-tab.tb-note.active { background:#8e44ad; box-shadow:0 2px 8px rgba(142,68,173,0.35); }
-.toolbox-tab.tb-bazi.active { background:#e74c3c; box-shadow:0 2px 8px rgba(231,76,60,0.35); }
-
-/* ===== 八字排盘 / 当月运势 ===== */
-.bazi-box { max-width:720px; margin:0 auto; }
-.bazi-section-title { color:#2c3e50; font-size:16px; margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid #f0f0f0; }
-.bazi-input-section { background:#fafbfc; border-radius:12px; padding:20px 24px; margin-bottom:16px; border:1px solid #e8e8e8; }
-.bazi-input-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
-.bazi-input-row label { font-size:13px; color:#555; font-weight:500; white-space:nowrap; }
-.bazi-input-row input, .bazi-input-row select { padding:8px 11px; border:1px solid #ddd; border-radius:7px; font-size:14px; }
-.bazi-input-row input:focus, .bazi-input-row select:focus { outline:none; border-color:#e74c3c; box-shadow:0 0 0 3px rgba(231,76,60,0.10); }
-.bazi-date-type-group { display:inline-flex; gap:4px; background:#eee; border-radius:8px; padding:3px; }
-.bazi-type-btn { padding:6px 18px; border:none; border-radius:6px; background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:#666; transition:all 0.15s; }
-.bazi-type-btn:hover { color:#333; }
-.bazi-type-btn.active { background:white; color:#e74c3c; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
-
-/* 时辰选择按钮网格 */
-.bazi-hour-grid { display:flex; flex-wrap:wrap; gap:6px; max-width:420px; }
-.bazi-hour-opt { padding:6px 10px; border:2px solid #e0e0e0; border-radius:8px; cursor:pointer; text-align:center; font-size:13px; font-weight:600; color:#555; transition:all 0.15s; user-select:none; min-width:58px; line-height:1.3; }
-.bazi-hour-opt small { font-size:10px; font-weight:400; color:#999; }
-.bazi-hour-opt:hover { border-color:#3498db; background:#f0f7ff; }
-.bazi-hour-opt.selected { border-color:#e74c3c; background:#fff0f0; color:#e74c3c; box-shadow:0 2px 6px rgba(231,76,60,0.15); }
-.bazi-hour-opt.selected small { color:#e74c3c; opacity:0.7; }
-
-/* 日期手动输入 */
-.bazi-date-inputs { display:inline-flex; align-items:center; gap:4px; }
-.bazi-date-part { width:72px; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:14px; text-align:center; }
-.bazi-date-part:focus { outline:none; border-color:#e74c3c; box-shadow:0 0 0 3px rgba(231,76,60,0.10); }
-.bazi-date-sep { color:#999; font-weight:600; font-size:14px; }
-
-/* 结果卡片 */
-.bazi-result-card { background:white; border-radius:12px; padding:20px 24px; margin-bottom:16px; border:1px solid #e8ecf0; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
-
-/* 四柱八字表格 */
-.bazi-four-pillars { width:100%; border-collapse:collapse; margin:10px 0; font-size:15px; }
-.bazi-four-pillars th { background:linear-gradient(135deg,#2c3e50,#34495e); color:white; padding:10px; text-align:center; font-weight:500; }
-.bazi-four-pillars th:first-child { border-radius:8px 0 0 0; }
-.bazi-four-pillars th:last-child { border-radius:0 8px 0 0; }
-.bazi-four-pillars td { padding:12px 8px; text-align:center; border-bottom:1px solid #eee; vertical-align:middle; }
-.bazi-four-pillars tr:hover td { background:#fafbfc; }
-.bazi-pillar-cell { display:flex; flex-direction:column; align-items:center; gap:4px; }
-.bazi-gan-text { font-size:20px; font-weight:700; letter-spacing:4px; }
-.bazi-zhi-text { font-size:18px; font-weight:600; letter-spacing:2px; }
-.bazi-elem-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; color:white; }
-.bazi-elem-木 { background:#27ae60; }
-.bazi-elem-火 { background:#e74c3c; }
-.bazi-elem-土 { background:#B8860B; }
-.bazi-elem-金 { background:#d4a017; }
-.bazi-elem-水 { background:#2980b9; }
-.bazi-elem-wood { background:#27ae60; }
-.bazi-elem-fire { background:#e74c3c; }
-.bazi-elem-earth { background:#B8860B; }
-.bazi-elem-metal { background:#d4a017; }
-.bazi-elem-water { background:#2980b9; }
-.bazi-shishen { font-size:11px; color:#888; margin-top:2px; }
-
-/* 五行统计 */
-.bazi-wuxing-stats { display:flex; justify-content:center; gap:16px; margin-top:14px; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:10px; }
-.bazi-wx-item { text-align:center; min-width:56px; }
-.bazi-wx-bar { height:24px; border-radius:4px; margin-bottom:4px; display:flex; align-items:center; justify-content:center; color:white; font-size:12px; font-weight:600; transition:width 0.5s ease; }
-.bazi-wx-label { font-size:12px; color:#666; font-weight:500; }
-
-/* 性格分析 */
-.bazi-personality { line-height:1.9; font-size:14px; color:#444; }
-.bazi-personality .bazi-trait-title { font-weight:700; color:#2c3e50; font-size:15px; margin:10px 0 6px; }
-.bazi-personality .bazi-trait-list { padding-left:18px; margin:4px 0; }
-.bazi-personality .bazi-trait-list li { margin-bottom:4px; color:#555; }
-
-/* 大运 */
-.bazi-dayun { overflow-x:auto; }
-.bazi-dayun-table { width:100%; border-collapse:collapse; font-size:13px; }
-.bazi-dayun-table th { background:#f0f4f8; color:#555; padding:8px 6px; font-weight:500; text-align:center; }
-.bazi-dayun-table td { padding:8px 6px; text-align:center; border-bottom:1px solid #eee; }
-.bazi-dayun-current { background:#fff8e1; font-weight:700; color:#e67e22; border:1px solid #ffe082; border-radius:4px; }
-.bazi-dayun-past { color:#aaa; text-decoration:line-through; }
-.bazi-dayun-future { color:#27ae60; font-weight:600; }
-
-/* 当前运势 */
-.bazi-current-fortune { line-height:1.9; font-size:14px; }
-.bazi-cf-header { display:flex; gap:20px; margin-bottom:14px; flex-wrap:wrap; }
-.bazi-cf-year-card, .bazi-cf-month-card { flex:1; min-width:200px; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border-radius:12px; padding:16px 20px; text-align:center; }
-.bazi-cf-year-card { background:linear-gradient(135deg,#e74c3c,#c0392b); }
-.bazi-cf-month-card { background:linear-gradient(135deg,#f39c12,#e67e22); }
-.bazi-cf-label { font-size:12px; opacity:0.85; margin-bottom:4px; }
-.bazi-cf-value { font-size:22px; font-weight:700; letter-spacing:3px; }
-.bazi-cf-detail { background:#fefcf5; border:1px solid #f5e6c8; border-radius:10px; padding:14px 18px; margin-top:12px; font-size:13px; line-height:1.9; color:#555; }
-.bazi-cf-item { margin-bottom:8px; }
-.bazi-cf-item strong { color:#c03900; }
-.bazi-cf-good { color:#27ae60; font-weight:600; }
-.bazi-cf-bad { color:#e74c3c; font-weight:600; }
-.bazi-cf-neutral { color:#f39c12; font-weight:600; }
-
-/* 操作按钮 */
-.bazi-action-row { display:flex; justify-content:center; gap:12px; margin:16px 0; flex-wrap:wrap; }
-.bazi-save-status { text-align:center; padding:10px; border-radius:8px; font-size:13px; margin-top:8px; }
-.bazi-save-status.success { background:#d4edda; color:#155724; }
-.bazi-save-status.error { background:#f8d7da; color:#721c24; }
 
 /* 盈亏日历 */
 .calendar-nav { display:flex; align-items:center; gap:12px; margin-bottom:16px; justify-content:center; flex-wrap:wrap; }
@@ -473,34 +376,12 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 /* 持仓分析 */
 .analysis-box .chart-container { height:260px; margin-bottom:16px; }
 
-/* 快速备忘 */
-.notes-box { margin-top:8px; }
-.notes-input-row { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
-.notes-input-row input[type="date"] { width:150px; flex-shrink:0; }
-.notes-list { display:flex; flex-direction:column; gap:10px; }
-.note-item { background:white; border-radius:10px; padding:12px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-left:3px solid #e67e22; border-left-color:#e67e22; }
-.note-item-content { flex:1; }
-.note-item-date { font-size:11px; margin-bottom:4px; font-weight:500; }
-.note-item-text { font-size:15px; color:#333; line-height:1.5; }
-.note-item-del { background:none; border:none; color:#ccc; cursor:pointer; font-size:16px; padding:0 4px; transition:color 0.15s; flex-shrink:0; }
-.note-item-del:hover { color:#e74c3c; }
 
 @media(max-width:700px) {
   .toolbox-tabs { display:flex; gap:4px; padding:3px; border-radius:10px; }
   .toolbox-tab { font-size:12px; padding:7px 10px; }
   .calendar-nav { gap:8px; }
   .cal-month-label { font-size:14px; min-width:110px; }
-  .notes-input-row { flex-direction:column; align-items:stretch; }
-  .notes-input-row input[type="date"] { width:100%; }
-  .bazi-input-row { flex-direction:column; align-items:stretch; }
-  .bazi-input-row label { margin-bottom:2px; }
-  .bazi-hour-grid { max-width:100%; }
-  .bazi-hour-opt { min-width:0; flex:1; padding:8px 4px; font-size:12px; }
-  .bazi-four-pillars { font-size:13px; }
-  .bazi-gan-text { font-size:17px; letter-spacing:3px; }
-  .bazi-zhi-text { font-size:15px; }
-  .bazi-cf-header { flex-direction:column; gap:10px; }
-  .bazi-cf-year-card, .bazi-cf-month-card { min-width:auto; }
 }
 .date-picker-day.other-month { color:#ccc; }
 .date-picker-actions { display:flex; gap:10px; margin-top:14px; justify-content:center; }
@@ -510,26 +391,9 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .dp-btn-cancel { background:#eee; color:#666; }
 .dp-btn-cancel:hover { background:#ddd; }
 
-/* 快速备忘 - 搜索框 */
-.notes-search-row { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
-.notes-search-row .btn { padding:8px 14px; font-size:13px; }
 
-/* 快速备忘 - 编辑按钮 */
-.note-item-actions { display:flex; gap:4px; flex-shrink:0; align-items:flex-start; }
 .note-item-edit-btn { background:none; border:none; color:#999; cursor:pointer; font-size:14px; padding:2px 4px; transition:color 0.15s; }
 .note-item-edit-btn:hover { color:#3498db; }
 .note-btn-del { padding:5px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
 .note-btn-del:hover { background:#c0392b; }
 
-/* 快速备忘 - 股票名称 */
-.note-item-code { font-size:12px; margin-bottom:4px; font-weight:500; }
-
-/* 快速备忘 - 编辑模式 */
-.note-item-edit { display:flex; flex-direction:column; gap:6px; width:100%; }
-.note-edit-input { padding:6px 10px; border:1px solid #3498db; border-radius:6px; font-size:13px; width:100%; box-sizing:border-box; }
-.note-edit-input:focus { outline:none; box-shadow:0 0 0 3px rgba(52,152,219,0.10); }
-.note-edit-btns { display:flex; justify-content:space-between; gap:8px; }
-.note-edit-save { padding:5px 18px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; flex:1; text-align:center; }
-.note-edit-save:hover { background:#219a52; }
-.note-edit-cancel { padding:5px 18px; background:#eee; color:#666; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; flex:1; text-align:center; }
-.note-edit-cancel:hover { background:#ddd; }
