@@ -54,11 +54,17 @@ function renderCalendar() {
   var startWeekday = (firstDay.getDay() + 6) % 7;
   var daysInMonth = lastDay.getDate();
 
-  // 按日期聚合盈亏（排除做T）
+  // 按日期聚合盈亏（排除做T）+ 收集当天做T盈亏（用于左下角标记，不计入总盈亏）
   var dayProfit = {};
+  var dayDoTMap = {};
   for(var i = 0; i < trades.length; i++) {
     var t = trades[i];
-    if(t.tIndex > 0) continue;
+    if(t.tIndex > 0) {
+      // 做T记录：按录入顺序收集当天做T盈亏，最后一条即最近一次（落在左下角）
+      if(!dayDoTMap[t.date]) dayDoTMap[t.date] = [];
+      dayDoTMap[t.date].push(t.amount || 0);
+      continue;
+    }
     var d = t.date;
     if(!dayProfit[d]) dayProfit[d] = 0;
     dayProfit[d] += (t.amount || 0);
@@ -104,6 +110,20 @@ function renderCalendar() {
       // 大金额缩写：超过10000显示w
       var amtText = Math.abs(profit) >= 10000 ? (profit / 10000).toFixed(1) + 'w' : (amtSign + profit.toFixed(0));
       inner += '<span class="cal-amount ' + amtCls + '">' + amtText + '</span>';
+    }
+    // 左下角做T标记（按录入顺序：第一次在上，最后一次锚定左下角）
+    var doTList = dayDoTMap[ds] || [];
+    if(doTList.length > 0) {
+      var dotHtml = '<div class="cal-dot-badge">';
+      for(var k = 0; k < doTList.length; k++) {
+        var damt = doTList[k];
+        var dcls = damt >= 0 ? 'cal-dot-profit' : 'cal-dot-loss';
+        var dsign = damt >= 0 ? '+' : '';
+        var damtText = Math.abs(damt) >= 10000 ? (damt / 10000).toFixed(1) + 'w' : (dsign + damt.toFixed(0));
+        dotHtml += '<span class="cal-dot-item ' + dcls + '">T:' + damtText + '</span>';
+      }
+      dotHtml += '</div>';
+      inner += dotHtml;
     }
     html += '<div class="' + cls + '" data-date="' + ds + '" onclick="selectCalDate(\'' + ds + '\')">' + inner + '</div>';
   }
@@ -160,6 +180,7 @@ function showCalDetail(dateStr) {
   detail.style.display = 'block';
   document.getElementById('calDetailTitle').textContent = dateStr + ' 交易详情';
 
+  // 正常交易（tIndex === 0）
   var dayTrades = [];
   for(var i = 0; i < trades.length; i++) {
     if(trades[i].date === dateStr && trades[i].tIndex === 0) {
@@ -167,20 +188,33 @@ function showCalDetail(dateStr) {
     }
   }
 
-  var html = '';
+  // 若无正常交易，则展示做T记录
+  var dayDoTTrades = [];
   if(dayTrades.length === 0) {
-    html = '<p style="color:#999;font-size:13px;padding:8px 0">当天无已完结交易记录。</p>';
+    for(var i = 0; i < trades.length; i++) {
+      if(trades[i].date === dateStr && trades[i].tIndex > 0) {
+        dayDoTTrades.push(trades[i]);
+      }
+    }
+  }
+
+  var html = '';
+  if(dayTrades.length === 0 && dayDoTTrades.length === 0) {
+    html = '<p style="color:#999;font-size:13px;padding:8px 0">当天无完结交易记录。</p>';
   } else {
+    var list = dayTrades.length > 0 ? dayTrades : dayDoTTrades;
+    var isDoT = dayTrades.length === 0 && dayDoTTrades.length > 0;
     var total = 0;
-    for(var i = 0; i < dayTrades.length; i++) {
-      var t = dayTrades[i];
+    for(var i = 0; i < list.length; i++) {
+      var t = list[i];
       var name = getStockName(t.code);
       var amt = t.amount || 0;
       total += amt;
       var cls = amt >= 0 ? 'profit' : 'loss';
       var sign = amt >= 0 ? '+' : '';
+      var prefix = isDoT ? '<span style="color:#888;font-size:11px;margin-right:4px">T</span>' : '';
       html += '<div class="cal-detail-row">';
-      html += '<span class="cal-detail-label">' + escapeHtml(name) + '</span>';
+      html += '<span class="cal-detail-label">' + prefix + escapeHtml(name) + '</span>';
       html += '<span class="cal-detail-value ' + cls + '">' + sign + amt.toFixed(2) + ' 元</span>';
       html += '</div>';
     }
@@ -190,6 +224,9 @@ function showCalDetail(dateStr) {
     var totalSign = total >= 0 ? '+' : '';
     html += '<span class="cal-detail-value ' + totalCls + '"><b>' + totalSign + total.toFixed(2) + ' 元</b></span>';
     html += '</div>';
+    if(isDoT) {
+      html += '<p style="color:#aaa;font-size:11px;padding-top:6px;margin:0">（做T盈亏不计入总盈亏统计）</p>';
+    }
   }
   document.getElementById('calDetailContent').innerHTML = html;
 }

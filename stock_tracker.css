@@ -335,6 +335,11 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .cal-amount { font-size:9px; position:absolute; bottom:2px; right:3px; font-weight:700; line-height:1; }
 .cal-amount-profit { color:#c0392b; }
 .cal-amount-loss { color:#1e8449; }
+/* 左下角做T标记 */
+.cal-dot-badge { position:absolute; left:3px; bottom:1px; display:flex; flex-direction:column; align-items:flex-start; line-height:1.1; }
+.cal-dot-item { font-size:8px; font-weight:700; white-space:nowrap; }
+.cal-dot-profit { color:#c0392b; }
+.cal-dot-loss { color:#1e8449; }
 .cal-day-cell:hover { transform:scale(1.08); box-shadow:0 3px 12px rgba(0,0,0,0.18); z-index:5; }
 .cal-day-cell.profit { background:#fce4e4; color:#c0392b; border:1.5px solid #f5c6c6; }
 .cal-day-cell.profit .cal-day-num { color:#c0392b; font-weight:700; }
