@@ -799,16 +799,8 @@ function loadTrades(){
     isLoading = false;
     if(res && res.success){
       var newData = res.data || [];
-      // 简单判断：数量不同或有新ID才重绘（避免无变化也闪屏）
-      var needRender = (newData.length !== trades.length);
-      if(!needRender && newData.length > 0){
-        // 数量相同，再比一下第一条的ID
-        var oldIds = {};
-        for(var i=0;i<trades.length;i++){ oldIds[trades[i].id]=1; }
-        for(var j=0;j<newData.length;j++){
-          if(!oldIds[newData[j].id]){ needRender=true; break; }
-        }
-      }
+      // 内容级比较：同ID、同条数但字段值变了（如行内编辑金额/备注）也能检出
+      var needRender = _dataChanged(trades, newData);
       if(needRender){
         trades = newData;
         cacheData(trades);
@@ -837,15 +829,8 @@ function loadHoldings(){
     isLoadingHoldings = false;
     if(res && res.success){
       var newData = res.data || [];
-      // 只有数据有变化才重新渲染
-      var needRender = (newData.length !== holdings.length);
-      if(!needRender && newData.length > 0){
-        var oldIds = {};
-        for(var i=0;i<holdings.length;i++){ oldIds[holdings[i].id]=1; }
-        for(var j=0;j<newData.length;j++){
-          if(!oldIds[newData[j].id]){ needRender=true; break; }
-        }
-      }
+      // 只有数据有变化才重新渲染（内容级比较，避免补仓等"同ID同条数但字段变化"被漏判）
+      var needRender = _dataChanged(holdings, newData);
       if(needRender){
         holdings = newData;
         try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
