@@ -211,13 +211,11 @@ function showCalDetail(dateStr) {
     }
   }
 
-  // 若无正常交易，则展示做T记录
+  // 做T记录（tIndex > 0）—— 不论是否有正常交易都收集，混合日也展示
   var dayDoTTrades = [];
-  if(dayTrades.length === 0) {
-    for(var i = 0; i < trades.length; i++) {
-      if(trades[i].date === dateStr && trades[i].tIndex > 0) {
-        dayDoTTrades.push(trades[i]);
-      }
+  for(var i = 0; i < trades.length; i++) {
+    if(trades[i].date === dateStr && trades[i].tIndex > 0) {
+      dayDoTTrades.push(trades[i]);
     }
   }
 
@@ -225,30 +223,53 @@ function showCalDetail(dateStr) {
   if(dayTrades.length === 0 && dayDoTTrades.length === 0) {
     html = '<p style="color:#999;font-size:13px;padding:8px 0">当天无完结交易记录。</p>';
   } else {
-    var list = dayTrades.length > 0 ? dayTrades : dayDoTTrades;
-    var isDoT = dayTrades.length === 0 && dayDoTTrades.length > 0;
-    var total = 0;
-    for(var i = 0; i < list.length; i++) {
-      var t = list[i];
-      var name = getStockName(t.code);
-      var amt = t.amount || 0;
-      total += amt;
-      var cls = amt >= 0 ? 'profit' : 'loss';
-      var sign = amt >= 0 ? '+' : '';
-      var prefix = isDoT ? '<span style="color:#888;font-size:11px;margin-right:4px">T</span>' : '';
-      html += '<div class="cal-detail-row">';
-      html += '<span class="cal-detail-label">' + prefix + escapeHtml(name) + '</span>';
-      html += '<span class="cal-detail-value ' + cls + '">' + sign + amt.toFixed(2) + ' 元</span>';
+    // 普通交易部分（含合计，计入总盈亏）
+    if(dayTrades.length > 0) {
+      var normalTotal = 0;
+      for(var i = 0; i < dayTrades.length; i++) {
+        var t = dayTrades[i];
+        var name = getStockName(t.code);
+        var amt = t.amount || 0;
+        normalTotal += amt;
+        var cls = amt >= 0 ? 'profit' : 'loss';
+        var sign = amt >= 0 ? '+' : '';
+        html += '<div class="cal-detail-row">';
+        html += '<span class="cal-detail-label">' + escapeHtml(name) + '</span>';
+        html += '<span class="cal-detail-value ' + cls + '">' + sign + amt.toFixed(2) + ' 元</span>';
+        html += '</div>';
+      }
+      html += '<div class="cal-detail-row" style="border-top:2px solid #ddd;padding-top:8px;margin-top:4px">';
+      html += '<span class="cal-detail-label"><b>合计</b></span>';
+      var totalCls = normalTotal >= 0 ? 'profit' : 'loss';
+      var totalSign = normalTotal >= 0 ? '+' : '';
+      html += '<span class="cal-detail-value ' + totalCls + '"><b>' + totalSign + normalTotal.toFixed(2) + ' 元</b></span>';
       html += '</div>';
     }
-    html += '<div class="cal-detail-row" style="border-top:2px solid #ddd;padding-top:8px;margin-top:4px">';
-    html += '<span class="cal-detail-label"><b>合计</b></span>';
-    var totalCls = total >= 0 ? 'profit' : 'loss';
-    var totalSign = total >= 0 ? '+' : '';
-    html += '<span class="cal-detail-value ' + totalCls + '"><b>' + totalSign + total.toFixed(2) + ' 元</b></span>';
-    html += '</div>';
-    if(isDoT) {
-      html += '<p style="color:#aaa;font-size:11px;padding-top:6px;margin:0">（做T盈亏不计入总盈亏统计）</p>';
+    // 做T部分（独立分组，带 T 前缀，单独合计，明确标注不计入总盈亏统计）
+    if(dayDoTTrades.length > 0) {
+      html += '<div style="margin-top:12px;padding-top:8px;border-top:1px dashed #ddd">';
+      html += '<div style="color:#888;font-size:12px;font-weight:600;margin-bottom:6px">做T记录（不计入总盈亏统计）</div>';
+      var doTTotal = 0;
+      for(var i = 0; i < dayDoTTrades.length; i++) {
+        var t = dayDoTTrades[i];
+        var name = getStockName(t.code);
+        var amt = t.amount || 0;
+        doTTotal += amt;
+        var cls = amt >= 0 ? 'profit' : 'loss';
+        var sign = amt >= 0 ? '+' : '';
+        var prefix = '<span style="color:#888;font-size:11px;margin-right:4px">T</span>';
+        html += '<div class="cal-detail-row">';
+        html += '<span class="cal-detail-label">' + prefix + escapeHtml(name) + '</span>';
+        html += '<span class="cal-detail-value ' + cls + '">' + sign + amt.toFixed(2) + ' 元</span>';
+        html += '</div>';
+      }
+      html += '<div class="cal-detail-row" style="border-top:1px dashed #ddd;padding-top:6px;margin-top:4px">';
+      html += '<span class="cal-detail-label"><b>做T合计</b></span>';
+      var dCls = doTTotal >= 0 ? 'profit' : 'loss';
+      var dSign = doTTotal >= 0 ? '+' : '';
+      html += '<span class="cal-detail-value ' + dCls + '"><b>' + dSign + doTTotal.toFixed(2) + ' 元</b></span>';
+      html += '</div>';
+      html += '</div>';
     }
   }
   document.getElementById('calDetailContent').innerHTML = html;
