@@ -359,11 +359,16 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .cal-day-cell.loss.sun { background:#eafaf0; border-color:#c8e6c9; }
 
 /* 本月总计盈亏 */
-.cal-month-total { text-align:center; font-size:15px; padding:10px 20px 16px; background:white; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.06); margin-bottom:16px; }
+.cal-month-total { text-align:left; font-size:15px; padding:10px 20px 16px; background:white; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.06); margin-bottom:16px; }
 .cal-total-label { color:#666; font-weight:500; }
 .cal-total-value { font-weight:700; font-size:17px; margin-left:6px; }
 .cal-total-value.profit { color:#c0392b; }
 .cal-total-value.loss { color:#1e8449; }
+.cal-total-row { margin:3px 0; }
+.cal-total-sub { font-weight:700; margin-left:4px; }
+.cal-total-sub.profit { color:#c0392b; }
+.cal-total-sub.loss { color:#1e8449; }
+.cal-total-note { color:#999; font-size:12px; margin-left:6px; }
 
 .calendar-legend { display:flex; gap:16px; justify-content:center; font-size:12px; color:#888; margin-bottom:20px; }
 .legend-item { display:flex; align-items:center; gap:5px; }

@@ -94,9 +94,19 @@ function renderCalendar() {
     var weekday = (startWeekday + d - 1) % 7;
     var ds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
     var profit = dayProfit[ds];
+    // 计算当天做T盈亏合计（仅用于"只做T无普通交易"日子的底色/金额；用户2026-07-14授权突破"不计入总盈亏展示"原则，月总计仍不含做T）
+    var doTList = dayDoTMap[ds] || [];
+    var doTSum = 0;
+    for(var k = 0; k < doTList.length; k++) doTSum += doTList[k];
     var cls = 'cal-day-cell';
-    if(profit > 0) cls += ' profit';      // 盈利→红色
-    else if(profit < 0) cls += ' loss';    // 亏损→绿色
+    if(profit > 0) cls += ' profit';      // 普通交易盈利→红色
+    else if(profit < 0) cls += ' loss';    // 普通交易亏损→绿色
+    else if(doTList.length > 0) {
+      // 仅做T、无普通交易：底色按做T盈亏合计决定（红/绿）
+      if(doTSum > 0) cls += ' profit';
+      else if(doTSum < 0) cls += ' loss';
+      else cls += ' no-trade';
+    }
     else cls += ' no-trade';
     if(ds === todayStr && calSelectedDate === null) cls += ' selected';  // 默认选中今天
     if(ds === calSelectedDate) cls += ' selected';  // 用户选中的日期
@@ -104,15 +114,16 @@ function renderCalendar() {
     if(weekday === 6) cls += ' sun'; // 周日
     // 构建日期格子HTML（含盈亏金额角标）
     var inner = '<span class="cal-day-num">' + d + '</span>';
-    if(profit !== undefined && profit !== 0) {
-      var amtSign = profit > 0 ? '+' : '';
-      var amtCls = profit > 0 ? 'cal-amount-profit' : 'cal-amount-loss';
+    // 右上角金额：有普通交易显示普通盈亏；仅做T显示做T合计；都无为0不显示
+    var showAmt = (profit !== undefined && profit !== 0) ? profit : (doTList.length > 0 ? doTSum : 0);
+    if(showAmt !== 0) {
+      var amtSign = showAmt > 0 ? '+' : '';
+      var amtCls = showAmt > 0 ? 'cal-amount-profit' : 'cal-amount-loss';
       // 大金额缩写：超过10000显示w
-      var amtText = Math.abs(profit) >= 10000 ? (profit / 10000).toFixed(1) + 'w' : (amtSign + profit.toFixed(0));
+      var amtText = Math.abs(showAmt) >= 10000 ? (showAmt / 10000).toFixed(1) + 'w' : (amtSign + showAmt.toFixed(0));
       inner += '<span class="cal-amount ' + amtCls + '">' + amtText + '</span>';
     }
-    // 左下角做T标记（按录入顺序：第一次在上，最后一次锚定左下角）
-    var doTList = dayDoTMap[ds] || [];
+    // 左下角做T标记（按录入顺序：第一次在上，最后一次锚定左下角；doTList/doTSum已在上方计算）
     if(doTList.length > 0) {
       var dotHtml = '<div class="cal-dot-badge">';
       for(var k = 0; k < doTList.length; k++) {
@@ -128,11 +139,18 @@ function renderCalendar() {
     html += '<div class="' + cls + '" data-date="' + ds + '" onclick="selectCalDate(\'' + ds + '\')">' + inner + '</div>';
   }
 
-  // 计算本月总计盈亏
+  // 计算本月总计盈亏（仅普通交易）& 本月做T汇总（笔数+盈亏合计，仅供参考、不计入统计）
   var monthTotal = 0;
+  var monthDoTCount = 0;
+  var monthDoTTotal = 0;
   for(var d = 1; d <= daysInMonth; d++) {
     var mds = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
     monthTotal += (dayProfit[mds] || 0);
+    var mDoT = dayDoTMap[mds] || [];
+    for(var k = 0; k < mDoT.length; k++) {
+      monthDoTCount++;
+      monthDoTTotal += mDoT[k];
+    }
   }
 
   // 月末留空（后面补空白格子，保持7列对齐）
@@ -145,12 +163,17 @@ function renderCalendar() {
   document.getElementById('calendarGrid').innerHTML = html;
   document.getElementById('calendarDetail').style.display = 'none';
 
-  // 显示本月总计盈亏
+  // 显示本月总计盈亏（普通交易）+ 本月做T汇总（仅供参考、不计入统计）
   var totalEl = document.getElementById('calMonthTotal');
   if(totalEl) {
     var totalSign = monthTotal >= 0 ? '+' : '';
     var totalCls = monthTotal >= 0 ? 'profit' : 'loss';
-    totalEl.innerHTML = '<span class="cal-total-label">本月共计盈亏金额：</span><span class="cal-total-value ' + totalCls + '">' + totalSign + monthTotal.toFixed(2) + ' 元</span>';
+    var doTSign = monthDoTTotal >= 0 ? '+' : '';
+    var doTCls = monthDoTTotal >= 0 ? 'profit' : 'loss';
+    var doTHtml = monthDoTCount > 0
+      ? '<div class="cal-total-row"><span class="cal-total-label">本月做T：</span><span class="cal-total-sub ' + doTCls + '">' + monthDoTCount + ' 笔　盈亏 ' + doTSign + monthDoTTotal.toFixed(2) + ' 元</span><span class="cal-total-note">（仅供参考，不计入统计）</span></div>'
+      : '<div class="cal-total-row"><span class="cal-total-label">本月做T：</span><span class="cal-total-note">0 笔</span></div>';
+    totalEl.innerHTML = '<div class="cal-total-row"><span class="cal-total-label">本月共计盈亏金额：</span><span class="cal-total-value ' + totalCls + '">' + totalSign + monthTotal.toFixed(2) + ' 元</span></div>' + doTHtml;
     totalEl.style.display = 'block';
   }
 }
