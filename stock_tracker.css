@@ -407,3 +407,6 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .note-btn-del { padding:5px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
 .note-btn-del:hover { background:#c0392b; }
 
+/* 可转债：盈利金额为0（未上市）时，转债名称显示绿色 */
+.bond-unlisted { color:#1e8449; font-weight:600; }
+

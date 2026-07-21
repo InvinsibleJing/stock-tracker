@@ -127,7 +127,8 @@ function renderBonds() {
       var b = list[r];
       html += '<tr data-id="' + escapeHtml(b.id) + '">';
       html += '<td>' + (r + 1) + '</td>';
-      html += '<td>' + escapeHtml(b.name || '') + '</td>';
+      var bondNameCls = ((parseFloat(b.profit) || 0) === 0) ? ' class="bond-unlisted"' : '';
+      html += '<td' + bondNameCls + '>' + escapeHtml(b.name || '') + '</td>';
       html += '<td>' + escapeHtml(b.code || '') + '</td>';
       html += '<td>' + escapeHtml(b.market || '') + '</td>';
       html += '<td>' + escapeHtml(b.signer || '') + '</td>';
