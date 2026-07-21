@@ -3414,9 +3414,6 @@ function renderHoldings(){
         var tagClass=h.tag==='创业板'?'tag-gem':h.tag==='科创板'?'tag-star':'tag-main';
         var stockName=escapeHtml(getStockName(h.code))||'-';
         var buyPriceShow = h.buyPrice ? (parseFloat(h.buyPrice).toFixed(3)) : '-';
-        var accType = h.accountType || 'normal';
-        var accBadge = '<span class="acc-badge '+(accType==='margin'?'acc-margin':'acc-normal')+'">'+(accType==='margin'?'两融':'正常')+'</span>';
-
         var totalQty = h.quantity || 0;
         var todayBuyQty = 0;
         if(h.date === today){
@@ -3470,7 +3467,7 @@ function renderHoldings(){
         rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         rowHtml+='<td>'+seq+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="code" style="text-align:left">'+stockName+accBadge+'</td>';
+        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
@@ -3489,7 +3486,7 @@ function renderHoldings(){
 
         cardHtml+='<div class="hold-card-item hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         cardHtml+='<div class="hold-card-header">';
-        cardHtml+='<span class="hold-card-name">'+stockName+accBadge+'</span>';
+        cardHtml+='<span class="hold-card-name">'+stockName+'</span>';
         cardHtml+='<span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span>';
         cardHtml+='</div>';
         cardHtml+='<div class="hold-card-row"><span class="label">买入日期</span><span class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</span></div>';
