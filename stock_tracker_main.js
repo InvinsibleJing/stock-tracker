@@ -1,4 +1,7 @@
 
+// ===== 版本记录 =====
+// 2026-07-21 持仓止损告警灯：新增「告警」列；现价跌破成本价≥3%亮💡(黄)、≥5%亮🚨(红)；悬停显示「已跌 -X%（成本价 Y，现价 Z）」。仅桌面持仓表，移动端不加。
+
 // ===== 配置 =====
 var API_URL = localStorage.getItem('stock_api_url') || 'https://script.google.com/macros/s/AKfycbyOwq1kdea7UHOjX4srOV5wjy1n2V5a4mVwIokyzbUm5PQ1rEQ5muROc3ChhUOYzR-y-A/exec';
 var MAX_RETRIES = 3;
@@ -3450,6 +3453,19 @@ function renderHoldings(){
           pnl = '-';
         }
 
+        // 止损告警灯（-3%~-5% 黄灯💡，≥-5% 红灯🚨）
+        var alertHtml = '';
+        if(cp && cp.close > 0 && h.buyPrice > 0 && h.quantity > 0){
+          var dropPct = (h.buyPrice - cp.close) / h.buyPrice;
+          if(dropPct >= 0.03){
+            var alPctTxt = (dropPct*100).toFixed(1);
+            var alIcon = dropPct >= 0.05 ? '🚨' : '💡';
+            var alCls = dropPct >= 0.05 ? 'alert-red' : 'alert-yellow';
+            var alTip = '已跌 -'+alPctTxt+'%（成本价 '+parseFloat(h.buyPrice).toFixed(2)+'，现价 '+parseFloat(cp.close).toFixed(2)+'）';
+            alertHtml = '<span class="alert-light '+alCls+'" title="'+alTip+'">'+alIcon+'</span>';
+          }
+        }
+
         var rowHtml='';
         rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         rowHtml+='<td>'+seq+'</td>';
@@ -3461,6 +3477,7 @@ function renderHoldings(){
         rowHtml+='<td>'+availShow+'</td>';
         rowHtml+='<td>'+priceShow+'</td>';
         rowHtml+='<td>'+pnl+'</td>';
+        rowHtml+='<td class="alert-cell">'+alertHtml+'</td>';
         rowHtml+='<td style="text-align:right">';
         rowHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
         rowHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
@@ -3514,6 +3531,7 @@ function renderHoldings(){
       gHtml += '</td>';
       gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
       gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
+      gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
       gHtml += '</tr>';
       gHtml += dgHtml;
     }
@@ -3527,6 +3545,7 @@ function renderHoldings(){
     html += '</td>';
     html += '<td class="'+gCls+'" style="font-weight:600;text-align:center">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</td>';
     html += '<td></td>';
+    html += '<td></td>';
     html += '</tr>';
     html += gHtml;
   }
@@ -3537,6 +3556,7 @@ function renderHoldings(){
     html += '<tr style="background:#f0f4f8;font-weight:bold;border-top:2px solid #2c6e49">';
     html += '<td colspan="8" style="text-align:right;padding:10px 12px;color:#2c3e50;font-size:14px">综合盈亏：</td>';
     html += '<td class="'+totalCls+'" style="font-size:16px;padding:10px 8px">' + totalSign + totalPnl.toFixed(2) + '</td>';
+    html += '<td></td>';
     html += '<td></td>';
     html += '</tr>';
   }

@@ -1,4 +1,9 @@
+/* 版本记录 2026-07-21：(1)新增持仓「告警」列止损灯样式 .alert-light/.alert-yellow/.alert-red/.alert-cell；(2)html{overflow-y:scroll} 强制滚动条常驻，修复切换正常/两融账户时页面左右微抖；(3).hold-table{table-layout:fixed}+colgroup 固定持仓表列宽，修复切换账户时表头文字左右微移；(4)调整操作列宽度至20%+操作列td取消裁剪，修复fixed布局下操作按钮被截断只显示"清仓"的问题；(5)重新分配持仓表 colgroup 列宽：压缩板块/成本价/可用持仓/收盘价/告警，放大当前盈亏至15%，解决当前盈亏金额显示不全的问题；(6)仅改列内边距(padding)微调持仓表列间距，不动列宽：收盘价↔当前盈亏间距缩小(右/左padding 8→2px)，板块↔买入数量间距增大(右/左padding 8→14px)；(7)整体重构持仓表列宽：改用固定像素宽度（总宽1080px）+ 统一 padding(8px 6px)，按内容合理分配每列宽度，兼顾显示全、匀称间距、可用/持仓1000/1000不截断 */
+html { overflow-y: scroll; }
 body { font-family: "Microsoft YaHei", sans-serif; background:#f5f7fa; color:#333; padding:20px; }
+.hold-table { table-layout: fixed; }
+.hold-table th, .hold-table td { overflow: hidden; text-overflow: ellipsis; }
+.hold-table td:last-child { overflow: visible; }
 .container { max-width:1200px; margin:0 auto; }
 
 h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
@@ -48,10 +53,10 @@ h1 { text-align:center; color:#2c3e50; margin-bottom:6px; font-size:24px; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 thead { background:#34495e; color:white; }
-th { padding:10px 8px; font-weight:500; white-space:nowrap; }
+th { padding:8px 6px; font-weight:500; white-space:nowrap; }
 /* 股票名称列左对齐（与数据行对齐） */
 th:nth-child(3) { text-align:left; padding-left:12px; }
-td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
+td { padding:8px 6px; text-align:center; border-bottom:1px solid #eee; white-space:nowrap; overflow:visible; }
 /* 交易记录/持仓表 统一白色背景（与日期头形成对比，不交替变色） */
 .table-box #tbBody tr td,
 .holding-box #holdBody tr td { background: white; }
@@ -68,6 +73,12 @@ td { padding:10px 8px; text-align:center; border-bottom:1px solid #eee; white-sp
 .acc-badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:10px; font-weight:600; margin-left:4px; }
 .acc-normal { background:#e8f4fd; color:#2980b9; }
 .acc-margin { background:#fdf2e8; color:#d35400; }
+
+/* 止损告警灯（持仓表「告警」列）：-3%~-5% 黄灯💡，-5%及以上 红灯🚨 */
+.alert-light { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; font-size:15px; line-height:1; }
+.alert-yellow { background:#fff4cc; box-shadow:0 0 6px 1px #f1c40f; }
+.alert-red { background:#fde0e0; box-shadow:0 0 6px 1px #e74c3c; }
+.alert-cell { text-align:center; width:52px; }
 
 /* Tooltip */
 .tooltip-box { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:6px; z-index:9999; background:#2c3e50; color:#ecf0f1; padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.3); pointer-events:none; }
