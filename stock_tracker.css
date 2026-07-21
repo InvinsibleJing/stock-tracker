@@ -1,4 +1,4 @@
-/* 版本记录 2026-07-21：(1)新增持仓「告警」列止损灯样式 .alert-light/.alert-yellow/.alert-red/.alert-cell；(2)html{overflow-y:scroll} 强制滚动条常驻，修复切换正常/两融账户时页面左右微抖；(3).hold-table{table-layout:fixed}+colgroup 固定持仓表列宽，修复切换账户时表头文字左右微移；(4)调整操作列宽度至20%+操作列td取消裁剪，修复fixed布局下操作按钮被截断只显示"清仓"的问题；(5)重新分配持仓表 colgroup 列宽：压缩板块/成本价/可用持仓/收盘价/告警，放大当前盈亏至15%，解决当前盈亏金额显示不全的问题；(6)仅改列内边距(padding)微调持仓表列间距，不动列宽：收盘价↔当前盈亏间距缩小(右/左padding 8→2px)，板块↔买入数量间距增大(右/左padding 8→14px)；(7)整体重构持仓表列宽：改用固定像素宽度（总宽1080px）+ 统一 padding(8px 6px)，按内容合理分配每列宽度，兼顾显示全、匀称间距、可用/持仓1000/1000不截断；(8)顶部账户切换按钮：两融激活态使用原小徽章 acc-margin 配色（#fdf2e8 背景/#d35400 文字），与正常账户区分 */
+/* 版本记录 2026-07-21：(1)新增持仓「告警」列止损灯样式 .alert-light/.alert-yellow/.alert-red/.alert-cell；(2)html{overflow-y:scroll} 强制滚动条常驻，修复切换正常/两融账户时页面左右微抖；(3).hold-table{table-layout:fixed}+colgroup 固定持仓表列宽，修复切换账户时表头文字左右微移；(4)调整操作列宽度至20%+操作列td取消裁剪，修复fixed布局下操作按钮被截断只显示"清仓"的问题；(5)重新分配持仓表 colgroup 列宽：压缩板块/成本价/可用持仓/收盘价/告警，放大当前盈亏至15%，解决当前盈亏金额显示不全的问题；(6)仅改列内边距(padding)微调持仓表列间距，不动列宽：收盘价↔当前盈亏间距缩小(右/左padding 8→2px)，板块↔买入数量间距增大(右/左padding 8→14px)；(7)整体重构持仓表列宽：改用固定像素宽度（总宽1080px）+ 统一 padding(8px 6px)，按内容合理分配每列宽度，兼顾显示全、匀称间距、可用/持仓1000/1000不截断；(8)顶部账户切换按钮：两融激活态使用原小徽章 acc-margin 配色（#fdf2e8 背景/#d35400 文字），与正常账户区分；(9)新增 .hold-table td.editable{overflow:visible}（特异性0,2,1压过 .hold-table td{overflow:hidden}0,1,1）修复悬停成本价气泡被裁切不弹出的问题；持仓表首行气泡改向下显示并翻转箭头，避免被 .table-wrap 顶边裁切 */
 html { overflow-y: scroll; }
 body { font-family: "Microsoft YaHei", sans-serif; background:#f5f7fa; color:#333; padding:20px; }
 .hold-table { table-layout: fixed; }
@@ -79,13 +79,18 @@ td { padding:8px 6px; text-align:center; border-bottom:1px solid #eee; white-spa
 .alert-cell { text-align:center; width:52px; }
 
 /* Tooltip */
-.tooltip-box { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:6px; z-index:9999; background:#2c3e50; color:#ecf0f1; padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.6; white-space:nowrap; box-shadow:0 4px 12px rgba(0,0,0,0.3); pointer-events:none; }
+.tooltip-box { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:6px; z-index:9999; background:#2c3e50; color:#ecf0f1; padding:8px 12px; border-radius:8px; font-size:12px; line-height:1.6; white-space:nowrap; pointer-events:none; }
 .tooltip-box::after { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:#2c3e50; }
 .editable { cursor:pointer; position:relative; overflow:visible; }
-.editable:hover .tooltip-box { display:block; }
+/* 提升特异性(0,2,1)压过 .hold-table td{overflow:hidden}(0,1,1)，让成本价气泡不被裁切 */
+.hold-table td.editable { overflow:visible; }
 .editable:hover { background:#eef5fb; border-radius:4px; }
+.editable:hover .tooltip-box { display:block; }
 .editable::after { content:"✎"; font-size:9px; color:#bdc3c7; margin-left:2px; opacity:0; transition:opacity 0.2s; }
 .editable:hover::after { opacity:1; }
+/* 持仓表首行气泡向上弹会被 .table-wrap 顶边裁切，改在下方显示并翻转箭头 */
+.holding-box #holdBody tr:first-child .tooltip-box { bottom:auto; top:100%; margin-bottom:0; margin-top:6px; }
+.holding-box #holdBody tr:first-child .tooltip-box::after { top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:#2c3e50; }
 /* 卡片模式下 editable 是 span，不需要 table-cell 样式 */
 .trade-card .editable, .hold-card .editable { display:inline; padding:1px 4px; border-radius:3px; }
 
