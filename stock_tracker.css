@@ -422,6 +422,12 @@ td { padding:8px 6px; text-align:center; border-bottom:1px solid #eee; white-spa
 .note-btn-del { padding:5px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
 .note-btn-del:hover { background:#c0392b; }
 
+/* 持仓表月份头/综合盈亏行的空 td 背景色（用 class 让 tr:hover 能覆盖） */
+.holding-box #holdBody td.hdr-bg-month { background: #c9d4df; }
+.holding-box #holdBody td.hdr-bg-day { background: #eef2f5; }
+.holding-box #holdBody tr:hover td.hdr-bg-month,
+.holding-box #holdBody tr:hover td.hdr-bg-day { background: #fdf4e3; }
+
 /* 可转债：盈利金额为0（未上市）时，转债名称显示绿色 */
 .bond-unlisted { color:#1e8449; font-weight:600; }
 

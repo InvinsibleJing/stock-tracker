@@ -1090,13 +1090,13 @@ function renderTable(){
     var gOpen = gi === 0; // 默认展开最新月份
 
     // 桌面端：月份标题行
-    html+='<tr class="month-header" data-month="'+g.month+'" onclick="toggleMonth(this)" style="cursor:pointer;background:#f0f4f8">';
+    html+='<tr class="month-header" data-month="'+g.month+'" onclick="toggleMonth(this)" style="cursor:pointer;background:#c9d4df">';
     html+='<td colspan="5" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
     html+='<span class="month-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(gOpen?'▼':'▶')+'</span> ';
     html+=escapeHtml(g.label)+' <span style="color:#888;font-weight:400">'+gCount+'条</span>';
     html+='</td>';
-    html+='<td class="'+gCls+'" style="font-weight:600;text-align:center">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</td>';
-    html+='<td style="color:#8e44ad;font-weight:600;text-align:center">'+(gFees>0?'¥'+gFees.toFixed(2):'-')+'</td>';
+    html+='<td class="'+gCls+'" style="font-weight:600;text-align:center">'+gSign+gProfit.toFixed(2)+'</td>';
+    html+='<td style="color:#8e44ad;font-weight:600;text-align:center">'+(gFees>0?gFees.toFixed(2):'-')+'</td>';
     html+='<td colspan="3"></td>';
     html+='</tr>';
 
@@ -1135,7 +1135,7 @@ function renderTable(){
       html+='<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
       html+='<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dgCount+'笔</span>';
       if(dgProfit !== 0){
-        html+='<span class="'+dgCls+'" style="font-weight:500;font-size:11px;margin-left:10px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
+        html+='<span class="'+dgCls+'" style="font-weight:600;font-size:11px;margin-left:10px">'+dgSign+dgProfit.toFixed(2)+'</span>';
       }
       html+='</td>';
       // 第2格：盈亏列（与月份第2格同宽）
@@ -1183,17 +1183,17 @@ function renderTable(){
       }
 
       // 手续费显示 + tooltip
-      var feesShow = (t.fees && t.fees > 0) ? '¥' + t.fees.toFixed(2) : '-';
+      var feesShow = (t.fees && t.fees > 0) ? t.fees.toFixed(2) : '-';
       var feesTooltip = (t.fees && t.fees > 0) ? getFeesTooltip(t) : '';
 
       // 桌面端表格行
       html+='<tr class="month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
       html+='<td>'+seq+'</td>';
       html+='<td class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</td>';
-      html+='<td class="editable" data-id="'+t.id+'" data-field="code" style="text-align:left">'+stockName+tBadgeHtml+sourceHtml+'</td>';
+      html+='<td style="text-align:left">'+stockName+tBadgeHtml+sourceHtml+'</td>';
       html+='<td class="editable" data-id="'+t.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span></td>';
       html+='<td class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</td>';
-      html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+'¥'+t.amount.toFixed(2)+'</td>';
+      html+='<td class="editable '+cls+'" data-id="'+t.id+'" data-field="amount">'+sign+t.amount.toFixed(2)+'</td>';
       html+='<td class="editable" data-id="'+t.id+'" data-field="fees" style="color:#7f8c8d">'+feesShow+(feesTooltip?'<div class="tooltip-box">'+feesTooltip+'</div>':'')+'</td>';
       html+='<td class="'+cls+'">'+(ip?'成功':'失败')+'</td>';
       html+='<td class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</td>';
@@ -1204,11 +1204,11 @@ function renderTable(){
       cardHtml+='<div class="trade-card-item month-row-'+g.month+' day-row-'+dg.day+'"'+rowStyle+'>';
       cardHtml+='<div class="trade-card-header">';
       cardHtml+='<span class="trade-card-name">'+stockName+tBadgeHtml+sourceHtml+'</span>';
-      cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+'¥'+t.amount.toFixed(2)+'</span>';
+      cardHtml+='<span class="trade-card-amount '+(ip?'red':'green')+'">'+sign+t.amount.toFixed(2)+'</span>';
       cardHtml+='</div>';
       cardHtml+='<div class="trade-card-row"><span class="label">日期</span><span class="editable" data-id="'+t.id+'" data-field="date">'+formatDate(t.date)+'</span></div>';
       cardHtml+='<div class="trade-card-row"><span class="label">数量</span><span class="editable" data-id="'+t.id+'" data-field="quantity">'+(t.quantity?t.quantity+'股':'-')+'</span></div>';
-      if(t.fees && t.fees > 0) cardHtml+='<div class="trade-card-row"><span class="label">手续费</span><span style="color:#7f8c8d">¥'+t.fees.toFixed(2)+'</span></div>';
+      if(t.fees && t.fees > 0) cardHtml+='<div class="trade-card-row"><span class="label">手续费</span><span style="color:#7f8c8d">'+t.fees.toFixed(2)+'</span></div>';
       cardHtml+='<div class="trade-card-row"><span class="label">备注</span><span class="editable" data-id="'+t.id+'" data-field="note">'+noteShow+'</span></div>';
       cardHtml+='<div class="trade-card-footer">';
       cardHtml+='<span class="tag '+tagClass+'">'+(t.tag||'主板')+'</span>';
@@ -1372,14 +1372,14 @@ function updateStats(){
   document.getElementById('stTotal').textContent=total;
   document.getElementById('stRate').textContent=rate+'%';
   var el=document.getElementById('stProfit');
-  el.textContent=(tp>=0?'+':'')+'¥'+tp.toFixed(2);
+  el.textContent=(tp>=0?'+':'')+tp.toFixed(2);
   el.className='card-val '+(tp>=0?'red':'green');
   document.getElementById('stMaxWin').textContent='+'+maxWin.toFixed(2);
   document.getElementById('stMaxLoss').textContent=maxLoss.toFixed(2);
   // 手续费总额
   var tf=0;
   for(var j=0;j<trades.length;j++){ tf+=(parseFloat(trades[j].fees)||0); }
-  document.getElementById('stFees').textContent='¥'+tf.toFixed(2);
+  document.getElementById('stFees').textContent=tf.toFixed(2);
 }
 
 // ===== 抓取持仓实时价格（腾讯财经API）=====
@@ -1889,7 +1889,7 @@ function renderStockSummary(){
 
   // 汇总行
   var stockRate=totalStocks>0?(profitStocks/totalStocks*100).toFixed(1):0;
-  html+='<tr style="background:#f0f4f8;font-weight:bold">';
+  html+='<tr style="background:#c9d4df;font-weight:bold">';
   html+='<td></td>';
   html+='<td style="text-align:left;padding-left:8px">📊 合计（'+totalStocks+'只股票）</td>';
   html+='<td>-</td><td>-</td><td>-</td><td>-</td>';
@@ -3467,7 +3467,7 @@ function renderHoldings(){
         rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         rowHtml+='<td>'+seq+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-        rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="code">'+stockName+'</td>';
+        rowHtml+='<td>'+stockName+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
@@ -3475,6 +3475,9 @@ function renderHoldings(){
         rowHtml+='<td>'+priceShow+'</td>';
         rowHtml+='<td>'+pnl+'</td>';
         rowHtml+='<td class="alert-cell">'+alertHtml+'</td>';
+        // 持仓时长（从建仓日期算起）
+        var holdDays = Math.floor((new Date(today) - new Date(h.date)) / 86400000);
+        rowHtml+='<td style="color:#7f8c8d;font-size:12px">'+holdDays+'天</td>';
         rowHtml+='<td style="text-align:right">';
         rowHtml+='<button class="op-btn btn-clear" data-id="'+h.id+'" data-action="clearHolding">清仓</button>';
         rowHtml+='<button class="op-btn btn-dot" data-id="'+h.id+'" data-action="doT">做T</button>';
@@ -3518,31 +3521,33 @@ function renderHoldings(){
       var dgCls = dgProfit >= 0 ? 'red' : 'green';
       var dgSign = dgProfit >= 0 ? '+' : '';
       gHtml += '<tr class="hold-day-header hold-month-row-'+g.month+'" data-day="'+dg.day+'" data-month="'+g.month+'"'+rowStyle+' onclick="toggleHoldDay(this)">';
-      gHtml += '<td colspan="8" style="padding:8px 12px 8px 36px;cursor:pointer;background:#eef2f5;border-bottom:1px solid #ddd;text-align:left">';
+      gHtml += '<td colspan="8" class="hdr-bg-day" style="padding:8px 12px 8px 36px;cursor:pointer;border-bottom:1px solid #ddd;text-align:left">';
       gHtml += '<span class="hold-day-toggle" style="display:inline-block;width:16px;font-size:12px;transition:transform 0.2s;color:#7f8c8d;margin-right:6px">▼</span> ';
       gHtml += '<span style="font-weight:600;font-size:12px;color:#34495e">'+escapeHtml(dg.label)+'</span>';
       gHtml += '<span style="color:#999;font-weight:400;font-size:11px;margin-left:6px">'+dg.holdings.length+'笔</span>';
       if(dgProfit !== 0){
-        gHtml += '<span class="'+dgCls+'" style="font-weight:500;font-size:11px;margin-left:10px">'+dgSign+'¥'+Math.abs(dgProfit).toFixed(2)+'</span>';
+        gHtml += '<span class="'+dgCls+'" style="font-weight:600;font-size:11px;margin-left:10px">'+dgSign+dgProfit.toFixed(2)+'</span>';
       }
       gHtml += '</td>';
-      gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
-      gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
-      gHtml += '<td style="background:#eef2f5;border-bottom:1px solid #ddd"></td>';
+      gHtml += '<td class="hdr-bg-day" style="border-bottom:1px solid #ddd"></td>';
+      gHtml += '<td class="hdr-bg-day" style="border-bottom:1px solid #ddd"></td>';
+      gHtml += '<td class="hdr-bg-day" style="border-bottom:1px solid #ddd"></td>';
+      gHtml += '<td class="hdr-bg-day" style="border-bottom:1px solid #ddd"></td>';
       gHtml += '</tr>';
       gHtml += dgHtml;
     }
 
     var gCls = gProfit >= 0 ? 'red' : 'green';
     var gSign = gProfit >= 0 ? '+' : '';
-    html += '<tr class="hold-month-header" data-month="'+g.month+'" onclick="toggleHoldMonth(this)" style="cursor:pointer;background:#f0f4f8">';
-    html += '<td colspan="8" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
+    html += '<tr class="hold-month-header" data-month="'+g.month+'" onclick="toggleHoldMonth(this)" style="cursor:pointer;background:#c9d4df">';
+    html += '<td colspan="8" class="hdr-bg-month" style="padding:10px 12px;text-align:left;font-weight:600;font-size:13px;color:#2c3e50">';
     html += '<span class="hold-month-toggle" style="display:inline-block;width:18px;transition:transform 0.2s">'+(gOpen?'▼':'▶')+'</span> ';
     html += escapeHtml(g.label)+' <span style="color:#888;font-weight:400">'+gCount+'笔</span>';
     html += '</td>';
-    html += '<td class="'+gCls+'" style="font-weight:600;text-align:center">'+gSign+'¥'+Math.abs(gProfit).toFixed(2)+'</td>';
-    html += '<td></td>';
-    html += '<td></td>';
+    html += '<td class="'+gCls+' hdr-bg-month" style="font-weight:600;text-align:center">'+gSign+gProfit.toFixed(2)+'</td>';
+    html += '<td class="hdr-bg-month"></td>';
+    html += '<td class="hdr-bg-month"></td>';
+    html += '<td class="hdr-bg-month"></td>';
     html += '</tr>';
     html += gHtml;
   }
@@ -3550,18 +3555,19 @@ function renderHoldings(){
   if(hasAnyPnl){
     var totalCls = totalPnl >= 0 ? 'red' : 'green';
     var totalSign = totalPnl >= 0 ? '+' : '';
-    html += '<tr style="background:#f0f4f8;font-weight:bold;border-top:2px solid #2c6e49">';
-    html += '<td colspan="8" style="text-align:right;padding:10px 12px;color:#2c3e50;font-size:14px">综合盈亏：</td>';
-    html += '<td class="'+totalCls+'" style="font-size:16px;padding:10px 8px">' + totalSign + totalPnl.toFixed(2) + '</td>';
-    html += '<td></td>';
-    html += '<td></td>';
+    html += '<tr style="background:#c9d4df;font-weight:bold;border-top:2px solid #2c6e49">';
+    html += '<td colspan="8" class="hdr-bg-month" style="text-align:right;padding:10px 12px;color:#2c3e50;font-size:14px">综合盈亏：</td>';
+    html += '<td class="'+totalCls+' hdr-bg-month" style="font-size:16px;padding:10px 8px">' + totalSign + totalPnl.toFixed(2) + '</td>';
+    html += '<td class="hdr-bg-month"></td>';
+    html += '<td class="hdr-bg-month"></td>';
+    html += '<td class="hdr-bg-month"></td>';
     html += '</tr>';
   }
 
   if(hasAnyPnl){
     var totalCls2 = totalPnl >= 0 ? 'red' : 'green';
     var totalSign2 = totalPnl >= 0 ? '+' : '';
-    cardHtml += '<div class="hold-card-item" style="background:#f0f4f8;border:2px solid #2c6e49;margin-top:8px">';
+    cardHtml += '<div class="hold-card-item" style="background:#c9d4df;border:2px solid #2c6e49;margin-top:8px">';
     cardHtml += '<div class="hold-card-header">';
     cardHtml += '<span class="hold-card-name" style="font-size:15px;color:#2c3e50">综合盈亏</span>';
     cardHtml += '<span class="' + totalCls2 + '" style="font-size:18px;font-weight:700">' + totalSign2 + totalPnl.toFixed(2) + '</span>';
