@@ -1380,6 +1380,19 @@ function updateStats(){
   var tf=0;
   for(var j=0;j<trades.length;j++){ tf+=(parseFloat(trades[j].fees)||0); }
   document.getElementById('stFees').textContent=tf.toFixed(2);
+  // 持仓盈亏 = 全部持仓（正常账户 + 两融账户）浮动盈亏合计，遍历全部 holdings 不区分账户
+  var hpTotal = 0;
+  for(var k=0;k<holdings.length;k++){
+    var hk=holdings[k];
+    var padded=(hk.code||'').padStart(6,'0');
+    var cp2=currentPrices[padded];
+    if(cp2 && cp2.close>0 && hk.buyPrice>0 && hk.quantity>0){
+      hpTotal+=(cp2.close-hk.buyPrice)*hk.quantity;
+    }
+  }
+  var hpEl=document.getElementById('stHoldPnl');
+  hpEl.textContent=(hpTotal>=0?'+':'')+hpTotal.toFixed(2);
+  hpEl.style.color=hpTotal>=0?'#e74c3c':'#27ae60';
 }
 
 // ===== 抓取持仓实时价格（腾讯财经API）=====
@@ -1414,7 +1427,7 @@ function fetchStockPrices(){
     }
     // 存入localStorage持久化
     try { localStorage.setItem('stock_current_prices', JSON.stringify(currentPrices)); } catch(e){}
-    renderHoldings();
+    renderHoldings(); // 内部末尾已触发 updateStats() 刷新统计卡片（持仓盈亏）
     if(btn) btn.disabled = false;
   }).catch(function(){
     console.warn('抓取价格失败');
@@ -3578,6 +3591,7 @@ function renderHoldings(){
   tbody.innerHTML=html;
   cardEl.innerHTML=cardHtml;
   restoreHoldCollapseState();
+  updateStats(); // 持仓表渲染完（价格已就绪），刷新统计卡片的持仓盈亏
 }
 
 function toggleHoldMonth(el){
