@@ -4119,9 +4119,11 @@ function closeGeneralConfirm(){
 
 function confirmUndoAction(){
   if(!_undoSelectedId){ showStatus('err','请先选择要撤销的操作'); return; }
+  // 关键：先把要撤销的 ID 保存到局部变量，再关闭弹窗（关闭会清空 _undoSelectedId）
+  var opIdToUndo = _undoSelectedId;
   closeUndoConfirm();
-  showStatus('loading','🔄 正在撤销 id=' + _undoSelectedId + '...');
-  apiCall({action:'undo', opId: _undoSelectedId}, function(res){
+  showStatus('loading','🔄 正在撤销 id=' + opIdToUndo + '...');
+  apiCall({action:'undo', opId: opIdToUndo}, function(res){
     if(res && res.success){
       // 乐观更新本地持仓明细缓存（撤销补仓时同步移除那条明细）
       if(res.detailId && res.holdingId && _positionDetailsCache[res.holdingId]){
