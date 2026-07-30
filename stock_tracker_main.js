@@ -3567,7 +3567,7 @@ function renderHoldings(){
         rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         rowHtml+='<td>'+seq+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-        rowHtml+='<td style="cursor:pointer" onclick="toggleHoldingDetail(this,\''+h.id+'\',\''+(h.code||'')+'\')"><span class="hold-toggle" id="hold-toggle-'+h.id+'" style="display:none;font-size:10px;margin-right:4px;color:#7f8c8d">▸</span>'+stockName+'</td>';
+        rowHtml+='<td style="cursor:pointer" onclick="toggleHoldingDetail(this,\''+h.id+'\',\''+(h.code||'')+'\')"><span class="hold-toggle" id="hold-toggle-'+h.id+'" style="display:none;font-size:13px;margin-right:4px;color:#7f8c8d">📋</span>'+stockName+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
@@ -4133,7 +4133,7 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
       // 已加载过：纯切换显示
       var showing = detailRow.style.display !== 'none';
       detailRow.style.display = showing ? 'none' : '';
-      if (toggleEl) toggleEl.textContent = showing ? '▸' : '▾';
+      if (toggleEl) toggleEl.textContent = '📋';
       return;
     }
     // 首次显示，从缓存渲染（确保 >=2 才到这里）
