@@ -761,7 +761,6 @@ function refreshUI(){
   cacheData(trades);
   try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
   updateUndoBtn();
-  applyPositionDetailToggles(); // 每次重渲染后把 📋 标回有多批历史的行
 }
 
 // 渲染后把缓存中 >=2 条记录的持仓前 📋 图标显示出来
@@ -3693,6 +3692,7 @@ function renderHoldings(){
   cardEl.innerHTML=cardHtml;
   restoreHoldCollapseState();
   updateStats(); // 持仓表渲染完（价格已就绪），刷新统计卡片的持仓盈亏
+  applyPositionDetailToggles(); // 每次重渲染后恢复 📋 标记
 }
 
 function toggleHoldMonth(el){
