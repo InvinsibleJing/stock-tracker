@@ -761,6 +761,18 @@ function refreshUI(){
   cacheData(trades);
   try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
   updateUndoBtn();
+  applyPositionDetailToggles(); // 每次重渲染后把 📋 标回有多批历史的行
+}
+
+// 渲染后把缓存中 >=2 条记录的持仓前 📋 图标显示出来
+function applyPositionDetailToggles(){
+  var cache = _positionDetailsCache;
+  for(var holdingId in cache){
+    if(cache[holdingId] && cache[holdingId].length >= 2){
+      var toggle = document.getElementById('hold-toggle-' + holdingId);
+      if(toggle) toggle.style.display = 'inline';
+    }
+  }
 }
 
 // 乐观更新失败时的回滚处理
