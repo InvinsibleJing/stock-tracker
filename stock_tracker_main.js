@@ -3884,8 +3884,18 @@ function updateUndoBtn(){
 }
 
 function undoLast(){
-  if(!_undoLatestDesc){ alert('没有可撤销的操作'); return; }
-  if(!confirm('确定撤销以下操作？\n\n' + _undoLatestDesc + '\n\n撤销后将自动重新加载数据。')) return;
+  if(!_undoLatestDesc){ showStatus('err','没有可撤销的操作'); return; }
+  var descEl = document.getElementById('undoConfirmDesc');
+  if(descEl) descEl.textContent = _undoLatestDesc;
+  document.getElementById('undoConfirmModal').classList.add('active');
+}
+
+function closeUndoConfirm(){
+  document.getElementById('undoConfirmModal').classList.remove('active');
+}
+
+function confirmUndoAction(){
+  closeUndoConfirm();
   showStatus('loading','🔄 正在撤销...');
   apiCall({action:'undo'}, function(res){
     if(res && res.success){
