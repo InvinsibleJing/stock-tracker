@@ -3945,8 +3945,8 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
   // 命中缓存：直接渲染（瞬时显示，无需等待）
   var cached = _positionDetailsCache[holdingId];
   if (cached) {
-    if (cached.length === 1) {
-      // 仅 1 条建仓记录，与主行重复，无需展开——直接返回（不显示 ▸ 也不展开行）
+    if (cached.length < 2) {
+      // 0 或 1 条记录：不值得展开，连箭头都不显示，直接返回
       return;
     }
     if (detailRow.dataset.loaded === '1') {
@@ -3956,7 +3956,7 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
       if (toggleEl) toggleEl.textContent = showing ? '▸' : '▾';
       return;
     }
-    // 首次显示，从缓存渲染
+    // 首次显示，从缓存渲染（确保 >=2 才到这里）
     renderPositionDetail(contentEl, toggleEl, detailRow, cached);
     return;
   }
@@ -3972,11 +3972,12 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
     }
     var data = res.data || [];
     _positionDetailsCache[holdingId] = data; // 同时填充缓存
-    if (data.length === 1) {
-      // 仅一条记录，关闭并取消点击指针
+
+    if (data.length < 2) {
+      // 0 或 1 条记录：折叠掉、不显示箭头、单元格恢复默认（首次也没缓存时第一次点击走这里）
       detailRow.style.display = 'none';
+      if (toggleEl) toggleEl.style.display = 'none';
       nameEl.style.cursor = 'default';
-      nameEl.onclick = null;
       return;
     }
     renderPositionDetail(contentEl, toggleEl, detailRow, data);
@@ -3984,6 +3985,8 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
 }
 
 function renderPositionDetail(contentEl, toggleEl, detailRow, data) {
+  // 防御：只有 >=2 条记录才露出箭头和详情
+  if (data.length < 2) return;
   detailRow.dataset.loaded = '1';
   detailRow.style.display = '';
   if (toggleEl) {
