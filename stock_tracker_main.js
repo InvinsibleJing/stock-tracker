@@ -3529,7 +3529,7 @@ function renderHoldings(){
         rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         rowHtml+='<td>'+seq+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-        rowHtml+='<td style="cursor:pointer" onclick="toggleHoldingDetail(this,\''+h.id+'\',\''+(h.code||'')+'\')"><span class="hold-toggle" id="hold-toggle-'+h.id+'" style="font-size:10px;margin-right:4px;color:#7f8c8d">▸</span>'+stockName+'</td>';
+        rowHtml+='<td style="cursor:pointer" onclick="toggleHoldingDetail(this,\''+h.id+'\',\''+(h.code||'')+'\')"><span class="hold-toggle" id="hold-toggle-'+h.id+'" style="display:none;font-size:10px;margin-right:4px;color:#7f8c8d">▸</span>'+stockName+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
@@ -3940,6 +3940,11 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
     if (data.length === 0) {
       if (contentEl) contentEl.innerHTML = '<span style="color:#bdc3c7">暂无建仓/补仓明细（此功能上线前的旧持仓不追溯历史）</span>';
       return;
+    }
+    
+    // 仅显示箭头当有多条记录（建仓+至少一次补仓），单条记录不值得展开
+    if (data.length >= 2 && toggleEl) {
+      toggleEl.style.display = 'inline';
     }
     
     var tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e8eaed">';
