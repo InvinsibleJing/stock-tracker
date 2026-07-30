@@ -847,7 +847,7 @@ function undo(params) {
         break;
       }
     }
-    if (!target) return { success: false, error: '该操作已被撤销或不在今天范围' };
+    if (!target) return { success: false, error: 'opId=' + opId + ' 未匹配到今天(' + today + ')的未撤销记录，可能已被撤销或不在今天范围' };
   } else {
     // 默认：撤销今天最新一条
     for (var i = data.length - 1; i >= 0; i--) {

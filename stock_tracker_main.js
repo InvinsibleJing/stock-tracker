@@ -4120,7 +4120,7 @@ function closeGeneralConfirm(){
 function confirmUndoAction(){
   if(!_undoSelectedId){ showStatus('err','请先选择要撤销的操作'); return; }
   closeUndoConfirm();
-  showStatus('loading','🔄 正在撤销...');
+  showStatus('loading','🔄 正在撤销 id=' + _undoSelectedId + '...');
   apiCall({action:'undo', opId: _undoSelectedId}, function(res){
     if(res && res.success){
       // 乐观更新本地持仓明细缓存（撤销补仓时同步移除那条明细）
@@ -4134,10 +4134,10 @@ function confirmUndoAction(){
           if(toggle) toggle.style.display = 'none';
         }
       }
-      showStatus('ok','✅ ' + (res.message || '撤销成功'));
+      showStatus('ok','✅ ' + (res.message || '撤销成功') + ' [detailId=' + (res.detailId||'') + ', holdingId=' + (res.holdingId||'') + ']');
       loadAll();
     } else {
-      showStatus('err','❌ 撤销失败：' + (res ? (res.error || '') : '服务器无响应'));
+      showStatus('err','❌ 撤销失败：' + (res ? (res.error || '') : '服务器��响应'));
     }
   });
 }
