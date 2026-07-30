@@ -4113,6 +4113,13 @@ function loadAllPositionDetails(){
       map[d.holdingId].push(d);
     }
     _positionDetailsCache = map;
+    // 缓存就绪后，给有 2+ 记录的股票前直接显示 📋 图标（天然指示哪些有多批历史）
+    for(var holdingId in map){
+      if(map[holdingId].length >= 2){
+        var toggle = document.getElementById('hold-toggle-' + holdingId);
+        if(toggle) toggle.style.display = 'inline';
+      }
+    }
   });
 }
 
