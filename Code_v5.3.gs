@@ -278,6 +278,9 @@ function doGet(e) {
       case 'listUndoable':
         result = listUndoable();
         break;
+      case 'clearUndoable':
+        result = clearUndoable();
+        break;
       case 'listPositionDetails':
         result = e.parameter.holdingId ? listPositionDetails(e.parameter.holdingId) : listAllPositionDetails();
         break;
@@ -794,6 +797,24 @@ function listUndoable() {
   }
   list.reverse(); // 新的在前面
   return { success: true, list: list, count: list.length };
+}
+
+// 清空今天所有可撤销操作（标记 reversed=1，保留历史记录但下一天起再也撤销不了）
+// 用于用户主动"放弃撤销池"：误操作积累多了重置一下。
+function clearUndoable() {
+  var sheet = getHistorySheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, cleared: 0 };
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var today = getTodayDateStr();
+  var cleared = 0;
+  for (var i = 0; i < data.length; i++) {
+    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+      sheet.getRange(i + 2, 6).setValue(1);
+      cleared++;
+    }
+  }
+  return { success: true, cleared: cleared };
 }
 
 // 获取今天日期字符串 YYYY-MM-DD

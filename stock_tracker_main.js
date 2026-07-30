@@ -3997,6 +3997,21 @@ function closeUndoConfirm(){
   _undoSelectedId = '';
 }
 
+function clearUndoableAction(){
+  if(!confirm('确定清空所有可撤销操作？\n\n这些记录会被标记为已撤销（但历史不会删除，依然可见），以后就撤销不了了。')) return;
+  showStatus('loading','🔄 正在清空...');
+  apiCall({action:'clearUndoable'}, function(res){
+    if(res && res.success){
+      var n = res.cleared || 0;
+      showStatus('ok','✅ 已清空 ' + n + ' 条可撤销记录');
+      closeUndoConfirm();
+      updateUndoBtn();
+    } else {
+      showStatus('err','❌ 清空失败：' + (res ? (res.error || '') : '服务器无响应'));
+    }
+  });
+}
+
 function confirmUndoAction(){
   if(!_undoSelectedId){ showStatus('err','请先选择要撤销的操作'); return; }
   closeUndoConfirm();
