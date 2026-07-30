@@ -2842,10 +2842,19 @@ function submitClearHolding(){
   trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
 
   if(isPartial){
-    // 部分清仓：减少持仓数量，不移除持仓
+    // 部分清仓：减少持仓数量 + 现金流法冲减成本价（与做T冲减口径一致，避免前后端不一致）
     for(var i=0;i<holdings.length;i++){
       if(String(holdings[i].id)===String(id)){
-        holdings[i].quantity = holdings[i].quantity - actualQty;
+        var remainQty = holdings[i].quantity - actualQty;
+        var oldTotalCost = holdings[i].buyPrice * holdings[i].quantity;
+        // 现金流法：新总成本 = 原总成本 - (卖出所得 - 卖出手续费)
+        var cashFlowProfit = sellPrice * actualQty - feesTotal;
+        var newTotalCost = oldTotalCost - cashFlowProfit;
+        if(newTotalCost < 0) newTotalCost = 0;
+        var newBuyPrice = remainQty > 0 ? (newTotalCost / remainQty) : 0;
+        if(newBuyPrice < 0) newBuyPrice = 0;
+        holdings[i].buyPrice = Math.round(newBuyPrice * 1000) / 1000;
+        holdings[i].quantity = remainQty;
         break;
       }
     }
@@ -2859,7 +2868,7 @@ function submitClearHolding(){
   showStatus('ok','✅ 清仓成功，' + actualQty + '股已记录');
 
   // 后台同步
-  apiCall({action:'clearHolding',id:id,amount:amount,note:finalNote,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal}, function(res){
+  apiCall({action:'clearHolding',id:id,amount:amount,note:finalNote,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal,sellPrice:sellPrice}, function(res){
     if(res&&res.success){
       if(res.tradeId){
         for(var j=0;j<trades.length;j++){

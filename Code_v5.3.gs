@@ -667,10 +667,20 @@ function clearHolding(params) {
   tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
 
   if (actualIsPartial) {
-    // 部分清仓：更新持仓数量（成本价不变，因为剩余股的成本单价不变）
+    // 部分清仓：更新持仓数量 + 现金流法冲减成本价（与做T冲减口径一致）
     var newQty = holding.quantity - clearQty;
+    var sellPrice = parseFloat(params.sellPrice) || 0;
+    var fees = parseFloat(params.fees) || 0;
+    var oldTotalCost = holding.buyPrice * holding.quantity;
+    var cashFlowProfit = sellPrice * clearQty - fees;
+    var newTotalCost = oldTotalCost - cashFlowProfit;
+    if (newTotalCost < 0) newTotalCost = 0;
+    var newBuyPrice = newQty > 0 ? (newTotalCost / newQty) : 0;
+    if (newBuyPrice < 0) newBuyPrice = 0;
+    newBuyPrice = Math.round(newBuyPrice * 1000) / 1000;
     hSheet.getRange(holdingRow, 5).setValue(newQty);
-    return { success: true, tradeId: tradeId, wasPartial: true, newQuantity: newQty };
+    hSheet.getRange(holdingRow, 7).setValue(newBuyPrice);
+    return { success: true, tradeId: tradeId, wasPartial: true, newQuantity: newQty, newBuyPrice: newBuyPrice };
   } else {
     // 全部清仓：删除持仓（不再标记做T为已完结，前端按tIndex过滤统计）
     hSheet.deleteRow(holdingRow);
