@@ -3904,14 +3904,21 @@ function updateUndoBtn(){
         btn.style.display = '';
         btn.disabled = false;
         btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">' + res.count + '</span>';
+        // 后台预加载完整列表（点击撤销按钮时直接秒开，不用等 3-4 秒）
+        apiCall({action:'listUndoable'}, function(lres){
+          if(lres && lres.success){
+            _undoListData = lres.list || [];
+          }
+        });
       } else {
-        // 没有任何可撤销操作时，整个按钮隐藏
         btn.style.display = 'none';
         btn.disabled = true;
+        _undoListData = [];
       }
     } else {
       btn.style.display = 'none';
       btn.disabled = true;
+      _undoListData = [];
     }
   });
 }
@@ -3937,6 +3944,16 @@ function _opTypeIcon(opType){
 }
 
 function undoLast(){
+  // 优先用更新时预加载的缓存（秒开），缓存为空的用 API 回退做一次加载
+  if(_undoListData && _undoListData.length > 0){
+    _undoSelectedId = '';
+    renderUndoList();
+    document.getElementById('undoConfirmModal').classList.add('active');
+    var btn = document.getElementById('btnConfirmUndo');
+    if(btn) btn.disabled = true;
+    return;
+  }
+  // 缓存失效或还没加载完，退回到 API 查询
   apiCall({action:'listUndoable'}, function(res){
     if(!res || !res.success) { showStatus('err','获取可撤销列表失败'); return; }
     var list = res.list || [];
@@ -3945,7 +3962,6 @@ function undoLast(){
     _undoSelectedId = '';
     renderUndoList();
     document.getElementById('undoConfirmModal').classList.add('active');
-    // 重置确认按钮
     var btn = document.getElementById('btnConfirmUndo');
     if(btn) btn.disabled = true;
   });
