@@ -647,12 +647,12 @@
 
 <!-- 撤销确认弹窗 -->
 <div class="modal-bg" id="undoConfirmModal">
-  <div class="modal" style="max-width:420px">
-    <h2>🕐 撤销操作</h2>
-    <p>确定撤销以下操作？撤销后系统将自动重新加载数据。</p>
-    <div id="undoConfirmDesc" style="background:#f8f9fa;border-left:3px solid #e67e22;padding:12px 14px;border-radius:6px;margin-bottom:14px;font-size:13px;color:#2c3e50;line-height:1.6;white-space:pre-wrap"></div>
+  <div class="modal" style="max-width:480px">
+    <h2>🕐 选择要撤销的操作</h2>
+    <p>今天共有 <span id="undoModalCount" style="font-weight:600;color:#e67e22">0</span> 条可撤销操作，点击要撤销的那条后再点确认。</p>
+    <div id="undoItemList" style="max-height:300px;overflow-y:auto;margin-bottom:14px;border:1px solid #e8eaed;border-radius:6px"></div>
     <div class="btns">
-      <button class="btn btn-orange" onclick="confirmUndoAction()">确认撤销</button>
+      <button class="btn btn-orange" id="btnConfirmUndo" onclick="confirmUndoAction()" disabled>确认撤销</button>
       <button class="btn btn-red" onclick="closeUndoConfirm()">取消</button>
     </div>
   </div>

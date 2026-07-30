@@ -3892,7 +3892,8 @@ function submitDividend(){
 }
 
 // ===== 撤销操作（Undo）=====
-var _undoLatestDesc = ''; // 最新一条可撤销操作的描述（用于确认框）
+var _undoSelectedId = ''; // 弹窗里当前选中的可撤销记录 id
+var _undoListData = []; // 弹窗里当前展示的列表
 
 function updateUndoBtn(){
   var btn = document.getElementById('btnUndo');
@@ -3900,13 +3901,6 @@ function updateUndoBtn(){
   apiCall({action:'checkUndo'}, function(res){
     if(res && res.success){
       if(res.count > 0){
-        // 将描述里的6位股票代码替换为股票名称（更易读）
-        var desc = res.latestDesc || '';
-        desc = desc.replace(/(\d{6})/g, function(m){
-          var name = getStockName(m);
-          return name ? name : m;
-        });
-        _undoLatestDesc = desc;
         btn.disabled = false;
         btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">' + res.count + '</span>';
       } else {
@@ -3920,21 +3914,94 @@ function updateUndoBtn(){
   });
 }
 
+// 把描述里的 6 位股票代码翻译为名称（多处复用）
+function _translateCodeToName(desc){
+  if(!desc) return '';
+  return desc.replace(/(\d{6})/g, function(m){
+    var name = getStockName(m);
+    return name ? name : m;
+  });
+}
+
+// 操作类型对应的 emoji 标识
+function _opTypeIcon(opType){
+  if (opType === 'addHolding') return '📌';
+  if (opType === 'addToHolding') return '🔄';
+  if (opType === 'doT') return '🕒';
+  if (opType === 'partialClear') return '✂️';
+  if (opType === 'fullClear') return '💥';
+  if (opType === 'deleteHolding') return '🗑';
+  return '•';
+}
+
 function undoLast(){
-  if(!_undoLatestDesc){ showStatus('err','没有可撤销的操作'); return; }
-  var descEl = document.getElementById('undoConfirmDesc');
-  if(descEl) descEl.textContent = _undoLatestDesc;
-  document.getElementById('undoConfirmModal').classList.add('active');
+  apiCall({action:'listUndoable'}, function(res){
+    if(!res || !res.success) { showStatus('err','获取可撤销列表失败'); return; }
+    var list = res.list || [];
+    if(list.length === 0){ showStatus('err','没有今天可撤销的操作'); return; }
+    _undoListData = list;
+    _undoSelectedId = '';
+    renderUndoList();
+    document.getElementById('undoConfirmModal').classList.add('active');
+    // 重置确认按钮
+    var btn = document.getElementById('btnConfirmUndo');
+    if(btn) btn.disabled = true;
+  });
+}
+
+function renderUndoList(){
+  var list = _undoListData;
+  document.getElementById('undoModalCount').textContent = list.length;
+  var html = '';
+  if(list.length === 0){
+    html = '<div style="padding:20px;text-align:center;color:#95a5a6">没有可撤销的操作</div>';
+  } else {
+    for(var i=0;i<list.length;i++){
+      var it = list[i];
+      var desc = _translateCodeToName(it.opDesc);
+      // 时间戳格式：2026-07-30T12:34:56.789Z → 12:34
+      var t = it.timestamp || '';
+      var hm = t.indexOf('T')>=0 ? t.substring(t.indexOf('T')+1, t.indexOf('T')+6) : '';
+      html += '<div class="undo-item" data-id="' + escapeHtml(it.id) + '" onclick="selectUndoItem(' + JSON.stringify(it.id) + ')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:background 0.15s" onmouseover="this.style.background=&#39;#f5f6f7&#39;" onmouseout="this.style.background=&#39;&#39;">';
+      html += '<span style="font-size:16px">' + _opTypeIcon(it.opType) + '</span>';
+      html += '<span style="flex:1;color:#2c3e50;font-size:13px">' + escapeHtml(desc) + '</span>';
+      if(hm) html += '<span style="color:#7f8c8d;font-size:11px">' + escapeHtml(hm) + '</span>';
+      html += '</div>';
+    }
+  }
+  document.getElementById('undoItemList').innerHTML = html;
+}
+
+function selectUndoItem(id){
+  _undoSelectedId = id;
+  // 更新选中样式
+  var items = document.querySelectorAll('.undo-item');
+  for(var i=0;i<items.length;i++){
+    if(items[i].getAttribute('data-id') === id){
+      items[i].style.background = '#fff7e6';
+      items[i].style.borderLeft = '3px solid #e67e22';
+      items[i].style.paddingLeft = '11px';
+    } else {
+      items[i].style.background = '';
+      items[i].style.borderLeft = '';
+      items[i].style.paddingLeft = '14px';
+    }
+  }
+  // 启用确认按钮
+  var btn = document.getElementById('btnConfirmUndo');
+  if(btn) btn.disabled = false;
 }
 
 function closeUndoConfirm(){
   document.getElementById('undoConfirmModal').classList.remove('active');
+  _undoSelectedId = '';
 }
 
 function confirmUndoAction(){
+  if(!_undoSelectedId){ showStatus('err','请先选择要撤销的操作'); return; }
   closeUndoConfirm();
   showStatus('loading','🔄 正在撤销...');
-  apiCall({action:'undo'}, function(res){
+  apiCall({action:'undo', opId: _undoSelectedId}, function(res){
     if(res && res.success){
       showStatus('ok','✅ ' + (res.message || '撤销成功'));
       loadAll();

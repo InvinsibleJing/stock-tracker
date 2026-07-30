@@ -270,10 +270,13 @@ function doGet(e) {
         }
         break;
       case 'undo':
-        result = undo();
+        result = undo(e.parameter);
         break;
       case 'checkUndo':
         result = checkUndo();
+        break;
+      case 'listUndoable':
+        result = listUndoable();
         break;
       case 'listPositionDetails':
         result = e.parameter.holdingId ? listPositionDetails(e.parameter.holdingId) : listAllPositionDetails();
@@ -771,6 +774,28 @@ function checkUndo() {
   return { success: true, count: unreversed.length, latestDesc: latest ? latest.opDesc : '' };
 }
 
+// 列出今天所有可撤销操作（前端撤销弹窗选择用）
+function listUndoable() {
+  var sheet = getHistorySheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, list: [], count: 0 };
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var today = getTodayDateStr();
+  var list = [];
+  for (var i = 0; i < data.length; i++) {
+    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+      list.push({
+        id: String(data[i][0]),
+        timestamp: String(data[i][1]),
+        opType: String(data[i][2]),
+        opDesc: String(data[i][3])
+      });
+    }
+  }
+  list.reverse(); // 新的在前面
+  return { success: true, list: list, count: list.length };
+}
+
 // 获取今天日期字符串 YYYY-MM-DD
 function getTodayDateStr() {
   var now = new Date();
@@ -778,27 +803,46 @@ function getTodayDateStr() {
 }
 
 // 执行撤销：找今天最新一条未撤销记录，反向操作
-function undo() {
+function undo(params) {
+  params = params || {};
   var sheet = getHistorySheet();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: false, error: '没有今天可撤销的操作' };
   var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
   var today = getTodayDateStr();
-  // 找今天最后一条 reversed=0 的记录
+  var opId = String(params.opId || '');
   var targetRow = -1, target = null;
-  for (var i = data.length - 1; i >= 0; i--) {
-    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
-      targetRow = i + 2;
-      target = {
-        id: String(data[i][0]),
-        opType: String(data[i][2]),
-        opDesc: String(data[i][3]),
-        beforeState: String(data[i][4])
-      };
-      break;
+  if (opId) {
+    // 按 ID 找指定记录（必须同时满足：今天 + 未撤销）
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][0]) === opId && parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+        targetRow = i + 2;
+        target = {
+          id: String(data[i][0]),
+          opType: String(data[i][2]),
+          opDesc: String(data[i][3]),
+          beforeState: String(data[i][4])
+        };
+        break;
+      }
     }
+    if (!target) return { success: false, error: '该操作已被撤销或不在今天范围' };
+  } else {
+    // 默认：撤销今天最新一条
+    for (var i = data.length - 1; i >= 0; i--) {
+      if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+        targetRow = i + 2;
+        target = {
+          id: String(data[i][0]),
+          opType: String(data[i][2]),
+          opDesc: String(data[i][3]),
+          beforeState: String(data[i][4])
+        };
+        break;
+      }
+    }
+    if (!target) return { success: false, error: '没有今天可撤销的操作' };
   }
-  if (!target) return { success: false, error: '没有今天可撤销的操作' };
 
   var state;
   try { state = JSON.parse(target.beforeState); } catch(e) {
