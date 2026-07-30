@@ -3974,13 +3974,18 @@ function renderUndoList(){
   if(list.length === 0){
     html = '<div style="padding:20px;text-align:center;color:#95a5a6">没有可撤销的操作</div>';
   } else {
-    for(var i=0;i<list.length;i++){
-      var it = list[i];
+    // 最早的在最上面、序号 1、2、3...（按时间顺序操作更直观）
+    // GAS 端 listUndoable 已 reverse（最新在前），这里再 reverse 回来
+    var sortedList = list.slice().reverse();
+    for(var i=0;i<sortedList.length;i++){
+      var it = sortedList[i];
+      var seqNo = i + 1;
       var desc = _translateCodeToName(it.opDesc);
       // 时间戳格式：2026-07-30T12:34:56.789Z → 12:34
       var t = it.timestamp || '';
       var hm = t.indexOf('T')>=0 ? t.substring(t.indexOf('T')+1, t.indexOf('T')+6) : '';
       html += '<div class="undo-item" data-id="' + escapeHtml(it.id) + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:background 0.15s" onmouseover="this.style.background=&#39;#f5f6f7&#39;" onmouseout="this.style.background=&#39;&#39;">';
+      html += '<span style="display:inline-block;min-width:22px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:#e67e22;color:white;font-size:11px;font-weight:600">' + seqNo + '</span>';
       html += '<span style="font-size:16px">' + _opTypeIcon(it.opType) + '</span>';
       html += '<span style="flex:1;color:#2c3e50;font-size:13px">' + escapeHtml(desc) + '</span>';
       if(hm) html += '<span style="color:#7f8c8d;font-size:11px">' + escapeHtml(hm) + '</span>';
