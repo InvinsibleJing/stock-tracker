@@ -1193,7 +1193,7 @@ function renderTable(){
         var pNum = partialClearNumMap[t.id];
         if(pNum){
           var pBadgeCls = ip ? 't-badge-profit' : 't-badge-loss';
-          sourceHtml = '<span class="t-badge '+pBadgeCls+'">部'+pNum+'</span>';
+          sourceHtml = '<span class="t-badge '+pBadgeCls+'">部清'+pNum+'</span>';
         } else {
           sourceHtml = '<span class="source-clear">清仓</span>';
         }
