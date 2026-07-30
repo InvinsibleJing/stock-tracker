@@ -534,7 +534,8 @@ function searchStockDict(query, limit) {
     var pool = pools[p];
     for (var i = 0; i < pool.length; i++) {
       var it = pool[i];
-      if (it.code.indexOf(val) === 0 || it.pinyin.indexOf(val) === 0) {
+      // 匹配条件：代码开头 / 拼音开头 / 中文名开头
+      if (it.code.indexOf(val) === 0 || it.pinyin.indexOf(val) === 0 || it.name.indexOf(val) === 0) {
         res.push({ code: it.code, name: it.name, pinyin: it.pinyin });
         if (res.length >= limit) return res;
       }
@@ -2107,6 +2108,7 @@ function renderPeriodTable(){
 // ===== 持仓联想搜索 =====
 // ===== 持仓代码联想（带防抖）=====
 var _onHoldCodeInputTimer = null;
+var _selectedHoldCode = ''; // 添加持仓弹窗中，autocomplete 选中的股票代码（与 holdCode 显示的名称解耦）
 function onHoldCodeInput() {
   if (_onHoldCodeInputTimer) clearTimeout(_onHoldCodeInputTimer);
   _onHoldCodeInputTimer = setTimeout(_doHoldCodeInput, 150);
@@ -2115,6 +2117,8 @@ function _doHoldCodeInput() {
   var input = document.getElementById('holdCode');
   var val = input.value.trim().toLowerCase();
   var list = document.getElementById('holdAcList');
+  // 重新输入时清掉已选中的代码（防 stale）
+  _selectedHoldCode = '';
 
   if (!val || typeof STOCK_DICT === 'undefined') {
     list.classList.remove('show');
@@ -2152,7 +2156,9 @@ function renderHoldAcList() {
 
 function selectHoldAcItem(index) {
   var r = holdAcResults[index];
-  document.getElementById('holdCode').value = r.code;
+  // input 显示股票名称（更易读），实际代码存到 _selectedHoldCode 提交时用
+  _selectedHoldCode = r.code;
+  document.getElementById('holdCode').value = r.name;
   autoDetectTagHold(r.code);
   document.getElementById('holdAcList').classList.remove('show');
   holdAcSelectedIndex = -1;
@@ -2177,6 +2183,9 @@ function onHoldCodeKeydown(e) {
     e.preventDefault();
     if (holdAcSelectedIndex >= 0) {
       selectHoldAcItem(holdAcSelectedIndex);
+    } else if (holdAcResults.length > 0) {
+      // 没高亮但有结果，自动选第一项（最常见情况：用户敲了代码/拼音后直接回车）
+      selectHoldAcItem(0);
     } else {
       document.getElementById('holdAcList').classList.remove('show');
       submitAddHolding();
@@ -2213,6 +2222,7 @@ function closeAddHolding(){
   document.getElementById('holdCode').disabled = false;
   document.getElementById('holdMergeHint').style.display = 'none';
   document.querySelector('#addHoldingModal .modal h2').textContent = '📌 添加持仓';
+  _selectedHoldCode = '';
 }
 
 function openAddMore(id){
@@ -2223,7 +2233,10 @@ function openAddMore(id){
   if(!holding) return;
   document.getElementById('addHoldingModal').classList.add('active');
   document.getElementById('holdDate').value = todayStr();
-  document.getElementById('holdCode').value = holding.code;
+  // 显示股票名称（不显示代码）；实际代码记到 _selectedHoldCode 提交时用
+  var name = getStockName(holding.code);
+  document.getElementById('holdCode').value = name;
+  _selectedHoldCode = holding.code;
   document.getElementById('holdCode').disabled = true;
   document.getElementById('holdTag').value = holding.tag || '主板';
   document.getElementById('holdQty').value = '';
@@ -2240,7 +2253,18 @@ function openAddMore(id){
 
 function submitAddHolding(){
   var date=document.getElementById('holdDate').value;
-  var code=document.getElementById('holdCode').value.trim();
+  // 优先用选中态的代码（避免拿名称当代码去匹配）；如用户没走 autocomplete 直接 type，回退用 input.value 当代码
+  var code = _selectedHoldCode || (function(){
+    var v = document.getElementById('holdCode').value.trim();
+    // 如果输入看起来像名称（不是6位数字开头），尝试按名字反查
+    if (v && /^\d{6}$/.test(v)) return v;
+    if (v && typeof STOCK_DICT !== 'undefined') {
+      for (var k in STOCK_DICT) {
+        if (STOCK_DICT[k] && STOCK_DICT[k][0] === v) return k;
+      }
+    }
+    return v;
+  })();
   var tag=document.getElementById('holdTag').value;
   var quantity=parseInt(document.getElementById('holdQty').value);
   var rawPrice=parseFloat(document.getElementById('holdBuyPrice').value)||0;
