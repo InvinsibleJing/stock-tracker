@@ -769,7 +769,7 @@ function checkUndo() {
   var today = getTodayDateStr();
   var unreversed = [];
   for (var i = 0; i < data.length; i++) {
-    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+    if (parseInt(data[i][5]) === 0 && _getLocalDateFromISO(String(data[i][1])) === today) {
       unreversed.push({ id: String(data[i][0]), opType: String(data[i][2]), opDesc: String(data[i][3]) });
     }
   }
@@ -786,7 +786,7 @@ function listUndoable() {
   var today = getTodayDateStr();
   var list = [];
   for (var i = 0; i < data.length; i++) {
-    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+    if (parseInt(data[i][5]) === 0 && _getLocalDateFromISO(String(data[i][1])) === today) {
       list.push({
         id: String(data[i][0]),
         timestamp: String(data[i][1]),
@@ -809,7 +809,7 @@ function clearUndoable() {
   var today = getTodayDateStr();
   var cleared = 0;
   for (var i = 0; i < data.length; i++) {
-    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+    if (parseInt(data[i][5]) === 0 && _getLocalDateFromISO(String(data[i][1])) === today) {
       sheet.getRange(i + 2, 6).setValue(1);
       cleared++;
     }
@@ -817,10 +817,17 @@ function clearUndoable() {
   return { success: true, cleared: cleared };
 }
 
-// 获取今天日期字符串 YYYY-MM-DD
+// 获取今天日期字符串 YYYY-MM-DD（使用脚本时区，避免 UTC 与本地时区不一致）
 function getTodayDateStr() {
   var now = new Date();
-  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  return Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+// 把 ISO UTC 时间戳转为脚本来时区的 YYYY-MM-DD 字符串
+function _getLocalDateFromISO(isoStr) {
+  if (!isoStr || isoStr.indexOf('T') < 0) return '';
+  var d = new Date(isoStr);
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 // 执行撤销：找今天最新一条未撤销记录，反向操作
@@ -836,7 +843,7 @@ function undo(params) {
   if (opId) {
     // 按 ID 找指定记录（必须同时满足：今天 + 未撤销）
     for (var i = 0; i < data.length; i++) {
-      if (String(data[i][0]) === opId && parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+      if (String(data[i][0]) === opId && parseInt(data[i][5]) === 0 && _getLocalDateFromISO(String(data[i][1])) === today) {
         targetRow = i + 2;
         target = {
           id: String(data[i][0]),
@@ -851,7 +858,7 @@ function undo(params) {
   } else {
     // 默认：撤销今天最新一条
     for (var i = data.length - 1; i >= 0; i--) {
-      if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+      if (parseInt(data[i][5]) === 0 && _getLocalDateFromISO(String(data[i][1])) === today) {
         targetRow = i + 2;
         target = {
           id: String(data[i][0]),
