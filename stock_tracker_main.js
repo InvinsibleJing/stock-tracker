@@ -3676,7 +3676,7 @@ function toggleHoldMonth(el){
 
 function toggleHoldDay(el){
   var day = el.getAttribute('data-day');
-  var rows = document.querySelectorAll('.hold-day-row-'+day);
+  var rows = document.querySelectorAll('.hold-day-row-'+day+':not(.hold-detail-row)');
   var toggle = el.querySelector('.hold-day-toggle');
   var isOpen = toggle.textContent === '▼';
   for(var i=0;i<rows.length;i++){
