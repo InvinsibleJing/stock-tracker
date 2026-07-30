@@ -1081,7 +1081,8 @@ function updateHoldingBatch(params) {
       }
     }
   }
-  return { success: true };
+  // 返回 detailId 让前端能立即更新本地缓存（不等刷新页面就能看到新明细）
+  return { success: true, detailId: addDetailId, holdingId: String(id) };
 }
 
 // 幂等去重工具：记录最近 100 个 opId，已存在则返回 true

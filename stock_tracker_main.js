@@ -2338,6 +2338,26 @@ function submitAddHolding(){
       addPrice:rawPrice,addDate:date,addQty:quantity,
       clientOpId:'upbat_'+Date.now()+'_'+Math.floor(Math.random()*1e9)}, function(r){
       if(r&&r.success){
+        // 乐观更新本地持仓明细缓存（不刷新页面就能看到新增的补仓记录）
+        if(r.detailId && _positionDetailsCache[old.id]){
+          _positionDetailsCache[old.id].push({
+            id: r.detailId,
+            holdingId: old.id,
+            date: date,
+            action: '补仓',
+            qty: quantity,
+            price: rawPrice
+          });
+          // 缓存长度到 2 条时立即显示 📋（之前只显示建仓时不显示）
+          if(_positionDetailsCache[old.id].length === 2){
+            var toggle = document.getElementById('hold-toggle-' + old.id);
+            if(toggle) toggle.style.display = 'inline';
+          }
+        } else if (!_positionDetailsCache[old.id]) {
+          // 缓存里还没有这条（页面刚加载没缓存），只显示 📋 因为有了补仓
+          var toggle2 = document.getElementById('hold-toggle-' + old.id);
+          if(toggle2) toggle2.style.display = 'inline';
+        }
         try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
         _checkSyncStatus();
       }else{rollbackOptimistic(trades,savedHoldings,'❌ 补仓失败：'+(r?r.error:''));}
