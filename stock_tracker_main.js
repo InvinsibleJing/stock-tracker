@@ -3873,7 +3873,13 @@ function updateUndoBtn(){
   apiCall({action:'checkUndo'}, function(res){
     if(res && res.success){
       if(res.count > 0){
-        _undoLatestDesc = res.latestDesc || '';
+        // 将描述里的6位股票代码替换为股票名称（更易读）
+        var desc = res.latestDesc || '';
+        desc = desc.replace(/(\d{6})/g, function(m){
+          var name = getStockName(m);
+          return name ? name : m;
+        });
+        _undoLatestDesc = desc;
         btn.disabled = false;
         btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">' + res.count + '</span>';
       } else {
