@@ -782,7 +782,18 @@ function _checkSyncStatus(){
     updateUndoBtn();
     // 持仓明细预加载（一次性拿到所有建仓/补仓记录，缓存供点击瞬间显示）
     if(h > 0) loadAllPositionDetails();
+    // 撤销列表预加载（让点击撤销按钮时不必等 3-4 秒）
+    loadUndoListData();
   }
+}
+
+// 后台预加载撤销操作列表，填充 _undoListData 缓存
+function loadUndoListData(){
+  apiCall({action:'listUndoable'}, function(res){
+    if(res && res.success){
+      _undoListData = res.list || [];
+    }
+  });
 }
 
 function loadTrades(){
