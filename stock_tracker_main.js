@@ -3942,15 +3942,17 @@ function _formatHm(isoStr){
   return h + ':' + m;
 }
 
-// 操作类型对应的 emoji 标识
-function _opTypeIcon(opType){
-  if (opType === 'addHolding') return '📌';
-  if (opType === 'addToHolding') return '🔄';
-  if (opType === 'doT') return '🕒';
-  if (opType === 'partialClear') return '✂️';
-  if (opType === 'fullClear') return '💥';
-  if (opType === 'deleteHolding') return '🗑';
-  return '•';
+// 操作类型对应的中文关键字徽章（直观、紧凑）
+function _opTypeBadge(opType){
+  // 配色：建仓/添加持仓绿、补仓/做T橙、清仓红、删除灰
+  var bg = '#95a5a6', label = '?';
+  if (opType === 'addHolding')     { bg = '#27ae60'; label = '建'; }
+  else if (opType === 'addToHolding') { bg = '#e67e22'; label = '补'; }
+  else if (opType === 'doT')         { bg = '#e67e22'; label = 'T'; }
+  else if (opType === 'partialClear'){ bg = '#e74c3c'; label = '减'; }
+  else if (opType === 'fullClear')    { bg = '#c0392b'; label = '清'; }
+  else if (opType === 'deleteHolding'){ bg = '#7f8c8d'; label = '删'; }
+  return '<span style="display:inline-block;min-width:24px;height:22px;line-height:22px;text-align:center;border-radius:4px;background:' + bg + ';color:white;font-size:12px;font-weight:600;padding:0 6px">' + label + '</span>';
 }
 
 function undoLast(){
@@ -3994,7 +3996,7 @@ function renderUndoList(){
       var hm = _formatHm(it.timestamp || '');
       html += '<div class="undo-item" data-id="' + escapeHtml(it.id) + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:background 0.15s" onmouseover="this.style.background=&#39;#f5f6f7&#39;" onmouseout="this.style.background=&#39;&#39;">';
       html += '<span style="display:inline-block;min-width:22px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:#e67e22;color:white;font-size:11px;font-weight:600">' + seqNo + '</span>';
-      html += '<span style="font-size:16px">' + _opTypeIcon(it.opType) + '</span>';
+      html += _opTypeBadge(it.opType);
       html += '<span style="flex:1;color:#2c3e50;font-size:13px">' + escapeHtml(desc) + '</span>';
       if(hm) html += '<span style="color:#7f8c8d;font-size:11px">' + escapeHtml(hm) + '</span>';
       html += '</div>';
