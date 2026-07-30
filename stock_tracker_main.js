@@ -3932,6 +3932,16 @@ function _translateCodeToName(desc){
   });
 }
 
+// ISO UTC 时间戳 → 本地时区 HH:MM（GAS 端 Date.toISOString() 是 UTC，需要转浏览器时区）
+function _formatHm(isoStr){
+  if(!isoStr || isoStr.indexOf('T') < 0) return '';
+  var d = new Date(isoStr);
+  if(isNaN(d.getTime())) return '';
+  var h = String(d.getHours()).padStart(2, '0');
+  var m = String(d.getMinutes()).padStart(2, '0');
+  return h + ':' + m;
+}
+
 // 操作类型对应的 emoji 标识
 function _opTypeIcon(opType){
   if (opType === 'addHolding') return '📌';
@@ -3981,9 +3991,7 @@ function renderUndoList(){
       var it = sortedList[i];
       var seqNo = i + 1;
       var desc = _translateCodeToName(it.opDesc);
-      // 时间戳格式：2026-07-30T12:34:56.789Z → 12:34
-      var t = it.timestamp || '';
-      var hm = t.indexOf('T')>=0 ? t.substring(t.indexOf('T')+1, t.indexOf('T')+6) : '';
+      var hm = _formatHm(it.timestamp || '');
       html += '<div class="undo-item" data-id="' + escapeHtml(it.id) + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:background 0.15s" onmouseover="this.style.background=&#39;#f5f6f7&#39;" onmouseout="this.style.background=&#39;&#39;">';
       html += '<span style="display:inline-block;min-width:22px;height:20px;line-height:20px;text-align:center;border-radius:10px;background:#e67e22;color:white;font-size:11px;font-weight:600">' + seqNo + '</span>';
       html += '<span style="font-size:16px">' + _opTypeIcon(it.opType) + '</span>';
