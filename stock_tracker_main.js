@@ -1058,6 +1058,21 @@ function renderTable(){
 
   trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
 
+  // 预计算部分清仓编号：按股票独立编号、按时间顺序（最早的=部1）
+  // 用于交易列表中小徽章显示
+  var partialClearNumMap = {};
+  var sortedChrono = trades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+  var perStockCount = {};
+  for(var i=0;i<sortedChrono.length;i++){
+    var ct = sortedChrono[i];
+    if(isPartialClearTrade(ct)){
+      var cc = ct.code||'';
+      if(!perStockCount[cc]) perStockCount[cc] = 0;
+      perStockCount[cc]++;
+      partialClearNumMap[ct.id] = perStockCount[cc];
+    }
+  }
+
   // 按月份分组（YYYY-MM）
   var groups = [];
   var curMonth = '';
@@ -1169,11 +1184,17 @@ function renderTable(){
         }
       }
 
-      // 清仓来源徽章
+      // 清仓来源徽章（部分清仓用「部」+编号，与做T的T徽章样式统一）
       var sourceHtml = '';
       var tSource = t.source || '';
       if(tSource === 'clear'){
-        sourceHtml = '<span class="source-clear">清仓</span>';
+        var pNum = partialClearNumMap[t.id];
+        if(pNum){
+          var pBadgeCls = ip ? 't-badge-profit' : 't-badge-loss';
+          sourceHtml = '<span class="t-badge '+pBadgeCls+'">部'+pNum+'</span>';
+        } else {
+          sourceHtml = '<span class="source-clear">清仓</span>';
+        }
         var cNote = t.note || '';
         if(cNote.indexOf('[两融]')!==-1){
           sourceHtml += '<span class="acc-badge acc-margin" style="font-size:10px;margin-left:4px">两融</span>';
@@ -2851,9 +2872,7 @@ function submitClearHolding(){
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   var finalNote = note || holding.note || '';
-  if(isPartial){
-     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓';
-  }
+  // 部分清仓的「部分清仓+数量」由 GAS clearHolding 统一追加（前端不重复加，避免 duplicate 如「部分清仓[两融] 部分清仓500/1000股」）
   // 清仓备注末尾加账户标记，用于显示账户徽章
   var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
   finalNote += '['+clearAccLabel+']';
