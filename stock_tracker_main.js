@@ -779,6 +779,8 @@ function _checkSyncStatus(){
     var h = (holdings||[]).length;
     showStatus('ok','✅ 云端同步成功 | '+h+'条持仓 | '+t+'条记录');
     updateUndoBtn();
+    // 持仓明细预加载（一次性拿到所有建仓/补仓记录，缓存供点击瞬间显示）
+    if(h > 0) loadAllPositionDetails();
   }
 }
 
@@ -3918,63 +3920,103 @@ function confirmUndoAction(){
 }
 
 // ===== 持仓建仓/补仓明细展开 =====
+// 预加载所有持仓明细到本地缓存，避免每次点击都发请求（约3-4秒）
+var _positionDetailsCache = {}; // holdingId -> [{date,action,qty,price}]
+
+function loadAllPositionDetails(){
+  apiCall({action:'listAllPositionDetails'}, function(res){
+    if(!res || !res.success) return;
+    var map = {};
+    for(var i=0;i<res.data.length;i++){
+      var d = res.data[i];
+      if(!map[d.holdingId]) map[d.holdingId] = [];
+      map[d.holdingId].push(d);
+    }
+    _positionDetailsCache = map;
+  });
+}
+
 function toggleHoldingDetail(nameEl, holdingId, code) {
   var detailRow = document.getElementById('hold-detail-' + holdingId);
   if (!detailRow) return;
   var toggleEl = document.getElementById('hold-toggle-' + holdingId);
-  
-  if (detailRow.dataset.loaded === '1') {
-    var showing = detailRow.style.display !== 'none';
-    detailRow.style.display = showing ? 'none' : '';
-    if (toggleEl) toggleEl.textContent = showing ? '▸' : '▾';
+  var contentEl = detailRow.querySelector('.hold-detail-content');
+
+  // 命中缓存：直接渲染（瞬时显示，无需等待）
+  var cached = _positionDetailsCache[holdingId];
+  if (cached) {
+    if (cached.length === 1) {
+      // 仅 1 条建仓记录，与主行重复，无需展开——直接返回（不显示 ▸ 也不展开行）
+      return;
+    }
+    if (detailRow.dataset.loaded === '1') {
+      // 已加载过：纯切换显示
+      var showing = detailRow.style.display !== 'none';
+      detailRow.style.display = showing ? 'none' : '';
+      if (toggleEl) toggleEl.textContent = showing ? '▸' : '▾';
+      return;
+    }
+    // 首次显示，从缓存渲染
+    renderPositionDetail(contentEl, toggleEl, detailRow, cached);
     return;
   }
-  
-  var contentEl = detailRow.querySelector('.hold-detail-content');
+
+  // 缓存未命中（预加载还没完成）—— 退回原始请求方式
   if (contentEl) contentEl.innerHTML = '<span style="color:#95a5a6">加载中...</span>';
   detailRow.style.display = '';
   if (toggleEl) toggleEl.textContent = '▾';
-  
-  apiCall({action:'listPositionDetails', holdingId: holdingId}, function(res) {
+  apiCall({action:'listPositionDetails', holdingId: holdingId}, function(res){
     if (!res || !res.success) {
       if (contentEl) contentEl.innerHTML = '<span style="color:#e74c3c">加载失败</span>';
       return;
     }
     var data = res.data || [];
-    detailRow.dataset.loaded = '1';
-    
-    if (data.length === 0) {
-      if (contentEl) contentEl.innerHTML = '<span style="color:#bdc3c7">暂无建仓/补仓明细（此功能上线前的旧持仓不追溯历史）</span>';
+    _positionDetailsCache[holdingId] = data; // 同时填充缓存
+    if (data.length === 1) {
+      // 仅一条记录，关闭并取消点击指针
+      detailRow.style.display = 'none';
+      nameEl.style.cursor = 'default';
+      nameEl.onclick = null;
       return;
     }
-    
-    // 仅显示箭头当有多条记录（建仓+至少一次补仓），单条记录不值得展开
-    if (data.length >= 2 && toggleEl) {
-      toggleEl.style.display = 'inline';
-    }
-    
-    var tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e8eaed">';
-    tbl += '<thead><tr style="background:#f5f6f7">';
-    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">序号</th>';
-    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">日期</th>';
-    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">操作</th>';
-    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">数量</th>';
-    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">价格</th>';
-    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">金额</th>';
-    tbl += '</tr></thead><tbody>';
-    for (var i = 0; i < data.length; i++) {
-      var d = data[i];
-      var amt = (d.qty || 0) * (d.price || 0);
-      tbl += '<tr style="' + (i%2===0?'background:#fff':'background:#fafbfc') + '">';
-      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (i+1) + '</td>';
-      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + escapeHtml(d.date || '-') + '</td>';
-      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;font-weight:600;color:' + (d.action==='建仓'?'#3498db':'#27ae60') + '">' + escapeHtml(d.action || '建仓') + '</td>';
-      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (d.qty||0) + '股</td>';
-      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (parseFloat(d.price)||0).toFixed(3) + '</td>';
-      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">' + amt.toFixed(2) + '</td>';
-      tbl += '</tr>';
-    }
-    tbl += '</tbody></table>';
-    if (contentEl) contentEl.innerHTML = tbl;
+    renderPositionDetail(contentEl, toggleEl, detailRow, data);
   });
+}
+
+function renderPositionDetail(contentEl, toggleEl, detailRow, data) {
+  detailRow.dataset.loaded = '1';
+  detailRow.style.display = '';
+  if (toggleEl) {
+    toggleEl.style.display = 'inline';
+    toggleEl.textContent = '▾';
+  }
+
+  if (data.length === 0) {
+    contentEl.innerHTML = '<span style="color:#bdc3c7">暂无建仓/补仓明细（此功能上线前的旧持仓不追溯历史）</span>';
+    return;
+  }
+
+  var tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e8eaed">';
+  tbl += '<thead><tr style="background:#f5f6f7">';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">序号</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">日期</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">操作</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">数量</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">价格</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">金额</th>';
+  tbl += '</tr></thead><tbody>';
+  for (var i = 0; i < data.length; i++) {
+    var d = data[i];
+    var amt = (d.qty || 0) * (d.price || 0);
+    tbl += '<tr style="' + (i%2===0?'background:#fff':'background:#fafbfc') + '">';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (i+1) + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + escapeHtml(d.date || '-') + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;font-weight:600;color:' + (d.action==='建仓'?'#3498db':'#27ae60') + '">' + escapeHtml(d.action || '建仓') + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (d.qty||0) + '股</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (parseFloat(d.price)||0).toFixed(3) + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">' + amt.toFixed(2) + '</td>';
+    tbl += '</tr>';
+  }
+  tbl += '</tbody></table>';
+  contentEl.innerHTML = tbl;
 }

@@ -276,7 +276,10 @@ function doGet(e) {
         result = checkUndo();
         break;
       case 'listPositionDetails':
-        result = listPositionDetails(e.parameter.holdingId || '');
+        result = e.parameter.holdingId ? listPositionDetails(e.parameter.holdingId) : listAllPositionDetails();
+        break;
+      case 'listAllPositionDetails':
+        result = listAllPositionDetails();
         break;
       // ===== 持仓相关 =====
       case 'listHoldings':
@@ -727,6 +730,26 @@ function listPositionDetails(holdingId) {
         price: parseFloat(data[i][5]) || 0
       });
     }
+  }
+  return { success: true, data: result };
+}
+
+// 预加载所有持仓的明细（前端一次性拿到全部，按 holdingId 索引以避免逐只股票点击都发请求）
+function listAllPositionDetails() {
+  var sheet = getPositionDetailSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, data: [] };
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var result = [];
+  for (var i = 0; i < data.length; i++) {
+    result.push({
+      id: String(data[i][0]),
+      holdingId: String(data[i][1]),
+      date: String(data[i][2] || ''),
+      action: String(data[i][3] || '建仓'),
+      qty: parseInt(data[i][4]) || 0,
+      price: parseFloat(data[i][5]) || 0
+    });
   }
   return { success: true, data: result };
 }
