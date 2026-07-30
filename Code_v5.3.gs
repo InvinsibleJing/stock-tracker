@@ -902,6 +902,18 @@ function undo(params) {
         }
       }
     }
+    // 级联失效：持有行为撤销后同一 holdingId 的所有补仓记录也自动标记为已撤销（不再有效）
+    // 都通过操作历史 data（已读）来判，避免二次批量读
+    for (var c = 0; c < data.length; c++) {
+      if (parseInt(data[c][5]) === 0 && String(data[c][2]) === 'addToHolding') {
+        try {
+          var cs = JSON.parse(String(data[c][4]));
+          if (String(cs.holdingId) === String(state.holdingId)) {
+            sheet.getRange(c + 2, 6).setValue(1);
+          }
+        } catch(e) { /* JSON parse error: skip cascade for this row */ }
+      }
+    }
   } else if (target.opType === 'addToHolding') {
     // 补仓撤销：恢复持仓的 qty/buyPrice + 移除对应补仓明细
     var hSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOLDING_SHEET_NAME);
