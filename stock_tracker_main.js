@@ -3901,15 +3901,17 @@ function updateUndoBtn(){
   apiCall({action:'checkUndo'}, function(res){
     if(res && res.success){
       if(res.count > 0){
+        btn.style.display = '';
         btn.disabled = false;
         btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">' + res.count + '</span>';
       } else {
+        // 没有任何可撤销操作时，整个按钮隐藏
+        btn.style.display = 'none';
         btn.disabled = true;
-        btn.innerHTML = '🕐 撤销';
       }
     } else {
+      btn.style.display = 'none';
       btn.disabled = true;
-      btn.innerHTML = '🕐 撤销';
     }
   });
 }
@@ -3998,18 +4000,36 @@ function closeUndoConfirm(){
 }
 
 function clearUndoableAction(){
-  if(!confirm('确定清空所有可撤销操作？\n\n这些记录会被标记为已撤销（但历史不会删除，依然可见），以后就撤销不了了。')) return;
-  showStatus('loading','🔄 正在清空...');
-  apiCall({action:'clearUndoable'}, function(res){
-    if(res && res.success){
-      var n = res.cleared || 0;
-      showStatus('ok','✅ 已清空 ' + n + ' 条可撤销记录');
-      closeUndoConfirm();
-      updateUndoBtn();
-    } else {
-      showStatus('err','❌ 清空失败：' + (res ? (res.error || '') : '服务器无响应'));
-    }
-  });
+  showConfirm('清空可撤销',
+    '确定清空所有可撤销操作？\n\n这些记录会被标记为已撤销（但历史不会删除，依然可见），以后就撤销不了了。',
+    function(){
+      showStatus('loading','🔄 正在清空...');
+      apiCall({action:'clearUndoable'}, function(res){
+        if(res && res.success){
+          var n = res.cleared || 0;
+          showStatus('ok','✅ 已清空 ' + n + ' 条可撤销记录');
+          closeUndoConfirm();
+          updateUndoBtn();
+        } else {
+          showStatus('err','❌ 清空失败：' + (res ? (res.error || '') : '服务器无响应'));
+        }
+      });
+    });
+}
+
+// ===== 通用项目风格确认弹窗 =====
+function showConfirm(title, desc, onOk){
+  document.getElementById('generalConfirmTitle').textContent = title;
+  document.getElementById('generalConfirmDesc').textContent = desc;
+  document.getElementById('generalConfirmOk').onclick = function(){
+    closeGeneralConfirm();
+    if(onOk) onOk();
+  };
+  document.getElementById('generalConfirmModal').classList.add('active');
+}
+
+function closeGeneralConfirm(){
+  document.getElementById('generalConfirmModal').classList.remove('active');
 }
 
 function confirmUndoAction(){

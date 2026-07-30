@@ -645,6 +645,18 @@
   </div>
 </div>
 
+<!-- 通用确认弹窗 -->
+<div class="modal-bg" id="generalConfirmModal">
+  <div class="modal" style="max-width:420px">
+    <h2 id="generalConfirmTitle">⚠ 操作确认</h2>
+    <div id="generalConfirmDesc" style="background:#f8f9fa;border-left:3px solid #e67e22;padding:12px 14px;border-radius:6px;margin-bottom:14px;font-size:13px;color:#2c3e50;line-height:1.6;white-space:pre-wrap"></div>
+    <div class="btns">
+      <button class="btn btn-orange" id="generalConfirmOk">确定</button>
+      <button class="btn btn-red" onclick="closeGeneralConfirm()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 撤销确认弹窗 -->
 <div class="modal-bg" id="undoConfirmModal">
   <div class="modal" style="max-width:480px">
