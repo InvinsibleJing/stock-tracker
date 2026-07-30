@@ -759,6 +759,7 @@ function refreshUI(){
   renderTable(); updateStats(); renderHoldings();
   cacheData(trades);
   try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
+  updateUndoBtn();
 }
 
 // 乐观更新失败时的回滚处理
@@ -3855,6 +3856,43 @@ function submitDividend(){
     } else {
       try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
       _checkSyncStatus();
+    }
+  });
+}
+
+// ===== 撤销操作（Undo）=====
+var _undoLatestDesc = ''; // 最新一条可撤销操作的描述（用于确认框）
+
+function updateUndoBtn(){
+  var btn = document.getElementById('btnUndo');
+  if(!btn) return;
+  apiCall({action:'checkUndo'}, function(res){
+    if(res && res.success){
+      if(res.count > 0){
+        _undoLatestDesc = res.latestDesc || '';
+        btn.disabled = false;
+        btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">' + res.count + '</span>';
+      } else {
+        btn.disabled = true;
+        btn.innerHTML = '🕐 撤销';
+      }
+    } else {
+      btn.disabled = true;
+      btn.innerHTML = '🕐 撤销';
+    }
+  });
+}
+
+function undoLast(){
+  if(!_undoLatestDesc){ alert('没有可撤销的操作'); return; }
+  if(!confirm('确定撤销以下操作？\n\n' + _undoLatestDesc + '\n\n撤销后将自动重新加载数据。')) return;
+  showStatus('loading','🔄 正在撤销...');
+  apiCall({action:'undo'}, function(res){
+    if(res && res.success){
+      showStatus('ok','✅ ' + (res.message || '撤销成功'));
+      loadAll();
+    } else {
+      showStatus('err','❌ 撤销失败：' + (res ? (res.error || '') : '服务器无响应'));
     }
   });
 }

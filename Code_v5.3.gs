@@ -32,6 +32,13 @@
  *   - getSheet 迁移标志升至 v5.3，自动把旧版11列表迁移到12列（旧数据 isPartial 填0）
  *   - 修复 migrateSheet 情况6 误用未定义 headerRow 的潜在 ReferenceError（改回 oldHeaders 并并入 else-if 链）
  *   - 前端按 isPartial===1 或备注含「部分清仓」识别，在所有总盈亏/统计汇总点排除（与 tIndex>0 做T同口径）
+ *
+ * v5.4 (2026-07-30) 撤销操作（Undo）  ★本次改动
+ *   - 新增「操作历史」sheet：id/timestamp/opType/opDesc/beforeState/reversed 6 列，自动修剪至最新 10 条
+ *   - 新增 saveHistory(opType, opDesc, beforeState)：在 clearHolding/doT/addHolding/deleteHolding 执行前保存快照
+ *   - 新增 undo()：读最新未撤销记录 → 按 opType 反向操作（恢复持仓+删交易记录/重建持仓行/删持仓行）
+ *   - 新增 checkUndo()：返回 count（可撤销条数）+ latestDesc（最新一条描述，前端确认框用）
+ *   - doGet 新增 'undo' / 'checkUndo' 两个 action
  * ───────────────────────────────────────────────────────────────────────
  */
 
@@ -43,6 +50,10 @@ var MARGIN_HEADERS = ['date', 'balance'];
 // 可转债打新收益（独立 sheet，与股票交易完全隔离）
 var BOND_SHEET_NAME = '可转债';
 var BOND_HEADERS = ['id', 'year', 'name', 'code', 'market', 'signer', 'qty', 'profit', 'expense'];
+
+// 撤销操作历史（v5.4新增）
+var HISTORY_SHEET_NAME = '操作历史';
+var HISTORY_HEADERS = ['id', 'timestamp', 'opType', 'opDesc', 'beforeState', 'reversed'];
 
 // 交易记录期望的表头（v5.2新增fees列，v5.3.4新增isPartial列）
 var EXPECTED_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'amount', 'note', 'tIndex', 'status', 'source', 'fees', 'isPartial'];
@@ -248,6 +259,12 @@ function doGet(e) {
         } else {
           result = { success: false, error: '找不到工作表' };
         }
+        break;
+      case 'undo':
+        result = undo();
+        break;
+      case 'checkUndo':
+        result = checkUndo();
         break;
       // ===== 持仓相关 =====
       case 'listHoldings':
@@ -529,6 +546,11 @@ function addHolding(params) {
   var lastAddDate = params.lastAddDate || '';
   var lastAddQty = parseInt(params.lastAddQty) || 0;
 
+  // 保存撤销快照（新增前，无旧持仓）
+  saveHistory('addHolding', '添加持仓 ' + code + ' ' + quantity + '股', {
+    holdingId: id
+  });
+
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   // 顺序不能反：对不存在的行预设置格式不会生效，appendRow 之后格式才能正确落到该行
   sheet.appendRow([id, date, code, tag, quantity, note, buyPrice, accountType, lastAddDate, lastAddQty]);
@@ -546,15 +568,158 @@ function deleteHolding(id) {
   var sheet = getHoldingSheet();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: true };
-  // 只读取ID列（第1列），减少数据传输量
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  for (var i = ids.length - 1; i >= 0; i--) {
-    if (String(ids[i][0]) === String(id)) {
+  // 读取全部数据列，用于撤销时恢复
+  var allData = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  for (var i = allData.length - 1; i >= 0; i--) {
+    if (String(allData[i][0]) === String(id)) {
+      // 保存撤销快照
+      saveHistory('deleteHolding', '删除持仓 ' + String(allData[i][2] || '-'), {
+        holdingId: String(allData[i][0]),
+        fullHolding: allData[i].map(function(v){ return String(v); })
+      });
       sheet.deleteRow(i + 2);
       break;
     }
   }
   return { success: true };
+}
+
+// ============================================================
+// 撤销操作历史（v5.4）
+// ============================================================
+function getHistorySheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(HISTORY_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(HISTORY_SHEET_NAME);
+    sheet.appendRow(HISTORY_HEADERS);
+  }
+  return sheet;
+}
+
+// 保存操作历史：每次变化持仓前调用，存入一条 beforeState 快照供撤销使用
+// 自动修剪至最新10条
+function saveHistory(opType, opDesc, beforeState) {
+  var sheet = getHistorySheet();
+  var id = String(new Date().getTime());
+  var ts = new Date().toISOString();
+  // 先 appendRow，再设文本格式
+  sheet.appendRow([id, ts, opType, opDesc, JSON.stringify(beforeState), 0]);
+  var lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow, 2).setNumberFormat('@');
+  sheet.getRange(lastRow, 2).setValue(ts);
+  // 修剪至最新10条（保持 sheet 不无限膨胀）
+  if (lastRow > 11) { // 1 header + 10 data rows
+    sheet.deleteRows(2, lastRow - 11);
+  }
+}
+
+// 检查可撤销状态：返回未撤销条数和最新一条的描述
+function checkUndo() {
+  var sheet = getHistorySheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, count: 0, latestDesc: '' };
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var unreversed = [];
+  for (var i = 0; i < data.length; i++) {
+    if (parseInt(data[i][5]) === 0) {
+      unreversed.push({ id: String(data[i][0]), opType: String(data[i][2]), opDesc: String(data[i][3]) });
+    }
+  }
+  var latest = unreversed.length > 0 ? unreversed[unreversed.length - 1] : null;
+  return { success: true, count: unreversed.length, latestDesc: latest ? latest.opDesc : '' };
+}
+
+// 执行撤销：找最新一条未撤销记录，反向操作
+function undo() {
+  var sheet = getHistorySheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: false, error: '没有可撤销的操作' };
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  // 找最后一条 reversed=0 的记录
+  var targetRow = -1, target = null;
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (parseInt(data[i][5]) === 0) {
+      targetRow = i + 2; // 1-based row in sheet
+      target = {
+        id: String(data[i][0]),
+        opType: String(data[i][2]),
+        opDesc: String(data[i][3]),
+        beforeState: String(data[i][4])
+      };
+      break;
+    }
+  }
+  if (!target) return { success: false, error: '没有可撤销的操作' };
+
+  var state;
+  try { state = JSON.parse(target.beforeState); } catch(e) {
+    return { success: false, error: '历史数据解析失败：'+e.message };
+  }
+
+  // 按 opType 执行反向操作
+  if (target.opType === 'partialClear' || target.opType === 'fullClear' || target.opType === 'doT') {
+    // 恢复持仓数量+成本价 / 重新插入持仓
+    var hSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOLDING_SHEET_NAME);
+    // 删除对应交易记录
+    var tSheet = getSheet();
+    var tLastRow = tSheet.getLastRow();
+    if (tLastRow > 1) {
+      var tIds = tSheet.getRange(2, 1, tLastRow - 1, 1).getValues();
+      for (var j = tIds.length - 1; j >= 0; j--) {
+        if (String(tIds[j][0]) === String(state.tradeId)) {
+          tSheet.deleteRow(j + 2);
+          break;
+        }
+      }
+    }
+    if (target.opType === 'fullClear' && state.fullHolding) {
+      // 全部清仓撤销：恢复整行持仓
+      var hdr = ['id','date','code','tag','quantity','note','buyPrice','accountType','lastAddDate','lastAddQty'];
+      var arr = [];
+      for (var k = 0; k < hdr.length; k++) { arr.push(state.fullHolding[k] || ''); }
+      hSheet.appendRow(arr);
+    } else if (target.opType === 'partialClear' || target.opType === 'doT') {
+      // 部分清仓/做T撤销：恢复持仓数量和成本价
+      var hLastRow = hSheet.getLastRow();
+      if (hLastRow > 1) {
+        var hIds = hSheet.getRange(2, 1, hLastRow - 1, 1).getValues();
+        for (var j = 0; j < hIds.length; j++) {
+          if (String(hIds[j][0]) === String(state.holdingId)) {
+            hSheet.getRange(j + 2, 5).setValue(parseInt(state.oldQty) || 0);
+            hSheet.getRange(j + 2, 7).setValue(parseFloat(state.oldBuyPrice) || 0);
+            break;
+          }
+        }
+      }
+    }
+  } else if (target.opType === 'addHolding') {
+    // 添加持仓撤销：删除该持仓行
+    var hSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOLDING_SHEET_NAME);
+    var hLastRow = hSheet.getLastRow();
+    if (hLastRow > 1) {
+      var hIds = hSheet.getRange(2, 1, hLastRow - 1, 1).getValues();
+      for (var j = hIds.length - 1; j >= 0; j--) {
+        if (String(hIds[j][0]) === String(state.holdingId)) {
+          hSheet.deleteRow(j + 2);
+          break;
+        }
+      }
+    }
+  } else if (target.opType === 'deleteHolding') {
+    // 删除持仓撤销：重新插入完整持仓行
+    if (state.fullHolding) {
+      var hSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOLDING_SHEET_NAME);
+      var hdr = ['id','date','code','tag','quantity','note','buyPrice','accountType','lastAddDate','lastAddQty'];
+      var arr = [];
+      for (var k = 0; k < hdr.length; k++) { arr.push(state.fullHolding[k] || ''); }
+      hSheet.appendRow(arr);
+    }
+  }
+
+  // 标记为已撤销
+  sheet.getRange(targetRow, 6).setValue(1);
+  return { success: true, message: '已撤销：' + target.opDesc };
 }
 
 // 更新持仓
@@ -675,6 +840,35 @@ function clearHolding(params) {
   var tradeSheet = getSheet();
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+  // 保存撤销快照（生成 tradeId 后、修改持仓前）
+  var savedState = {
+    holdingId: String(holding.id),
+    tradeId: tradeId,
+    oldQty: holding.quantity,
+    oldBuyPrice: holding.buyPrice
+  };
+  var savedOpDesc = (actualIsPartial ? '部分清仓' : '全部清仓') + ' ' + holding.code + ' ' + clearQty + '/' + holding.quantity + '股';
+  if (actualIsPartial) {
+    saveHistory('partialClear', savedOpDesc, savedState);
+  } else {
+    // 全部清仓：需要额外保存完整持仓行数据（撤销时需重建整行）
+    var hSheet = getHoldingSheet();
+    var holdingRow = -1;
+    var hLastRow = hSheet.getLastRow();
+    if (hLastRow > 1) {
+      var hIds = hSheet.getRange(2, 1, hLastRow - 1, 1).getValues();
+      for (var ri = 0; ri < hIds.length; ri++) {
+        if (String(hIds[ri][0]) === String(holding.id)) { holdingRow = ri + 2; break; }
+      }
+    }
+    if (holdingRow > 0) {
+      var rawHolding = hSheet.getRange(holdingRow, 1, 1, 10).getValues()[0];
+      savedState.fullHolding = rawHolding.map(function(v){ return String(v); });
+    }
+    saveHistory('fullClear', savedOpDesc, savedState);
+  }
+
   var finalNote = tradeNote || holding.note || '';
   if (actualIsPartial) {
     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + clearQty + '/' + holding.quantity + '股';
@@ -774,6 +968,14 @@ function doT(params) {
   var tradeSheet = getSheet();
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  // 保存撤销快照
+  saveHistory('doT', '做T ' + holding.code + ' ' + (isUnequal ? (sellQty+'卖/'+buyQty+'买') : (doTQty+'股')), {
+    holdingId: String(holding.id),
+    tradeId: tradeId,
+    oldQty: holding.quantity,
+    oldBuyPrice: holding.buyPrice
+  });
+
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, doTQty, amount, tNote, tIndex, 'open', 'doT', fees, 0]);
   var tLastRow = tradeSheet.getLastRow();
