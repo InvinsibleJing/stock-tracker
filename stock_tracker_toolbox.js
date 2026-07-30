@@ -65,6 +65,10 @@ function renderCalendar() {
       dayDoTMap[t.date].push(t.amount || 0);
       continue;
     }
+    // 部分清仓：和做T一样不计入日盈亏（盈亏已冲减成本价），不进 dayProfit
+    if(isPartialClearTrade(t)){
+      continue;
+    }
     var d = t.date;
     if(!dayProfit[d]) dayProfit[d] = 0;
     dayProfit[d] += (t.amount || 0);
@@ -203,10 +207,10 @@ function showCalDetail(dateStr) {
   detail.style.display = 'block';
   document.getElementById('calDetailTitle').textContent = dateStr + ' 交易详情';
 
-  // 正常交易（tIndex === 0）
+  // 正常交易（非做T、非部分清仓）
   var dayTrades = [];
   for(var i = 0; i < trades.length; i++) {
-    if(trades[i].date === dateStr && trades[i].tIndex === 0) {
+    if(trades[i].date === dateStr && !isPnlExcluded(trades[i])) {
       dayTrades.push(trades[i]);
     }
   }
@@ -219,8 +223,16 @@ function showCalDetail(dateStr) {
     }
   }
 
+  // 部分清仓记录（不计入总盈亏统计）
+  var dayPartialTrades = [];
+  for(var i = 0; i < trades.length; i++) {
+    if(trades[i].date === dateStr && isPartialClearTrade(trades[i])) {
+      dayPartialTrades.push(trades[i]);
+    }
+  }
+
   var html = '';
-  if(dayTrades.length === 0 && dayDoTTrades.length === 0) {
+  if(dayTrades.length === 0 && dayDoTTrades.length === 0 && dayPartialTrades.length === 0) {
     html = '<p style="color:#999;font-size:13px;padding:8px 0">当天无完结交易记录。</p>';
   } else {
     // 普通交易部分（含合计，计入总盈亏）
@@ -268,6 +280,32 @@ function showCalDetail(dateStr) {
       var dCls = doTTotal >= 0 ? 'profit' : 'loss';
       var dSign = doTTotal >= 0 ? '+' : '';
       html += '<span class="cal-detail-value ' + dCls + '"><b>' + dSign + doTTotal.toFixed(2) + ' 元</b></span>';
+      html += '</div>';
+      html += '</div>';
+    }
+    // 部分清仓部分（独立分组，标注不计入总盈亏统计）
+    if(dayPartialTrades.length > 0) {
+      html += '<div style="margin-top:12px;padding-top:8px;border-top:1px dashed #ddd">';
+      html += '<div style="color:#888;font-size:12px;font-weight:600;margin-bottom:6px">部分清仓记录（不计入总盈亏统计）</div>';
+      var pTotal = 0;
+      for(var i = 0; i < dayPartialTrades.length; i++) {
+        var t = dayPartialTrades[i];
+        var name = getStockName(t.code);
+        var amt = t.amount || 0;
+        pTotal += amt;
+        var cls = amt >= 0 ? 'profit' : 'loss';
+        var sign = amt >= 0 ? '+' : '';
+        var prefix = '<span style="color:#888;font-size:11px;margin-right:4px">部</span>';
+        html += '<div class="cal-detail-row">';
+        html += '<span class="cal-detail-label">' + prefix + escapeHtml(name) + '</span>';
+        html += '<span class="cal-detail-value ' + cls + '">' + sign + amt.toFixed(2) + ' 元</span>';
+        html += '</div>';
+      }
+      html += '<div class="cal-detail-row" style="border-top:1px dashed #ddd;padding-top:6px;margin-top:4px">';
+      html += '<span class="cal-detail-label"><b>部分清仓合计</b></span>';
+      var pCls = pTotal >= 0 ? 'profit' : 'loss';
+      var pSign = pTotal >= 0 ? '+' : '';
+      html += '<span class="cal-detail-value ' + pCls + '"><b>' + pSign + pTotal.toFixed(2) + ' 元</b></span>';
       html += '</div>';
       html += '</div>';
     }

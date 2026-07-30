@@ -19,12 +19,19 @@
  *   - 删除 BOND_IMPORT_DATA、BOND_IMPORT_2022_RAW、getAllBondImportData、importBondsFromData、sortBondSheet、deleteNotesSheet
  *   - 可转债模块核心功能(列表/增删改)保留，与股票交易数据完全隔离
  *
- * v5.3.3 (2026-07-12) 修复股票代码前导0丢失  ★本次改动
+ * v5.3.3 (2026-07-12) 修复股票代码前导0丢失
  *   - 根因：appendRow 先写值，Sheets 立即把 "000001" 当成数字解析，前导0 在写入瞬间永久丢失；事后设格式无法找回
  *   - addHolding / addTrade / clearHolding / doT / addBond：改为「先 appendRow 创建行，再 setNumberFormat('@') 设文本格式，最后以 setValue 文本重写 code/date 列」(双保险)
  *   - updateTrade / updateHolding / updateHoldingBatch：setValue 前先 setNumberFormat('@')（目标行已存在，预设置格式有效）
  *   - 全文非标准格式 '@STRING@' 统一改为标准文本格式 '@'
  *   - 保留一次性修复函数 fixLegacyRecords / fixStockCodeFormat（不改、不删）
+ *
+ * v5.3.4 (2026-07-30) 部分清仓不计入总盈亏（与做T口径一致）  ★本次改动
+ *   - 交易记录表新增第12列 isPartial（0=全部清仓/手动，1=部分清仓）
+ *   - clearHolding 写入 actualIsPartial；addTrade 接收 isPartial；doT 固定写0
+ *   - getSheet 迁移标志升至 v5.3，自动把旧版11列表迁移到12列（旧数据 isPartial 填0）
+ *   - 修复 migrateSheet 情况6 误用未定义 headerRow 的潜在 ReferenceError（改回 oldHeaders 并并入 else-if 链）
+ *   - 前端按 isPartial===1 或备注含「部分清仓」识别，在所有总盈亏/统计汇总点排除（与 tIndex>0 做T同口径）
  * ───────────────────────────────────────────────────────────────────────
  */
 
@@ -37,8 +44,8 @@ var MARGIN_HEADERS = ['date', 'balance'];
 var BOND_SHEET_NAME = '可转债';
 var BOND_HEADERS = ['id', 'year', 'name', 'code', 'market', 'signer', 'qty', 'profit', 'expense'];
 
-// 交易记录期望的表头（v5.2新增fees列）
-var EXPECTED_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'amount', 'note', 'tIndex', 'status', 'source', 'fees'];
+// 交易记录期望的表头（v5.2新增fees列，v5.3.4新增isPartial列）
+var EXPECTED_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'amount', 'note', 'tIndex', 'status', 'source', 'fees', 'isPartial'];
 // 持仓期望的表头（v5.0新增buyPrice列，v5.1新增accountType列，v5.3新增lastAddDate/lastAddQty列）
 var HOLDING_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'note', 'buyPrice', 'accountType', 'lastAddDate', 'lastAddQty'];
 
@@ -56,7 +63,7 @@ function getSheet() {
   // 只在未标记迁移完成时检查表头（避免每次请求都读取表头）
   var props = PropertiesService.getScriptProperties();
   var migrated = props.getProperty('trade_migrated');
-  if (!migrated || migrated < 'v4.1') {
+  if (!migrated || migrated < 'v5.3') {
     var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var needsMigration = false;
 
@@ -90,7 +97,7 @@ function getSheet() {
     }
 
     // 标记迁移已完成
-    props.setProperty('trade_migrated', 'v5.2');
+    props.setProperty('trade_migrated', 'v5.3');
   }
 
   return sheet;
@@ -164,7 +171,7 @@ function migrateSheet(sheet, oldHeaders) {
     Logger.log('已自动迁移：9列 → 10列（新增source列）');
   }
   // 情况6：旧版10列（有source，无fees）→ 新版11列
-  if (headerRow.length === 10 && headerRow[0] === 'id' && headerRow[9] === 'source') {
+  else if (oldHeaders.length === 10 && oldHeaders[0] === 'id' && oldHeaders[9] === 'source') {
     // 在 source 列后面插入1列（fees）
     sheet.insertColumnsAfter(10, 1);
     // 更新表头（11列）
@@ -174,6 +181,18 @@ function migrateSheet(sheet, oldHeaders) {
       sheet.getRange(2, 11, lastRow - 1, 1).setValue(0);
     }
     Logger.log('已自动迁移：10列 → 11列（新增fees列）');
+  }
+  // 情况7：旧版11列（有fees，无isPartial）→ 新版12列
+  else if (oldHeaders.length === 11 && oldHeaders[0] === 'id' && oldHeaders[10] === 'fees') {
+    // 在 fees 列后面插入1列（isPartial）
+    sheet.insertColumnsAfter(11, 1);
+    // 更新表头（12列）
+    sheet.getRange(1, 1, 1, 12).setValues([EXPECTED_HEADERS]);
+    // 给旧数据填充默认值0（全清仓口径，计入总盈亏；部分清仓靠前端 note 兼容识别）
+    if (lastRow > 1) {
+      sheet.getRange(2, 12, lastRow - 1, 1).setValue(0);
+    }
+    Logger.log('已自动迁移：11列 → 12列（新增isPartial列）');
   }
   else {
     // 其他情况：直接重写表头并确保列数足够
@@ -326,7 +345,8 @@ function listTrades() {
         tIndex: parseInt(data[i][7]) || 0,
         status: String(data[i][8] || 'closed'),
         source: String(data[i][9] || 'manual'),
-        fees: parseFloat(data[i][10]) || 0
+        fees: parseFloat(data[i][10]) || 0,
+        isPartial: parseInt(data[i][11]) || 0
       });
     }
   }
@@ -347,10 +367,11 @@ function addTrade(params) {
   var status = params.status || 'closed';
   var source = params.source || 'manual';
   var fees = parseFloat(params.fees) || 0;
+  var isPartial = parseInt(params.isPartial) || 0;
 
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   // 顺序不能反：对不存在的行预设置格式不会生效，appendRow 之后格式才能正确落到该行
-  sheet.appendRow([id, date, code, tag, quantity, amount, note, tIndex, status, source, fees]);
+  sheet.appendRow([id, date, code, tag, quantity, amount, note, tIndex, status, source, fees, isPartial]);
   var lastRow = sheet.getLastRow();
   sheet.getRange(lastRow, 2).setNumberFormat('@'); // date 列
   sheet.getRange(lastRow, 3).setNumberFormat('@'); // code 列
@@ -385,8 +406,8 @@ function updateTrade(params) {
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: true };
 
-  // 列号映射（1-based）：date=2, code=3, tag=4, quantity=5, amount=6, note=7, tIndex=8, status=9, source=10, fees=11
-  var colMap = { date: 2, code: 3, tag: 4, quantity: 5, amount: 6, note: 7, tIndex: 8, status: 9, source: 10, fees: 11 };
+  // 列号映射（1-based）：date=2, code=3, tag=4, quantity=5, amount=6, note=7, tIndex=8, status=9, source=10, fees=11, isPartial=12
+  var colMap = { date: 2, code: 3, tag: 4, quantity: 5, amount: 6, note: 7, tIndex: 8, status: 9, source: 10, fees: 11, isPartial: 12 };
   var col = colMap[field];
   if (!col) return { success: true };
 
@@ -659,7 +680,7 @@ function clearHolding(params) {
     finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + clearQty + '/' + holding.quantity + '股';
   }
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
-  tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, clearQty, amount, finalNote, 0, 'closed', 'clear', fees]);
+  tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, clearQty, amount, finalNote, 0, 'closed', 'clear', fees, actualIsPartial ? 1 : 0]);
   var tLastRow = tradeSheet.getLastRow();
   tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
   tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列
@@ -754,7 +775,7 @@ function doT(params) {
   var today = new Date();
   var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
-  tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, doTQty, amount, tNote, tIndex, 'open', 'doT', fees]);
+  tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, doTQty, amount, tNote, tIndex, 'open', 'doT', fees, 0]);
   var tLastRow = tradeSheet.getLastRow();
   tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
   tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列

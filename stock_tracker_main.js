@@ -1082,7 +1082,7 @@ function renderTable(){
     var gCount = gTrades.length;
     var gProfit = 0, gFees = 0;
     for(var k=0;k<gTrades.length;k++){
-      if((gTrades[k].tIndex||0)===0) gProfit += gTrades[k].amount;
+      if(!isPnlExcluded(gTrades[k])) gProfit += gTrades[k].amount;
       gFees += (parseFloat(gTrades[k].fees)||0);
     }
     var gCls = gProfit >= 0 ? 'profit' : 'loss';
@@ -1122,7 +1122,7 @@ function renderTable(){
       var dgCount = dgTrades.length;
       var dgProfit = 0;
       for(var dk=0;dk<dgTrades.length;dk++){
-        if((dgTrades[dk].tIndex||0)===0) dgProfit += dgTrades[dk].amount;
+        if(!isPnlExcluded(dgTrades[dk])) dgProfit += dgTrades[dk].amount;
       }
       var dgCls = dgProfit >= 0 ? 'profit' : 'loss';
       var dgSign = dgProfit >= 0 ? '+' : '';
@@ -1357,10 +1357,23 @@ function restoreMonthCollapseState(){
   }
 }
 
+// ===== 盈亏统计排除规则 =====
+// 做T(tIndex>0) 与 部分清仓(isPartial=1) 均不计入总盈亏：
+//   - 做T：盈亏已通过冲减成本价体现在持仓成本
+//   - 部分清仓：盈亏已通过现金流法冲减成本价体现在剩余持仓成本（与做T口径一致）
+// 部分清仓识别：优先用 isPartial 字段；历史数据无该字段时，按 source=clear 且备注含「部分清仓」兼容识别
+function isDoTTrade(t){ return (t.tIndex || 0) > 0; }
+function isPartialClearTrade(t){
+  if(t.isPartial === 1 || t.isPartial === true) return true;
+  if(t.source === 'clear' && t.note && String(t.note).indexOf('部分清仓') !== -1) return true;
+  return false;
+}
+function isPnlExcluded(t){ return isDoTTrade(t) || isPartialClearTrade(t); }
+
 // ===== 统计 =====
 function updateStats(){
-  // 只统计非做T记录（tIndex===0），做T盈亏不计入总盈亏
-  var closedTrades = trades.filter(function(t){ return (t.tIndex || 0) === 0; });
+  // 只统计计入总盈亏的记录（排除做T与部分清仓）
+  var closedTrades = trades.filter(function(t){ return !isPnlExcluded(t); });
   var total=closedTrades.length,sc=0,tp=0,maxWin=0,maxLoss=0;
   for(var i=0;i<closedTrades.length;i++){
     if(closedTrades[i].amount>0) sc++;
@@ -1486,7 +1499,7 @@ function onTrendRangeChange(){
   if(mode === 'custom'){
     customInputs.style.display = '';
     // 默认设置为数据范围内的首尾
-    var closedTrades = trades.filter(function(t){ return (t.tIndex || 0) === 0; });
+    var closedTrades = trades.filter(function(t){ return !isPnlExcluded(t); });
     if(closedTrades.length > 0){
       var sorted = closedTrades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
       var startEl = document.getElementById('trendDateStart');
@@ -1509,9 +1522,9 @@ function onTrendDateChange(){
   if(trendDateStart && trendDateEnd) renderTrendChart();
 }
 
-// 趋势图（排除做T记录）
+// 趋势图（排除做T记录与部分清仓）
 function renderTrendChart(){
-  var closedTrades = trades.filter(function(t){ return (t.tIndex || 0) === 0; });
+  var closedTrades = trades.filter(function(t){ return !isPnlExcluded(t); });
   var sorted=closedTrades.slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
 
   // 自定义时间范围过滤
@@ -1794,7 +1807,7 @@ function renderMarginChart(data) {
 function renderCatStats(){
   var cats={};
   for(var i=0;i<trades.length;i++){
-    if((trades[i].tIndex || 0) > 0) continue; // 跳过做T记录
+    if(isPnlExcluded(trades[i])) continue; // 跳过做T与部分清仓
     var tag=trades[i].tag||'主板';
     if(!cats[tag]) cats[tag]={total:0,success:0,profit:0};
     cats[tag].total++;
@@ -1844,7 +1857,12 @@ function renderStockSummary(){
       continue;
     }
 
-    // 非做T记录（清仓/手动添加）：参与盈亏计算
+    // 部分清仓：和做T一样不计入任何统计（盈亏已通过冲减成本价体现在剩余持仓），仅保留在交易记录列表
+    if(isPartialClearTrade(trades[i])){
+      continue;
+    }
+
+    // 普通完结记录（全部清仓/手动添加）：参与盈亏计算
     if(!groups[code]) groups[code]={trades:0,success:0,profit:0,firstDate:trades[i].date,lastDate:trades[i].date};
     groups[code].trades++;
     if(trades[i].amount>0) groups[code].success++;
@@ -2020,7 +2038,7 @@ function renderPeriodTable(){
   var groups={};
   var keyLabels={}; // 排序key -> 显示标签
   for(var i=0;i<trades.length;i++){
-    if((trades[i].tIndex || 0) > 0) continue; // 跳过做T记录
+    if(isPnlExcluded(trades[i])) continue; // 跳过做T与部分清仓
     var d=new Date(trades[i].date);
     var key, label;
     if(currentPeriod==='week'){
@@ -2520,7 +2538,7 @@ function submitAddComplete(){
   // 乐观更新
   var savedTrades = JSON.parse(JSON.stringify(trades));
   var tmpTradeId = genTempId();
-  trades.push({id:tmpTradeId, date:date, code:code, tag:tag, quantity:qty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
+  trades.push({id:tmpTradeId, date:date, code:code, tag:tag, quantity:qty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal, isPartial:0});
   
   // 按日期排序
   trades.sort(function(a,b){ var dd=new Date(b.date)-new Date(a.date); if(dd!==0) return dd; return b.id.localeCompare(a.id); });
@@ -2531,7 +2549,7 @@ function submitAddComplete(){
   showStatus('ok','✅ 已补录「'+getStockName(code)+'」清仓，盈亏'+amount.toFixed(2)+'元');
   
   // 后台同步
-  apiCall({action:'add',date:date,code:code,tag:tag,quantity:qty,amount:amount,note:finalNote,tIndex:0,status:'closed',source:'clear',fees:feesTotal}, function(res){
+  apiCall({action:'add',date:date,code:code,tag:tag,quantity:qty,amount:amount,note:finalNote,tIndex:0,status:'closed',source:'clear',fees:feesTotal,isPartial:0}, function(res){
     if(res&&res.success){
       for(var j=0;j<trades.length;j++){
         if(trades[j].id===tmpTradeId){ trades[j].id=res.id; break; }
@@ -2839,7 +2857,7 @@ function submitClearHolding(){
   // 清仓备注末尾加账户标记，用于显示账户徽章
   var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
   finalNote += '['+clearAccLabel+']';
-  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal});
+  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal, isPartial:isPartial?1:0});
 
   if(isPartial){
     // 部分清仓：减少持仓数量 + 现金流法冲减成本价（与做T冲减口径一致，避免前后端不一致）
