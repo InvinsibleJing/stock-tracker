@@ -2286,7 +2286,8 @@ function submitAddHolding(){
     // 后台同步：批量更新 quantity、buyPrice、lastAddDate、lastAddQty（原子操作，杜绝竞态）
     apiCall({action:'updateHoldingBatch',id:old.id,
       fields:'quantity,buyPrice,lastAddDate,lastAddQty',
-      values:newQty+','+newBP+','+date+','+holdings[existingIdx].lastAddQty}, function(r){
+      values:newQty+','+newBP+','+date+','+holdings[existingIdx].lastAddQty,
+      addPrice:rawPrice,addDate:date,addQty:quantity}, function(r){
       if(r&&r.success){
         try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
         _checkSyncStatus();
@@ -3528,7 +3529,7 @@ function renderHoldings(){
         rowHtml+='<tr class="hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
         rowHtml+='<td>'+seq+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="date">'+formatDate(h.date)+'</td>';
-        rowHtml+='<td>'+stockName+'</td>';
+        rowHtml+='<td style="cursor:pointer" onclick="toggleHoldingDetail(this,\''+h.id+'\',\''+(h.code||'')+'\')"><span class="hold-toggle" id="hold-toggle-'+h.id+'" style="font-size:10px;margin-right:4px;color:#7f8c8d">▸</span>'+stockName+'</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="tag"><span class="tag '+tagClass+'">'+(h.tag||'主板')+'</span></td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="quantity">'+h.quantity+'股</td>';
         rowHtml+='<td class="editable" data-id="'+h.id+'" data-field="buyPrice">'+buyPriceShow+'<div class="tooltip-box">'+getBuyPriceTip(h)+'</div></td>';
@@ -3546,6 +3547,8 @@ function renderHoldings(){
         rowHtml+='<button class="op-btn btn-del-h" data-id="'+h.id+'" data-action="deleteHolding">删除</button>';
         rowHtml+='</td>';
         rowHtml+='</tr>';
+        // 建仓/补仓明细展开行
+        rowHtml+='<tr class="hold-detail-row hold-month-row-'+g.month+' hold-day-row-'+dg.day+'" id="hold-detail-'+h.id+'" data-loaded="0" style="display:none'+rowStyle.substring(rowStyle.indexOf(':')||0)+'"><td colspan="12"><div class="hold-detail-content" style="padding:8px 16px;font-size:12px;color:#7f8c8d;text-align:center">加载中...</div></td></tr>';
         dgHtml += rowHtml;
 
         cardHtml+='<div class="hold-card-item hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
@@ -3905,5 +3908,62 @@ function confirmUndoAction(){
     } else {
       showStatus('err','❌ 撤销失败：' + (res ? (res.error || '') : '服务器无响应'));
     }
+  });
+}
+
+// ===== 持仓建仓/补仓明细展开 =====
+function toggleHoldingDetail(nameEl, holdingId, code) {
+  var detailRow = document.getElementById('hold-detail-' + holdingId);
+  if (!detailRow) return;
+  var toggleEl = document.getElementById('hold-toggle-' + holdingId);
+  
+  if (detailRow.dataset.loaded === '1') {
+    var showing = detailRow.style.display !== 'none';
+    detailRow.style.display = showing ? 'none' : '';
+    if (toggleEl) toggleEl.textContent = showing ? '▸' : '▾';
+    return;
+  }
+  
+  var contentEl = detailRow.querySelector('.hold-detail-content');
+  if (contentEl) contentEl.innerHTML = '<span style="color:#95a5a6">加载中...</span>';
+  detailRow.style.display = '';
+  if (toggleEl) toggleEl.textContent = '▾';
+  
+  apiCall({action:'listPositionDetails', holdingId: holdingId}, function(res) {
+    if (!res || !res.success) {
+      if (contentEl) contentEl.innerHTML = '<span style="color:#e74c3c">加载失败</span>';
+      return;
+    }
+    var data = res.data || [];
+    detailRow.dataset.loaded = '1';
+    
+    if (data.length === 0) {
+      if (contentEl) contentEl.innerHTML = '<span style="color:#bdc3c7">暂无建仓/补仓明细（此功能上线前的旧持仓不追溯历史）</span>';
+      return;
+    }
+    
+    var tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e8eaed">';
+    tbl += '<thead><tr style="background:#f5f6f7">';
+    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">序号</th>';
+    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">日期</th>';
+    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">操作</th>';
+    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">数量</th>';
+    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">价格</th>';
+    tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">金额</th>';
+    tbl += '</tr></thead><tbody>';
+    for (var i = 0; i < data.length; i++) {
+      var d = data[i];
+      var amt = (d.qty || 0) * (d.price || 0);
+      tbl += '<tr style="' + (i%2===0?'background:#fff':'background:#fafbfc') + '">';
+      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (i+1) + '</td>';
+      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + escapeHtml(d.date || '-') + '</td>';
+      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;font-weight:600;color:' + (d.action==='建仓'?'#3498db':'#27ae60') + '">' + escapeHtml(d.action || '建仓') + '</td>';
+      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (d.qty||0) + '股</td>';
+      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (parseFloat(d.price)||0).toFixed(3) + '</td>';
+      tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">' + amt.toFixed(2) + '</td>';
+      tbl += '</tr>';
+    }
+    tbl += '</tbody></table>';
+    if (contentEl) contentEl.innerHTML = tbl;
   });
 }

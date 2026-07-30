@@ -39,6 +39,11 @@
  *   - 新增 undo()：读最新未撤销记录 → 按 opType 反向操作（恢复持仓+删交易记录/重建持仓行/删持仓行）
  *   - 新增 checkUndo()：返回 count（可撤销条数）+ latestDesc（最新一条描述，前端确认框用）
  *   - doGet 新增 'undo' / 'checkUndo' 两个 action
+ *
+ * v5.5 (2026-07-30) 持仓建仓/补仓明细（持仓行展开查看每次操作）  ★本次改动
+ *   - 新增「持仓明细」sheet：id/holdingId/date/action/qty/price 6 列
+ *   - addHolding 自动写入建仓明细；updateHoldingBatch 检测 addPrice 自动写入补仓明细
+ *   - 新增 listPositionDetails(holdingId) 接口 + doGet 路由
  * ───────────────────────────────────────────────────────────────────────
  */
 
@@ -54,6 +59,10 @@ var BOND_HEADERS = ['id', 'year', 'name', 'code', 'market', 'signer', 'qty', 'pr
 // 撤销操作历史（v5.4新增）
 var HISTORY_SHEET_NAME = '操作历史';
 var HISTORY_HEADERS = ['id', 'timestamp', 'opType', 'opDesc', 'beforeState', 'reversed'];
+
+// 持仓建仓/补仓明细（v5.5新增）
+var POS_DETAIL_SHEET_NAME = '持仓明细';
+var POS_DETAIL_HEADERS = ['id', 'holdingId', 'date', 'action', 'qty', 'price'];
 
 // 交易记录期望的表头（v5.2新增fees列，v5.3.4新增isPartial列）
 var EXPECTED_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'amount', 'note', 'tIndex', 'status', 'source', 'fees', 'isPartial'];
@@ -265,6 +274,9 @@ function doGet(e) {
         break;
       case 'checkUndo':
         result = checkUndo();
+        break;
+      case 'listPositionDetails':
+        result = listPositionDetails(e.parameter.holdingId || '');
         break;
       // ===== 持仓相关 =====
       case 'listHoldings':
@@ -551,6 +563,9 @@ function addHolding(params) {
     holdingId: id
   });
 
+  // 保存建仓明细（用于展开查看每次建仓/补仓的日期/数量/价格）
+  addPositionDetail(id, date, '建仓', quantity, buyPrice);
+
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   // 顺序不能反：对不存在的行预设置格式不会生效，appendRow 之后格式才能正确落到该行
   sheet.appendRow([id, date, code, tag, quantity, note, buyPrice, accountType, lastAddDate, lastAddQty]);
@@ -670,6 +685,50 @@ function fixBadDateInHoldings() {
     if (dirty) fixed++;
   }
   Logger.log('已修复 ' + fixed + ' 条持仓的脏日期格式');
+}
+
+// ============================================================
+// 持仓建仓/补仓明细（v5.5）
+// ============================================================
+function getPositionDetailSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(POS_DETAIL_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(POS_DETAIL_SHEET_NAME);
+    sheet.appendRow(POS_DETAIL_HEADERS);
+  }
+  return sheet;
+}
+
+function addPositionDetail(holdingId, date, action, qty, price) {
+  var sheet = getPositionDetailSheet();
+  var id = String(new Date().getTime());
+  sheet.appendRow([id, holdingId, date, action, parseInt(qty) || 0, parseFloat(price) || 0]);
+  var lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow, 3).setNumberFormat('@');
+  sheet.getRange(lastRow, 3).setValue(date);
+  return id;
+}
+
+function listPositionDetails(holdingId) {
+  var sheet = getPositionDetailSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: true, data: [] };
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var result = [];
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][1]) === String(holdingId)) {
+      result.push({
+        id: String(data[i][0]),
+        holdingId: String(data[i][1]),
+        date: String(data[i][2] || ''),
+        action: String(data[i][3] || '建仓'),
+        qty: parseInt(data[i][4]) || 0,
+        price: parseFloat(data[i][5]) || 0
+      });
+    }
+  }
+  return { success: true, data: result };
 }
 
 // 检查可撤销状态：返回未撤销条数和最新一条的描述
@@ -848,6 +907,15 @@ function updateHoldingBatch(params) {
         cell.setValue(cellValue);
       }
       break;
+    }
+  }
+  // 如果是补仓操作（前端传了 addPrice），自动记录一条补仓明细
+  var addPrice = parseFloat(params.addPrice);
+  if (!isNaN(addPrice) && addPrice > 0) {
+    var addDate = params.addDate || '';
+    var addQty = parseInt(params.addQty) || 0;
+    if (addQty > 0) {
+      addPositionDetail(id, addDate, '补仓', addQty, addPrice);
     }
   }
   return { success: true };
