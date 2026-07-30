@@ -2313,7 +2313,8 @@ function submitAddHolding(){
     apiCall({action:'updateHoldingBatch',id:old.id,
       fields:'quantity,buyPrice,lastAddDate,lastAddQty',
       values:newQty+','+newBP+','+date+','+holdings[existingIdx].lastAddQty,
-      addPrice:rawPrice,addDate:date,addQty:quantity}, function(r){
+      addPrice:rawPrice,addDate:date,addQty:quantity,
+      clientOpId:'upbat_'+Date.now()+'_'+Math.floor(Math.random()*1e9)}, function(r){
       if(r&&r.success){
         try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}
         _checkSyncStatus();
@@ -4024,23 +4025,23 @@ function renderPositionDetail(contentEl, toggleEl, detailRow, data) {
 
   var tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #e8eaed">';
   tbl += '<thead><tr style="background:#f5f6f7">';
-  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">序号</th>';
-  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">日期</th>';
-  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">操作</th>';
-  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">数量</th>';
-  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">价格</th>';
-  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">金额</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">序号</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">日期</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">操作</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">数量</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">价格</th>';
+  tbl += '<th style="padding:4px 8px;border:1px solid #e8eaed;text-align:right;color:#2c3e50">金额</th>';
   tbl += '</tr></thead><tbody>';
   for (var i = 0; i < data.length; i++) {
     var d = data[i];
     var amt = (d.qty || 0) * (d.price || 0);
     tbl += '<tr style="' + (i%2===0?'background:#fff':'background:#fafbfc') + '">';
-    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (i+1) + '</td>';
-    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + escapeHtml(d.date || '-') + '</td>';
-    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;font-weight:600;color:' + (d.action==='建仓'?'#3498db':'#27ae60') + '">' + escapeHtml(d.action || '建仓') + '</td>';
-    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (d.qty||0) + '股</td>';
-    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center">' + (parseFloat(d.price)||0).toFixed(3) + '</td>';
-    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:right">' + amt.toFixed(2) + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">' + (i+1) + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">' + escapeHtml(d.date || '-') + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:' + (d.action==='建仓'?'#3498db':'#27ae60') + ';font-weight:600">' + escapeHtml(d.action || '建仓') + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">' + (d.qty||0) + '股</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:center;color:#2c3e50">' + (parseFloat(d.price)||0).toFixed(3) + '</td>';
+    tbl += '<td style="padding:4px 8px;border:1px solid #e8eaed;text-align:right;color:#2c3e50">' + amt.toFixed(2) + '</td>';
     tbl += '</tr>';
   }
   tbl += '</tbody></table>';

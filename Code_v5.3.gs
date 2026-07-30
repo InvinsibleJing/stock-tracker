@@ -858,6 +858,34 @@ function undo() {
         }
       }
     }
+  } else if (target.opType === 'addToHolding') {
+    // 补仓撤销：恢复持仓的 qty/buyPrice + 移除对应补仓明细
+    var hSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOLDING_SHEET_NAME);
+    var hLastRow = hSheet.getLastRow();
+    if (hLastRow > 1) {
+      var hIds = hSheet.getRange(2, 1, hLastRow - 1, 1).getValues();
+      for (var j = 0; j < hIds.length; j++) {
+        if (String(hIds[j][0]) === String(state.holdingId)) {
+          hSheet.getRange(j + 2, 5).setValue(parseInt(state.oldQty) || 0);
+          hSheet.getRange(j + 2, 7).setValue(parseFloat(state.oldBuyPrice) || 0);
+          break;
+        }
+      }
+    }
+    // 删除对应的补仓明细记录
+    if (state.detailId) {
+      var dSheet = getPositionDetailSheet();
+      var dLastRow = dSheet.getLastRow();
+      if (dLastRow > 1) {
+        var dIds = dSheet.getRange(2, 1, dLastRow - 1, 1).getValues();
+        for (var j = dIds.length - 1; j >= 0; j--) {
+          if (String(dIds[j][0]) === String(state.detailId)) {
+            dSheet.deleteRow(j + 2);
+            break;
+          }
+        }
+      }
+    }
   } else if (target.opType === 'deleteHolding') {
     // 删除持仓撤销：重新插入完整持仓行
     if (state.fullHolding) {
@@ -909,12 +937,28 @@ function updateHolding(params) {
 
 // 批量更新持仓（原子操作，一次调用更新多个字段）
 function updateHoldingBatch(params) {
+  // 幂等去重：前端给每个网络请求一个 clientOpId，重试时 GAS 跳过已处理过的
+  var opId = String(params.clientOpId || '');
+  if (opId && _isDuplicateOp(opId)) {
+    return { success: true, message: '已处理（幂等去重）' };
+  }
   var sheet = getHoldingSheet();
   var id = params.id;
   var fields = params.fields ? params.fields.split(',') : [];
   var values = params.values ? params.values.split(',') : [];
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: true };
+
+  // 找到持仓行，记住旧的 qty/buyPrice（用于补仓撤销）
+  var oldQty = null, oldBuyPrice = null, holdingRowIdx = -1;
+  for (var ri = 0; ri < lastRow - 1; ri++) {
+    if (String(sheet.getRange(ri + 2, 1, 1, 1).getValue()) === String(id)) {
+      holdingRowIdx = ri + 2;
+      oldQty = parseInt(sheet.getRange(ri + 2, 5).getValue()) || 0;
+      oldBuyPrice = parseFloat(sheet.getRange(ri + 2, 7).getValue()) || 0;
+      break;
+    }
+  }
 
   // 列号映射（1-based）：date=2, code=3, tag=4, quantity=5, note=6, buyPrice=7, accountType=8, lastAddDate=9, lastAddQty=10
   var colMap = { date: 2, code: 3, tag: 4, quantity: 5, note: 6, buyPrice: 7, accountType: 8, lastAddDate: 9, lastAddQty: 10 };
@@ -940,16 +984,41 @@ function updateHoldingBatch(params) {
       break;
     }
   }
-  // 如果是补仓操作（前端传了 addPrice），自动记录一条补仓明细
+  // 如果是补仓操作（前端传了 addPrice），记录补仓明细 + 写撤销历史
   var addPrice = parseFloat(params.addPrice);
+  var addDetailId = null;
   if (!isNaN(addPrice) && addPrice > 0) {
     var addDate = params.addDate || '';
     var addQty = parseInt(params.addQty) || 0;
     if (addQty > 0) {
-      addPositionDetail(id, addDate, '补仓', addQty, addPrice);
+      // 补一份持仓需要 code（描述文本用），去持仓 sheet 取
+      var holdingCode = '';
+      if (holdingRowIdx > 0) {
+        holdingCode = String(sheet.getRange(holdingRowIdx, 3).getValue() || '');
+      }
+      addDetailId = addPositionDetail(id, addDate, '补仓', addQty, addPrice);
+      // 写撤销历史（addToHolding opType，详见 undo 分支）
+      if (oldQty !== null && oldBuyPrice !== null) {
+        saveHistory('addToHolding', '补仓 ' + holdingCode + ' ' + addQty + '股',
+          { holdingId: String(id), detailId: addDetailId, oldQty: oldQty, oldBuyPrice: oldBuyPrice });
+      }
     }
   }
   return { success: true };
+}
+
+// 幂等去重工具：记录最近 100 个 opId，已存在则返回 true
+function _isDuplicateOp(opId) {
+  if (!opId) return false;
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty('recent_op_ids') || '[]';
+  var recent;
+  try { recent = JSON.parse(raw); } catch(e) { recent = []; }
+  if (recent.indexOf(opId) >= 0) return true;
+  recent.push(opId);
+  if (recent.length > 100) recent = recent.slice(-100);
+  props.setProperty('recent_op_ids', JSON.stringify(recent));
+  return false;
 }
 
 // 清仓：将持仓转为交易记录，然后删除该持仓
