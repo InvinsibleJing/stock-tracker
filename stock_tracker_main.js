@@ -4122,7 +4122,7 @@ function confirmUndoAction(){
   // 关键：先把要撤销的 ID 保存到局部变量，再关闭弹窗（关闭会清空 _undoSelectedId）
   var opIdToUndo = _undoSelectedId;
   closeUndoConfirm();
-  showStatus('loading','🔄 正在撤销 id=' + opIdToUndo + '...');
+  showStatus('loading','🔄 正在撤销...');
   apiCall({action:'undo', opId: opIdToUndo}, function(res){
     if(res && res.success){
       // 乐观更新本地持仓明细缓存（撤销补仓时同步移除那条明细）
@@ -4136,7 +4136,7 @@ function confirmUndoAction(){
           if(toggle) toggle.style.display = 'none';
         }
       }
-      showStatus('ok','✅ ' + (res.message || '撤销成功') + ' [detailId=' + (res.detailId||'') + ', holdingId=' + (res.holdingId||'') + ']');
+      showStatus('ok','✅ ' + (res.message || '撤销成功'));
       loadAll();
     } else {
       showStatus('err','❌ 撤销失败：' + (res ? (res.error || '') : '服务器��响应'));
