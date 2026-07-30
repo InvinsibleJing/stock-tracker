@@ -608,10 +608,68 @@ function saveHistory(opType, opDesc, beforeState) {
   var lastRow = sheet.getLastRow();
   sheet.getRange(lastRow, 2).setNumberFormat('@');
   sheet.getRange(lastRow, 2).setValue(ts);
-  // 修剪至最新10条（保持 sheet 不无限膨胀）
+  // 智能修剪至10条：优先删已撤销（rev=1），无已撤销时才删最早一条（rev=0）
   if (lastRow > 11) { // 1 header + 10 data rows
-    sheet.deleteRows(2, lastRow - 11);
+    var excess = lastRow - 11;
+    for (var round = 0; round < excess; round++) {
+      var allData = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+      var delIdx = -1;
+      // 第一优先：从前往后找 rev=1（已撤销，没用了）
+      for (var ri = 0; ri < allData.length; ri++) {
+        if (parseInt(allData[ri][5]) === 1) { delIdx = ri; break; }
+      }
+      // 第二优先：实在没有 rev=1 时，只好删最早一条
+      if (delIdx < 0) delIdx = 0;
+      sheet.deleteRow(delIdx + 2);
+      lastRow--;
+    }
   }
+
+  // 返回写入的条目数（供调用方参考）
+  return id;
+}
+
+// 一次性修复：把持仓表中因历史 bug 产生的脏日期格式（如 'ul 30 2026 00:00:00 GMT+0800'）
+// 转换为 'YYYY-MM-DD'。在 GAS 编辑器 Run 一次即可，之后删掉此函数也无妨。
+function fixBadDateInHoldings() {
+  var hSheet = getHoldingSheet();
+  var lastRow = hSheet.getLastRow();
+  if (lastRow < 2) return;
+  var allData = hSheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  var fixed = 0;
+  for (var i = 0; i < allData.length; i++) {
+    var row = i + 2;
+    var dirty = false;
+    // 日期列（col 2）
+    var v = allData[i][1];
+    if (typeof v === 'string' && v.length > 10) {
+      // 尝试解析为 Date 再转回 YYYY-MM-DD
+      var parsed = new Date(v);
+      if (!isNaN(parsed.getTime())) {
+        var y = parsed.getFullYear();
+        var m = String(parsed.getMonth() + 1).padStart(2, '0');
+        var d = String(parsed.getDate()).padStart(2, '0');
+        hSheet.getRange(row, 2).setNumberFormat('@');
+        hSheet.getRange(row, 2).setValue(y + '-' + m + '-' + d);
+        dirty = true;
+      }
+    }
+    // lastAddDate 列（col 9）
+    var v2 = allData[i][8];
+    if (typeof v2 === 'string' && v2.length > 10) {
+      var parsed2 = new Date(v2);
+      if (!isNaN(parsed2.getTime())) {
+        var y2 = parsed2.getFullYear();
+        var m2 = String(parsed2.getMonth() + 1).padStart(2, '0');
+        var d2 = String(parsed2.getDate()).padStart(2, '0');
+        hSheet.getRange(row, 9).setNumberFormat('@');
+        hSheet.getRange(row, 9).setValue(y2 + '-' + m2 + '-' + d2);
+        dirty = true;
+      }
+    }
+    if (dirty) fixed++;
+  }
+  Logger.log('已修复 ' + fixed + ' 条持仓的脏日期格式');
 }
 
 // 检查可撤销状态：返回未撤销条数和最新一条的描述
