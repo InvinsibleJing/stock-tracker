@@ -4123,6 +4123,17 @@ function confirmUndoAction(){
   showStatus('loading','🔄 正在撤销...');
   apiCall({action:'undo', opId: _undoSelectedId}, function(res){
     if(res && res.success){
+      // 乐观更新本地持仓明细缓存（撤销补仓时同步移除那条明细）
+      if(res.detailId && res.holdingId && _positionDetailsCache[res.holdingId]){
+        _positionDetailsCache[res.holdingId] = _positionDetailsCache[res.holdingId].filter(function(d){
+          return d.id !== res.detailId;
+        });
+        // 如果缓存里的数量 < 2，隐藏 📋 图标
+        if(_positionDetailsCache[res.holdingId].length < 2){
+          var toggle = document.getElementById('hold-toggle-' + res.holdingId);
+          if(toggle) toggle.style.display = 'none';
+        }
+      }
       showStatus('ok','✅ ' + (res.message || '撤销成功'));
       loadAll();
     } else {

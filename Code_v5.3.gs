@@ -977,9 +977,16 @@ function undo(params) {
     }
   }
 
-  // 标记为已撤销
+  // 标记为已撤销（详见上面分支里的 sheet.getRange...setValue(1) 操作）
   sheet.getRange(targetRow, 6).setValue(1);
-  return { success: true, message: '已撤销：' + target.opDesc };
+
+  // 对 addToHolding：返回值里告诉前端刚删了哪个 detail record，让前端能精准同步本地缓存
+  // 对其他类型：holdingId 用于通知前端刷新对应行的 📋 状态（仅 addToHolding 需要详情 ID）
+  var resultExtra = { holdingId: state && state.holdingId ? String(state.holdingId) : null };
+  if (target.opType === 'addToHolding' && state && state.detailId) {
+    resultExtra.detailId = String(state.detailId);
+  }
+  return { success: true, message: '已撤销：' + target.opDesc, ...resultExtra };
 }
 
 // 更新持仓
