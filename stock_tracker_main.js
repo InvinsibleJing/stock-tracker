@@ -3980,14 +3980,25 @@ function renderUndoList(){
       // 时间戳格式：2026-07-30T12:34:56.789Z → 12:34
       var t = it.timestamp || '';
       var hm = t.indexOf('T')>=0 ? t.substring(t.indexOf('T')+1, t.indexOf('T')+6) : '';
-      html += '<div class="undo-item" data-id="' + escapeHtml(it.id) + '" onclick="selectUndoItem(' + JSON.stringify(it.id) + ')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:background 0.15s" onmouseover="this.style.background=&#39;#f5f6f7&#39;" onmouseout="this.style.background=&#39;&#39;">';
+      html += '<div class="undo-item" data-id="' + escapeHtml(it.id) + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:10px;transition:background 0.15s" onmouseover="this.style.background=&#39;#f5f6f7&#39;" onmouseout="this.style.background=&#39;&#39;">';
       html += '<span style="font-size:16px">' + _opTypeIcon(it.opType) + '</span>';
       html += '<span style="flex:1;color:#2c3e50;font-size:13px">' + escapeHtml(desc) + '</span>';
       if(hm) html += '<span style="color:#7f8c8d;font-size:11px">' + escapeHtml(hm) + '</span>';
       html += '</div>';
     }
   }
-  document.getElementById('undoItemList').innerHTML = html;
+  var listEl = document.getElementById('undoItemList');
+  listEl.innerHTML = html;
+  // 事件委托：容器上挂一次，避免每行渲染都重挂或 inline onclick 引号问题
+  if(!listEl._delegateAttached){
+    listEl.addEventListener('click', function(e){
+      var item = e.target.closest('.undo-item');
+      if(item && listEl.contains(item)){
+        selectUndoItem(item.getAttribute('data-id'));
+      }
+    });
+    listEl._delegateAttached = true;
+  }
 }
 
 function selectUndoItem(id){
