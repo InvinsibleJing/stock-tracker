@@ -731,15 +731,16 @@ function listPositionDetails(holdingId) {
   return { success: true, data: result };
 }
 
-// 检查可撤销状态：返回未撤销条数和最新一条的描述
+// 检查可撤销状态：返回未撤销条数和最新一条的描述（仅限今天）
 function checkUndo() {
   var sheet = getHistorySheet();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: true, count: 0, latestDesc: '' };
   var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var today = getTodayDateStr();
   var unreversed = [];
   for (var i = 0; i < data.length; i++) {
-    if (parseInt(data[i][5]) === 0) {
+    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
       unreversed.push({ id: String(data[i][0]), opType: String(data[i][2]), opDesc: String(data[i][3]) });
     }
   }
@@ -747,17 +748,24 @@ function checkUndo() {
   return { success: true, count: unreversed.length, latestDesc: latest ? latest.opDesc : '' };
 }
 
-// 执行撤销：找最新一条未撤销记录，反向操作
+// 获取今天日期字符串 YYYY-MM-DD
+function getTodayDateStr() {
+  var now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+}
+
+// 执行撤销：找今天最新一条未撤销记录，反向操作
 function undo() {
   var sheet = getHistorySheet();
   var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: false, error: '没有可撤销的操作' };
+  if (lastRow < 2) return { success: false, error: '没有今天可撤销的操作' };
   var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
-  // 找最后一条 reversed=0 的记录
+  var today = getTodayDateStr();
+  // 找今天最后一条 reversed=0 的记录
   var targetRow = -1, target = null;
   for (var i = data.length - 1; i >= 0; i--) {
-    if (parseInt(data[i][5]) === 0) {
-      targetRow = i + 2; // 1-based row in sheet
+    if (parseInt(data[i][5]) === 0 && String(data[i][1]).indexOf(today) === 0) {
+      targetRow = i + 2;
       target = {
         id: String(data[i][0]),
         opType: String(data[i][2]),
@@ -767,7 +775,7 @@ function undo() {
       break;
     }
   }
-  if (!target) return { success: false, error: '没有可撤销的操作' };
+  if (!target) return { success: false, error: '没有今天可撤销的操作' };
 
   var state;
   try { state = JSON.parse(target.beforeState); } catch(e) {
