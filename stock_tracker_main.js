@@ -778,6 +778,7 @@ function _checkSyncStatus(){
     var t = (trades||[]).length;
     var h = (holdings||[]).length;
     showStatus('ok','✅ 云端同步成功 | '+h+'条持仓 | '+t+'条记录');
+    updateUndoBtn();
   }
 }
 

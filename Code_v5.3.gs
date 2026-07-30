@@ -679,6 +679,10 @@ function undo() {
       var arr = [];
       for (var k = 0; k < hdr.length; k++) { arr.push(state.fullHolding[k] || ''); }
       hSheet.appendRow(arr);
+      // 日期列（col 2 = date, col 9 = lastAddDate）强制设为文本格式，避免被读成 Date 对象导致 UI 异常
+      var newRow = hSheet.getLastRow();
+      hSheet.getRange(newRow, 2).setNumberFormat('@');
+      if (arr[8]) hSheet.getRange(newRow, 9).setNumberFormat('@');
     } else if (target.opType === 'partialClear' || target.opType === 'doT') {
       // 部分清仓/做T撤销：恢复持仓数量和成本价
       var hLastRow = hSheet.getLastRow();
@@ -714,6 +718,9 @@ function undo() {
       var arr = [];
       for (var k = 0; k < hdr.length; k++) { arr.push(state.fullHolding[k] || ''); }
       hSheet.appendRow(arr);
+      var newRow = hSheet.getLastRow();
+      hSheet.getRange(newRow, 2).setNumberFormat('@');
+      if (arr[8]) hSheet.getRange(newRow, 9).setNumberFormat('@');
     }
   }
 
@@ -864,7 +871,17 @@ function clearHolding(params) {
     }
     if (holdingRow > 0) {
       var rawHolding = hSheet.getRange(holdingRow, 1, 1, 10).getValues()[0];
-      savedState.fullHolding = rawHolding.map(function(v){ return String(v); });
+      // 日期列（idx=1 date, idx=8 lastAddDate）需从 Date 对象转为 YYYY-MM-DD 字符串
+      // 否则落库后会被读取成 Date.toString() 那种冗长格式
+      savedState.fullHolding = rawHolding.map(function(v, idx){
+        if ((idx === 1 || idx === 8) && v instanceof Date) {
+          var y = v.getFullYear();
+          var m = String(v.getMonth() + 1).padStart(2, '0');
+          var d = String(v.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + d;
+        }
+        return String(v);
+      });
     }
     saveHistory('fullClear', savedOpDesc, savedState);
   }
