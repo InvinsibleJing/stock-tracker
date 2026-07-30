@@ -592,17 +592,36 @@ function deleteHolding(id) {
   var sheet = getHoldingSheet();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: true };
-  // 读取全部数据列，用于撤销时恢复
+  // 读取全部数据列
   var allData = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  var deleted = false;
   for (var i = allData.length - 1; i >= 0; i--) {
     if (String(allData[i][0]) === String(id)) {
-      // 保存撤销快照
-      saveHistory('deleteHolding', '删除持仓 ' + String(allData[i][2] || '-'), {
-        holdingId: String(allData[i][0]),
-        fullHolding: allData[i].map(function(v){ return String(v); })
-      });
       sheet.deleteRow(i + 2);
+      deleted = true;
       break;
+    }
+  }
+  // 删除持仓后，级联清掉该持仓的所有可撤销记录（添加持仓/补仓都无意义了）
+  if (deleted) {
+    var histSheet = getHistorySheet();
+    var histLastRow = histSheet.getLastRow();
+    if (histLastRow > 1) {
+      var today = getTodayDateStr();
+      var histData = histSheet.getRange(2, 1, histLastRow - 1, 6).getValues();
+      var cleared = 0;
+      for (var j = 0; j < histData.length; j++) {
+        if (parseInt(histData[j][5]) !== 0) continue; // 跳过已撤销的
+        var ts = _getLocalDateFromISO(String(histData[j][1]));
+        if (ts !== today) continue; // 只清今天的
+        var stateJson = String(histData[j][4] || '');
+        // 检查 beforeState 里是否包含该 holdingId
+        if (stateJson.indexOf('"' + String(id) + '"') >= 0) {
+          histSheet.getRange(j + 2, 6).setValue(1);
+          cleared++;
+        }
+      }
+      if (cleared > 0) Logger.log('删除持仓后级联清除了 ' + cleared + ' 条关联可撤销记录');
     }
   }
   return { success: true };
@@ -969,18 +988,6 @@ function undo(params) {
           }
         }
       }
-    }
-  } else if (target.opType === 'deleteHolding') {
-    // 删除持仓撤销：重新插入完整持仓行
-    if (state.fullHolding) {
-      var hSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOLDING_SHEET_NAME);
-      var hdr = ['id','date','code','tag','quantity','note','buyPrice','accountType','lastAddDate','lastAddQty'];
-      var arr = [];
-      for (var k = 0; k < hdr.length; k++) { arr.push(state.fullHolding[k] || ''); }
-      hSheet.appendRow(arr);
-      var newRow = hSheet.getLastRow();
-      hSheet.getRange(newRow, 2).setNumberFormat('@');
-      if (arr[8]) hSheet.getRange(newRow, 9).setNumberFormat('@');
     }
   }
 
