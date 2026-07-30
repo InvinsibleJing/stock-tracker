@@ -3597,7 +3597,7 @@ function renderHoldings(){
         rowHtml+='</td>';
         rowHtml+='</tr>';
         // 建仓/补仓明细展开行
-        rowHtml+='<tr class="hold-detail-row hold-month-row-'+g.month+' hold-day-row-'+dg.day+'" id="hold-detail-'+h.id+'" data-loaded="0" style="display:none"><td colspan="12"><div class="hold-detail-content" style="padding:8px 16px;font-size:12px;color:#7f8c8d;text-align:center">点击股票名称旁的 ▸ 展开明细</div></td></tr>';
+        rowHtml+='<tr class="hold-detail-row hold-month-row-'+g.month+' hold-day-row-'+dg.day+'" id="hold-detail-'+h.id+'" data-loaded="0" style="display:none"><td colspan="12"><div class="hold-detail-content" style="padding:8px 16px;font-size:12px;color:#7f8c8d;text-align:center">点击股票名称旁的 📋 图标展开明细</div></td></tr>';
         dgHtml += rowHtml;
 
         cardHtml+='<div class="hold-card-item hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
@@ -4175,7 +4175,7 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
       if (toggleEl) toggleEl.style.display = 'none';
       nameEl.style.cursor = 'default';
       // 还原默认占位文本（如果之前设过"加载中..."，清除避免悬挂）
-      if (contentEl) contentEl.innerHTML = '<span style="color:#bdc3c7">点击股票名称旁的 ▸ 展开明细</span>';
+      if (contentEl) contentEl.innerHTML = '<span style="color:#bdc3c7">点击股票名称旁的 📋 图标展开明细</span>';
       return;
     }
     renderPositionDetail(contentEl, toggleEl, detailRow, data);
@@ -4189,7 +4189,7 @@ function renderPositionDetail(contentEl, toggleEl, detailRow, data) {
   detailRow.style.display = '';
   if (toggleEl) {
     toggleEl.style.display = 'inline';
-    toggleEl.textContent = '▾';
+    toggleEl.textContent = '📋'; // 永久用 📋，状态用背景色/展开空间区分
   }
 
   if (data.length === 0) {
