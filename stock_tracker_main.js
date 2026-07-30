@@ -3548,7 +3548,7 @@ function renderHoldings(){
         rowHtml+='</td>';
         rowHtml+='</tr>';
         // 建仓/补仓明细展开行
-        rowHtml+='<tr class="hold-detail-row hold-month-row-'+g.month+' hold-day-row-'+dg.day+'" id="hold-detail-'+h.id+'" data-loaded="0" style="display:none'+rowStyle.substring(rowStyle.indexOf(':')||0)+'"><td colspan="12"><div class="hold-detail-content" style="padding:8px 16px;font-size:12px;color:#7f8c8d;text-align:center">加载中...</div></td></tr>';
+        rowHtml+='<tr class="hold-detail-row hold-month-row-'+g.month+' hold-day-row-'+dg.day+'" id="hold-detail-'+h.id+'" data-loaded="0" style="display:none"><td colspan="12"><div class="hold-detail-content" style="padding:8px 16px;font-size:12px;color:#7f8c8d;text-align:center">点击股票名称旁的 ▸ 展开明细</div></td></tr>';
         dgHtml += rowHtml;
 
         cardHtml+='<div class="hold-card-item hold-month-row-'+g.month+' hold-day-row-'+dg.day+'"'+rowStyle+'>';
@@ -3647,7 +3647,7 @@ function renderHoldings(){
 
 function toggleHoldMonth(el){
   var month = el.getAttribute('data-month');
-  var rows = document.querySelectorAll('.hold-month-row-'+month);
+  var rows = document.querySelectorAll('.hold-month-row-'+month+':not(.hold-detail-row)');
   var dayHeaders = document.querySelectorAll('.hold-day-header[data-month="'+month+'"]');
   var toggle = el.querySelector('.hold-month-toggle');
   var isOpen = toggle.textContent === '▼';
@@ -3661,7 +3661,7 @@ function toggleHoldMonth(el){
       var dt = dayHeaders[i].querySelector('.hold-day-toggle');
       if(dt && dt.textContent === '▶'){
         var d = dayHeaders[i].getAttribute('data-day');
-        var dRows = document.querySelectorAll('.hold-day-row-'+d);
+        var dRows = document.querySelectorAll('.hold-day-row-'+d+':not(.hold-detail-row)');
         for(var j=0;j<dRows.length;j++){
           if(!dRows[j].classList.contains('hold-day-header')){ dRows[j].style.display = 'none'; }
         }
@@ -3726,13 +3726,13 @@ function restoreHoldCollapseState(){
     if(!header) continue;
     var toggle = header.querySelector('.hold-month-toggle');
     if(mState[m] === true){
-      var rows = document.querySelectorAll('.hold-month-row-'+m);
+      var rows = document.querySelectorAll('.hold-month-row-'+m+':not(.hold-detail-row)');
       var dh = document.querySelectorAll('.hold-day-header[data-month="'+m+'"]');
       for(var j=0;j<rows.length;j++){ rows[j].style.display = 'none'; }
       for(var k=0;k<dh.length;k++){ dh[k].style.display = 'none'; }
       if(toggle) toggle.textContent = '▶';
     } else {
-      var rows = document.querySelectorAll('.hold-month-row-'+m);
+      var rows = document.querySelectorAll('.hold-month-row-'+m+':not(.hold-detail-row)');
       var dh = document.querySelectorAll('.hold-day-header[data-month="'+m+'"]');
       for(var j=0;j<rows.length;j++){ rows[j].style.display = ''; }
       for(var k=0;k<dh.length;k++){ dh[k].style.display = ''; }
@@ -3740,7 +3740,7 @@ function restoreHoldCollapseState(){
         var dt = dh[k].querySelector('.hold-day-toggle');
         if(dt && dt.textContent === '▶'){
           var d = dh[k].getAttribute('data-day');
-          var dRows = document.querySelectorAll('.hold-day-row-'+d);
+          var dRows = document.querySelectorAll('.hold-day-row-'+d+':not(.hold-detail-row)');
           for(var jj=0;jj<dRows.length;jj++){
             if(!dRows[jj].classList.contains('hold-day-header')){ dRows[jj].style.display = 'none'; }
           }
