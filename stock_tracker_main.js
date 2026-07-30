@@ -3962,22 +3962,21 @@ function toggleHoldingDetail(nameEl, holdingId, code) {
   }
 
   // 缓存未命中（预加载还没完成）—— 退回原始请求方式
-  if (contentEl) contentEl.innerHTML = '<span style="color:#95a5a6">加载中...</span>';
-  detailRow.style.display = '';
-  if (toggleEl) toggleEl.textContent = '▾';
+  // 注意：不要同步设置"加载中..."占位，因为如果之后异步返回 data.length<2 时
+  // 我们会进入隐藏分支但忘了还原 innerHTML，会留下"加载中..."的悬挂痕迹。
   apiCall({action:'listPositionDetails', holdingId: holdingId}, function(res){
     if (!res || !res.success) {
-      if (contentEl) contentEl.innerHTML = '<span style="color:#e74c3c">加载失败</span>';
-      return;
+      return; // 失败时也不留痕迹
     }
     var data = res.data || [];
-    _positionDetailsCache[holdingId] = data; // 同时填充缓存
+    _positionDetailsCache[holdingId] = data;
 
     if (data.length < 2) {
-      // 0 或 1 条记录：折叠掉、不显示箭头、单元格恢复默认（首次也没缓存时第一次点击走这里）
       detailRow.style.display = 'none';
       if (toggleEl) toggleEl.style.display = 'none';
       nameEl.style.cursor = 'default';
+      // 还原默认占位文本（如果之前设过"加载中..."，清除避免悬挂）
+      if (contentEl) contentEl.innerHTML = '<span style="color:#bdc3c7">点击股票名称旁的 ▸ 展开明细</span>';
       return;
     }
     renderPositionDetail(contentEl, toggleEl, detailRow, data);
