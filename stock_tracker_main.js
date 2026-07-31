@@ -687,7 +687,7 @@ function apiCall(params, callback, _retries){
         callback({success:false,error:'请求超时'});
       }
     }
-  }, 15000);
+  }, 30000);
   var origCb = window[callbackName];
   window[callbackName] = function(data){ clearTimeout(timer); origCb(data); };
   document.head.appendChild(script);
@@ -695,8 +695,8 @@ function apiCall(params, callback, _retries){
 
 function loadAll(){
   _tradesLoaded=false; _holdingsLoaded=false;
-  loadTrades();
-  loadHoldings();
+  // 串行加载：先 list 让 GAS 实例变热，再 listHoldings，避免两个并发请求同时撞冷启动而超时
+  loadTrades(function(){ loadHoldings(); });
 }
 
 // ===== 跨终端自动同步（页面可见时触发） =====
@@ -807,7 +807,7 @@ function loadUndoListData(){
   });
 }
 
-function loadTrades(){
+function loadTrades(onDone){
   // 第一步：立即显示缓存数据（<100ms，不等待GAS）
   var cached = localStorage.getItem('stock_cache');
   if(cached){
@@ -840,10 +840,11 @@ function loadTrades(){
     } else {
       _tradesLoaded = true; _checkSyncStatus();
     }
+    if(typeof onDone === 'function') onDone();
   });
 }
 
-function loadHoldings(){
+function loadHoldings(onDone){
   // 第一步：立即显示缓存数据
   var cached = localStorage.getItem('stock_holdings_cache');
   if(cached){
@@ -870,6 +871,7 @@ function loadHoldings(){
     } else {
       _holdingsLoaded = true; _checkSyncStatus();
     }
+    if(typeof onDone === 'function') onDone();
   });
 }
 
@@ -3954,13 +3956,17 @@ function updateUndoBtn(){
           }
         });
       } else {
-        btn.style.display = 'none';
+        // 可撤销步骤为 0：仍显示按钮，但置灰不可点，角标显示 0
+        btn.style.display = '';
         btn.disabled = true;
+        btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">0</span>';
         _undoListData = [];
       }
     } else {
-      btn.style.display = 'none';
+      // 查询失败：同样保持按钮可见并置灰（角标 0），不隐藏
+      btn.style.display = '';
       btn.disabled = true;
+      btn.innerHTML = '🕐 撤销 <span style="background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;font-size:10px">0</span>';
       _undoListData = [];
     }
   });
@@ -4042,6 +4048,7 @@ function renderUndoList(){
       html += _opTypeBadge(it.opType);
       html += '<span style="flex:1;color:#2c3e50;font-size:13px">' + escapeHtml(desc) + '</span>';
       if(hm) html += '<span style="color:#7f8c8d;font-size:11px">' + escapeHtml(hm) + '</span>';
+      html += '<span class="undo-check" style="display:none;width:18px;height:18px;line-height:17px;text-align:center;border-radius:50%;background:#27ae60;color:white;font-size:12px;font-weight:bold;flex-shrink:0">✓</span>';
       html += '</div>';
     }
   }
@@ -4064,14 +4071,17 @@ function selectUndoItem(id){
   // 更新选中样式
   var items = document.querySelectorAll('.undo-item');
   for(var i=0;i<items.length;i++){
+    var checkEl = items[i].querySelector('.undo-check');
     if(items[i].getAttribute('data-id') === id){
       items[i].style.background = '#fff7e6';
       items[i].style.borderLeft = '3px solid #e67e22';
       items[i].style.paddingLeft = '11px';
+      if(checkEl) checkEl.style.display = '';
     } else {
       items[i].style.background = '';
       items[i].style.borderLeft = '';
       items[i].style.paddingLeft = '14px';
+      if(checkEl) checkEl.style.display = 'none';
     }
   }
   // 启用确认按钮
