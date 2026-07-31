@@ -3058,6 +3058,8 @@ function submitDoT(){
       holding.buyPrice = Math.round(uNewBuyPrice * 1000) / 1000;
     }
     holding.quantity = uNewQty;
+    holding._doTQty = uSellQtyActual;
+    holding._doTDate = todayStr();
 
     closeDoT();
     refreshUI();
@@ -3122,6 +3124,8 @@ function submitDoT(){
     if(newBuyPrice < 0) newBuyPrice = 0;
     holding.buyPrice = Math.round(newBuyPrice * 1000) / 1000;
   }
+  holding._doTQty = actualQty;
+  holding._doTDate = todayStr();
 
   closeDoT();
   refreshUI();
@@ -3380,13 +3384,7 @@ function renderHoldings(){
         } else if(h.lastAddDate === today){
           todayBuyQty = (h.lastAddQty || 0);
         }
-        var todayDoTQty = 0;
-        for(var j2=0;j2<trades.length;j2++){
-          var tr=trades[j2];
-          if(tr.code===h.code && tr.source==='doT' && tr.status==='open' && tr.date===today){
-            todayDoTQty += (tr.buyQty || tr.quantity || 0);
-          }
-        }
+        var todayDoTQty = (h._doTDate === today) ? (h._doTQty || 0) : 0;
         var availableQty = Math.max(0, totalQty - todayBuyQty - todayDoTQty);
         var availColor = availableQty === 0 ? '#e74c3c' : (availableQty < totalQty ? '#e67e22' : '#27ae60');
         var availShow = '<span style="color:'+availColor+';font-weight:600">'+availableQty+'</span><span style="color:#666">/'+totalQty+'</span>';
