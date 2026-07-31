@@ -4,7 +4,6 @@ var ZHI = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','�
 var SHENGXIAO = ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'];
 var WUXING = ['木','木','火','火','土','土','金','金','水','水']; // 天干对应五行
 var YUE_LING = ['寅','卯','辰','巳','午','未','申','酉','戌','亥','子','丑']; // 月令地支
-var YUE_LING_NAME = ['寅月(春)','卯月(春)','辰月(春)','巳月(夏)','午月(夏)','未月(夏)','申月(秋)','酉月(秋)','戌月(秋)','亥月(冬)','子月(冬)','丑月(冬)'];
 
 // 农历数据 1900-2100，每项4位hex，bit0-3:闰月月份(0=无)，bit4-15:农历月大小(1=30天,0=29天)，bit16-19:闰月大小
 var LUNAR_INFO = [
@@ -30,8 +29,6 @@ var LUNAR_INFO = [
 0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a4d0,0x0d150,0x0f252, //2090-2099
 0x0d520
 ];
-
-var YI = ['闭','建','除','满','平','定','执','破','危','成','收','开']; // 十二建
 
 function lunarInfoYear(y){ return LUNAR_INFO[y-1900]; }
 
@@ -186,14 +183,6 @@ function getDayGanZhi(yy,mm,dd){
 }
 
 // ===== 二十四节气 =====
-// 简化版：返回某日前后的节气名
-var SOLAR_TERMS = [
-  '小寒','大寒','立春','雨水','惊蛰','春分',
-  '清明','谷雨','立夏','小满','芒种','夏至',
-  '小暑','大暑','立秋','处暑','白露','秋分',
-  '寒露','霜降','立冬','小雪','大雪','冬至'
-];
-
 function getSolarTerm(yy,mm,dd){
   // 近似值表（公历月份对应节气，简化显示）
   var stDates = {
@@ -579,26 +568,6 @@ function updateCalendar(){
     document.getElementById('calNextGzMonth').textContent = '';
   }
 
-  // 同步到添加记录日期输入框
-  var dateStr = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-  var inpDate = document.getElementById('inpDate');
-  if(inpDate && document.activeElement !== inpDate){
-    if(inpDate.value !== dateStr) inpDate.value = dateStr;
-  }
-}
-
-// 当手动修改日期输入框时，同步更新顶部日历
-function onDateInputChange(){
-  var inpDate = document.getElementById('inpDate');
-  if(!inpDate || !inpDate.value) return;
-  var parts = inpDate.value.split('-');
-  if(parts.length===3){
-    var yy = parseInt(parts[0]), mm = parseInt(parts[1]), dd = parseInt(parts[2]);
-    if(!isNaN(yy) && !isNaN(mm) && !isNaN(dd)){
-      calCurrentDate = new Date(yy, mm-1, dd);
-      updateCalendar();
-    }
-  }
 }
 
 function calGoToday(){
@@ -711,9 +680,4 @@ function dpSelectDay(d){
 // 初始化日历
 window.addEventListener('DOMContentLoaded', function(){
   updateCalendar();
-  // 设置日期输入框默认值为今天
-  var today = new Date();
-  var dateStr = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
-  var inp = document.getElementById('inpDate');
-  if(inp && !inp.value) inp.value = dateStr;
 });

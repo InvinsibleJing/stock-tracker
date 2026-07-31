@@ -16,8 +16,6 @@ var marginChart = null;
 var currentPeriod = 'week';
 var isOnline = navigator.onLine;
 var deferredPrompt = null; // PWA 安装事件
-var acSelectedIndex = -1; // 联想下拉选中索引
-var acResults = []; // 当前联想结果
 var holdAcSelectedIndex = -1; // 持仓联想下拉选中索引
 var holdAcResults = []; // 持仓联想结果
 var pendingClearId = ''; // 待清仓的持仓ID
@@ -197,13 +195,10 @@ function todayStr(){
 
 // ===== 初始化 =====
 window.addEventListener('DOMContentLoaded', function(){
-  var _inpDate = document.getElementById('inpDate');
-  if(_inpDate) _inpDate.value = todayStr();
 
   // 点击页面其他地方关闭联想下拉
   document.addEventListener('click', function(e){
     if(!e.target.closest('.autocomplete-wrap')){
-      document.getElementById('acList').classList.remove('show');
       document.getElementById('holdAcList').classList.remove('show');
       document.getElementById('compAcList').classList.remove('show');
     }
@@ -469,9 +464,6 @@ function showStatus(type,msg){
 
 // ===== Tab 切换 =====
 function switchTab(name){
-  // 找到对应的主tab（不是周期tab）
-  var mainTabs = document.querySelectorAll('.container > .tabs .tab');
-
   document.getElementById('tabToolbox').style.display = name==='toolbox'?'block':'none';
   document.getElementById('tabTable').style.display = name==='table'?'block':'none';
   document.getElementById('tabAnalysis').style.display = name==='analysis'?'block':'none';
@@ -544,101 +536,6 @@ function searchStockDict(query, limit) {
   return res;
 }
 
-// ===== 交易代码联想（带防抖）=====
-var _onCodeInputTimer = null;
-function onCodeInput() {
-  if (_onCodeInputTimer) clearTimeout(_onCodeInputTimer);
-  _onCodeInputTimer = setTimeout(_doCodeInput, 150);
-}
-function _doCodeInput() {
-  var input = document.getElementById('inpCode');
-  var val = input.value.trim().toLowerCase();
-  var list = document.getElementById('acList');
-
-  if (!val || typeof STOCK_DICT === 'undefined') {
-    list.classList.remove('show');
-    acResults = [];
-    acSelectedIndex = -1;
-    return;
-  }
-
-  acResults = searchStockDict(val, 30);
-
-  if (acResults.length === 0) {
-    list.classList.remove('show');
-    acSelectedIndex = -1;
-    return;
-  }
-
-  acSelectedIndex = -1;
-  renderAcList();
-  list.classList.add('show');
-}
-
-function renderAcList() {
-  var list = document.getElementById('acList');
-  var html = '';
-  for (var i = 0; i < acResults.length; i++) {
-    var r = acResults[i];
-    var selected = i === acSelectedIndex ? ' style="background:#f0f7ff"' : '';
-    html += '<div class="autocomplete-item"' + selected + ' onclick="selectAcItem(' + i + ')" data-index="' + i + '">';
-    html += '<span class="ac-name">' + escapeHtml(r.name) + '</span>';
-    html += '<span class="ac-code">' + r.code + '</span>';
-    html += '</div>';
-  }
-  list.innerHTML = html;
-}
-
-// 根据股票代码自动识别板块
-function autoDetectTag(code) {
-  if (!code) return;
-  var c = code.replace(/\s/g, '');
-  var tag = '';
-  if (c.indexOf('30') === 0) tag = '创业板';
-  else if (c.indexOf('68') === 0) tag = '科创板';
-  else if (c.indexOf('60') === 0 || c.indexOf('00') === 0) tag = '主板';
-  if (tag) document.getElementById('inpTag').value = tag;
-}
-
-function selectAcItem(index) {
-  var r = acResults[index];
-  document.getElementById('inpCode').value = r.code;
-  autoDetectTag(r.code);
-  document.getElementById('acList').classList.remove('show');
-  acSelectedIndex = -1;
-  acResults = [];
-}
-
-function onCodeKeydown(e) {
-  var list = document.getElementById('acList');
-  if (!list.classList.contains('show') || acResults.length === 0) {
-    if (e.key === 'Enter') addTrade();
-    return;
-  }
-
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    acSelectedIndex = Math.min(acSelectedIndex + 1, acResults.length - 1);
-    renderAcList();
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    acSelectedIndex = Math.max(acSelectedIndex - 1, -1);
-    renderAcList();
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    if (acSelectedIndex >= 0) {
-      selectAcItem(acSelectedIndex);
-    } else {
-      document.getElementById('acList').classList.remove('show');
-      addTrade();
-    }
-  } else if (e.key === 'Escape') {
-    list.classList.remove('show');
-    acSelectedIndex = -1;
-  }
-}
-
-// ===== 设置 =====
 // ===== 设置 =====
 function openSettings(){ document.getElementById('settingsModal').classList.add('active'); document.getElementById('inpApiUrl').value=API_URL; }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('active'); }
@@ -875,43 +772,6 @@ function loadHoldings(onDone){
   });
 }
 
-// ===== 添加 =====
-function addTrade(){
-  if(isLoading){ alert('数据加载中'); return; }
-  var date=document.getElementById('inpDate').value;
-  var code=document.getElementById('inpCode').value.trim();
-  var tag=document.getElementById('inpTag').value;
-  var quantity=parseInt(document.getElementById('inpQuantity').value)||0;
-  var amount=parseFloat(document.getElementById('inpAmount').value);
-  var note=document.getElementById('inpNote').value.trim();
-  if(!date||isNaN(amount)){ alert('请填写交易日期和盈利金额！'); return; }
-
-  // 乐观更新：先在前端添加
-  var tmpId = genTempId();
-  var savedTrades = JSON.parse(JSON.stringify(trades));
-  trades.push({id:tmpId, date:date, code:code, tag:tag, quantity:quantity, amount:amount, note:note, tIndex:0, status:'closed', source:'manual'});
-  refreshUI();
-  showStatus('ok','✅ 已添加');
-
-  // 后台同步
-  apiCall({action:'add',date:date,code:code,tag:tag,quantity:quantity,amount:amount,note:note}, function(res){
-    if(res&&res.success){
-      document.getElementById('inpCode').value='';
-      document.getElementById('inpQuantity').value='';
-      document.getElementById('inpAmount').value='';
-      document.getElementById('inpNote').value='';
-      // 用云端真ID替换临时ID，并重新渲染UI（更新onclick中的ID引用）
-      for(var i=0;i<trades.length;i++){
-        if(trades[i].id===tmpId){ trades[i].id=res.id; break; }
-      }
-      cacheData(trades);
-      refreshUI();
-      _checkSyncStatus();
-    } else {
-      rollbackOptimistic(savedTrades, holdings, '❌ 添加失败：'+(res?res.error:''));
-    }
-  });
-}
 
 // ===== 删除 =====
 function deleteTrade(id){
@@ -2818,7 +2678,6 @@ function autoCalcDoTProfit(){
   profit = Math.round(profit * 100) / 100;
   document.getElementById('doTAmount').value = profit;
   document.getElementById('doTAutoCalcHint').style.display = 'block';
-  var totalFees = Math.round((sellFees.total + buyBackFees.total) * 100) / 100;
   var tip = '✅';
   if(sellFees.total > 0 || buyBackFees.total > 0){
     tip += ' 卖出手续费 ' + sellFees.total.toFixed(2) + ' 元' + feeDetailText(sellFees);
@@ -2941,16 +2800,17 @@ function submitClearHolding(){
   }
   var feesTotal = Math.round(sellFees.total * 100) / 100;
 
-  // 添加到交易记录
-  var tmpTradeId = genTempId();
-  var today = new Date();
-  var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  var finalNote = note || holding.note || '';
-  // 部分清仓的「部分清仓+数量」由 GAS clearHolding 统一追加（前端不重复加，避免 duplicate 如「部分清仓[两融] 部分清仓500/1000股」）
-  // 清仓备注末尾加账户标记，用于显示账户徽章
-  var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
-  finalNote += '['+clearAccLabel+']';
-  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal, isPartial:isPartial?1:0});
+  // 添加到交易记录：仅“卖光=全清仓”才写；部分清仓不写记录（盈亏仅通过现金流冲减藏入剩余持仓成本）
+  var tmpTradeId = null;
+  if(!isPartial){
+    tmpTradeId = genTempId();
+    var today = new Date();
+    var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    var finalNote = note || holding.note || '';
+    var clearAccLabel = (accType === 'margin') ? '两融' : '正常';
+    finalNote += '['+clearAccLabel+']';
+    trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:finalNote, tIndex:0, status:'closed', source:'clear', fees:feesTotal, isPartial:0});
+  }
 
   if(isPartial){
     // 部分清仓：减少持仓数量 + 现金流法冲减成本价（与做T冲减口径一致，避免前后端不一致）
@@ -2981,7 +2841,7 @@ function submitClearHolding(){
   // 后台同步
   apiCall({action:'clearHolding',id:id,amount:amount,note:finalNote,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal,sellPrice:sellPrice}, function(res){
     if(res&&res.success){
-      if(res.tradeId){
+      if(res.tradeId && tmpTradeId){
         for(var j=0;j<trades.length;j++){
           if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
         }
@@ -3067,20 +2927,10 @@ function openDoT(id){
   if(doTBuyQtyInput) doTBuyQtyInput.value = '';
   updateQtyDisplay(document.getElementById('doTQtyDisplay'), 'full', 0, 'doTPosGroup');
 
-  // 自动检测该持仓已做T次数（按code+账户类型+建仓日期分开计数）
-  // 只统计建仓日期（h.date）之后的做T记录，清仓后再买入应从T1重新开始
+  // 做T序号直接由持仓的 doTCount 列决定（与 GAS 维护的计数一致：跨天累加、按账户、清仓归零、上限5）
+  // 不再依赖交易记录里的 doT 行（部分清仓/做T 已不写入交易记录）
   var accLabel = (h.accountType || 'normal') === 'margin' ? '两融' : '正常';
-  var maxT = 0;
-  for(var i=0;i<trades.length;i++){
-    if(trades[i].code === h.code && trades[i].tIndex > 0 && trades[i].source === 'doT'){
-      // 持仓有建仓日期时，只统计建仓日之后的做T记录（清仓后再买入不继承上一轮的T序号）
-      if(h.date && trades[i].date < h.date) continue;
-      // 通过备注中的账户标记来区分是否属于当前账户类型
-      if(trades[i].note.indexOf('['+accLabel+']') !== -1){
-        if(trades[i].tIndex > maxT) maxT = trades[i].tIndex;
-      }
-    }
-  }
+  var maxT = (h.doTCount !== undefined && h.doTCount !== null) ? (h.doTCount || 0) : 0;
   var nextT = Math.min(maxT + 1, 5);
   selectedTIndex = nextT;
   document.querySelectorAll('#doTIndexGroup .t-index-btn').forEach(function(b){
@@ -3193,15 +3043,9 @@ function submitDoT(){
     // 备注末尾加账户标记，用于显示账户徽章
     uDoTNote += '['+accLabel+']';
 
-    // 乐观更新
-    var uSavedTrades = JSON.parse(JSON.stringify(trades));
+    // 乐观更新（仅持仓，做T不写交易记录）
     var uSavedHoldings = JSON.parse(JSON.stringify(holdings));
-
-    var uTmpTradeId = genTempId();
-    var uToday = new Date();
-    var uTodayStr = uToday.getFullYear() + '-' + String(uToday.getMonth() + 1).padStart(2, '0') + '-' + String(uToday.getDate()).padStart(2, '0');
-    // 交易记录：amount=差价法展示盈亏，quantity=卖出量，fees=实际总手续费
-    trades.push({id:uTmpTradeId, date:uTodayStr, code:holding.code, tag:holding.tag, quantity:uSellQtyActual, amount:amount, note:uDoTNote, tIndex:selectedTIndex, status:'open', source:'doT', fees:uDoTFees});
+    var uSavedTrades = JSON.parse(JSON.stringify(trades)); // 供回滚（实际未改动 trades）
 
     // 乐观更新：持仓量 + 成本价（现金流法冲减）
     var uNewQty = holding.quantity - uSellQtyActual + uBuyQtyActual;
@@ -3217,23 +3061,18 @@ function submitDoT(){
 
     closeDoT();
     refreshUI();
-    showStatus('ok','✅ 不等量做T'+selectedTIndex+'已记录（卖'+uSellQtyActual+'买'+uBuyQtyActual+'，展示盈亏'+amount+'元）');
+    showStatus('ok','✅ 不等量做T'+selectedTIndex+'已完成（卖'+uSellQtyActual+'买'+uBuyQtyActual+'，展示盈亏'+amount+'元；未记入交易记录）');
 
     // 后台同步：传sellQty/buyQty/sellPrice/buyPrice，后端用现金流法冲减
     apiCall({action:'doT',id:id,amount:amount,note:uDoTNote,tIndex:selectedTIndex,quantity:uSellQtyActual,fees:uDoTFees,
              sellQty:uSellQtyActual,buyQty:uBuyQtyActual,sellPrice:uSellPriceActual,buyPrice:uBuyPriceActual}, function(res){
       if(res&&res.success){
-        if(res.tradeId){
-          for(var j=0;j<trades.length;j++){
-            if(trades[j].id===uTmpTradeId){ trades[j].id=res.tradeId; break; }
-          }
-          cacheData(trades);
-        }
-        // 后端返回新的成本价和持仓量，同步到前端
+        // 同步后端返回的成本价/量 + doTCount
         for(var k=0;k<holdings.length;k++){
           if(String(holdings[k].id)===String(id)){
             if(res.newBuyPrice !== undefined) holdings[k].buyPrice = res.newBuyPrice;
             if(res.newQuantity !== undefined) holdings[k].quantity = res.newQuantity;
+            if(res.doTCount !== undefined) holdings[k].doTCount = res.doTCount;
             break;
           }
         }
@@ -3271,14 +3110,9 @@ function submitDoT(){
   var buyBackFees = calcFees(buyBackPrice, actualQty, false, accType, holding.code);
   var doTFees = Math.round((sellFees.total + buyBackFees.total) * 100) / 100;
 
-  // 乐观更新：先在前端添加交易记录（持仓不变）
-  var savedTrades = JSON.parse(JSON.stringify(trades));
+  // 乐观更新（仅持仓，做T不写交易记录）
   var savedHoldings = JSON.parse(JSON.stringify(holdings));
-
-  var tmpTradeId = genTempId();
-  var today = new Date();
-  var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  trades.push({id:tmpTradeId, date:todayStr, code:holding.code, tag:holding.tag, quantity:actualQty, amount:amount, note:doTNote, tIndex:selectedTIndex, status:'open', source:'doT', fees:doTFees});
+  var savedTrades = JSON.parse(JSON.stringify(trades)); // 供回滚（实际未改动 trades）
 
   // 乐观更新：做T后自动更新持仓成本价
   if(holding.buyPrice > 0 && holding.quantity > 0){
@@ -3291,25 +3125,17 @@ function submitDoT(){
 
   closeDoT();
   refreshUI();
-  showStatus('ok','✅ 做T'+selectedTIndex+'已记录（'+actualQty+'股）');
+  showStatus('ok','✅ 做T'+selectedTIndex+'已完成（'+actualQty+'股；未记入交易记录）');
 
   // 后台同步（等量做T：buyQty=quantity）
   apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty,buyQty:actualQty,fees:doTFees}, function(res){
     if(res&&res.success){
-      // 用云端真ID替换临时ID
-      if(res.tradeId){
-        for(var j=0;j<trades.length;j++){
-          if(trades[j].id===tmpTradeId){ trades[j].id=res.tradeId; break; }
-        }
-        cacheData(trades);
-      }
-      // 后端返回新的成本价，同步到前端
-      if(res.newBuyPrice !== undefined){
-        for(var k=0;k<holdings.length;k++){
-          if(String(holdings[k].id)===String(id)){
-            holdings[k].buyPrice = res.newBuyPrice;
-            break;
-          }
+      // 同步后端返回的成本价 + doTCount
+      for(var k=0;k<holdings.length;k++){
+        if(String(holdings[k].id)===String(id)){
+          if(res.newBuyPrice !== undefined) holdings[k].buyPrice = res.newBuyPrice;
+          if(res.doTCount !== undefined) holdings[k].doTCount = res.doTCount;
+          break;
         }
       }
       try{ localStorage.setItem('stock_holdings_cache', JSON.stringify(holdings)); }catch(e){}

@@ -67,7 +67,7 @@ var POS_DETAIL_HEADERS = ['id', 'holdingId', 'date', 'action', 'qty', 'price'];
 // 交易记录期望的表头（v5.2新增fees列，v5.3.4新增isPartial列）
 var EXPECTED_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'amount', 'note', 'tIndex', 'status', 'source', 'fees', 'isPartial'];
 // 持仓期望的表头（v5.0新增buyPrice列，v5.1新增accountType列，v5.3新增lastAddDate/lastAddQty列）
-var HOLDING_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'note', 'buyPrice', 'accountType', 'lastAddDate', 'lastAddQty'];
+var HOLDING_HEADERS = ['id', 'date', 'code', 'tag', 'quantity', 'note', 'buyPrice', 'accountType', 'lastAddDate', 'lastAddQty', 'doTCount'];
 
 function getSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -546,7 +546,8 @@ function listHoldings() {
         buyPrice: parseFloat(data[i][6]) || 0,
         accountType: String(data[i][7] || 'normal'),
         lastAddDate: String(data[i][8] || ''),
-        lastAddQty: parseInt(data[i][9]) || 0
+        lastAddQty: parseInt(data[i][9]) || 0,
+        doTCount: parseInt(data[i][10]) || 0
       });
     }
   }
@@ -577,7 +578,7 @@ function addHolding(params) {
 
   // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
   // 顺序不能反：对不存在的行预设置格式不会生效，appendRow 之后格式才能正确落到该行
-  sheet.appendRow([id, date, code, tag, quantity, note, buyPrice, accountType, lastAddDate, lastAddQty]);
+  sheet.appendRow([id, date, code, tag, quantity, note, buyPrice, accountType, lastAddDate, lastAddQty, 0]);
   var lastRow = sheet.getLastRow();
   sheet.getRange(lastRow, 2).setNumberFormat('@'); // date 列
   sheet.getRange(lastRow, 3).setNumberFormat('@'); // code 列
@@ -923,7 +924,7 @@ function undo(params) {
       hSheet.getRange(newRow, 2).setNumberFormat('@');
       if (arr[8]) hSheet.getRange(newRow, 9).setNumberFormat('@');
     } else if (target.opType === 'partialClear' || target.opType === 'doT') {
-      // 部分清仓/做T撤销：恢复持仓数量和成本价
+      // 部分清仓/做T撤销：恢复持仓数量、成本价、doTCount
       var hLastRow = hSheet.getLastRow();
       if (hLastRow > 1) {
         var hIds = hSheet.getRange(2, 1, hLastRow - 1, 1).getValues();
@@ -931,6 +932,10 @@ function undo(params) {
           if (String(hIds[j][0]) === String(state.holdingId)) {
             hSheet.getRange(j + 2, 5).setValue(parseInt(state.oldQty) || 0);
             hSheet.getRange(j + 2, 7).setValue(parseFloat(state.oldBuyPrice) || 0);
+            // 做T撤销时恢复 doTCount（部分清仓不改动 doTCount，state.oldDoTCount 为 undefined 则跳过）
+            if (state.oldDoTCount !== undefined && state.oldDoTCount !== null) {
+              hSheet.getRange(j + 2, 11).setValue(parseInt(state.oldDoTCount) || 0);
+            }
             break;
           }
         }
@@ -1211,25 +1216,30 @@ function clearHolding(params) {
     saveHistory('fullClear', savedOpDesc, savedState);
   }
 
-  var finalNote = tradeNote || holding.note || '';
-  if (actualIsPartial) {
-    finalNote = (finalNote ? finalNote + ' ' : '') + '部分清仓' + clearQty + '/' + holding.quantity + '股';
-  }
-  // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
-  tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, clearQty, amount, finalNote, 0, 'closed', 'clear', fees, actualIsPartial ? 1 : 0]);
-  var tLastRow = tradeSheet.getLastRow();
-  tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
-  tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列
-  tradeSheet.getRange(tLastRow, 2).setValue(todayStr); // 以文本重写，双保险确保前导0不丢
-  tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
-
-  if (actualIsPartial) {
-    // 部分清仓：更新持仓数量 + 现金流法冲减成本价（与做T冲减口径一致）
+  // 只有“卖光=全清仓”才写交易记录；部分清仓不写记录，
+  // 已实现盈亏通过现金流法冲减藏入剩余持仓成本（与做T口径一致）
+  if (!actualIsPartial) {
+    var tradeSheet = getSheet();
+    var today = new Date();
+    var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    var finalNote = tradeNote || holding.note || '';
+    // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
+    tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, clearQty, amount, finalNote, 0, 'closed', 'clear', fees, 0]);
+    var tLastRow = tradeSheet.getLastRow();
+    tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
+    tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列
+    tradeSheet.getRange(tLastRow, 2).setValue(todayStr); // 以文本重写，双保险确保前导0不丢
+    tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
+    // 全部清仓：删除持仓（不再标记做T为已完结，前端按tIndex过滤统计）
+    hSheet.deleteRow(holdingRow);
+    return { success: true, tradeId: tradeId, wasPartial: false };
+  } else {
+    // 部分清仓：不写交易记录，仅现金流法冲减成本 + 减数量
     var newQty = holding.quantity - clearQty;
     var sellPrice = parseFloat(params.sellPrice) || 0;
-    var fees = parseFloat(params.fees) || 0;
+    var pcFees = parseFloat(params.fees) || 0;
     var oldTotalCost = holding.buyPrice * holding.quantity;
-    var cashFlowProfit = sellPrice * clearQty - fees;
+    var cashFlowProfit = sellPrice * clearQty - pcFees;
     var newTotalCost = oldTotalCost - cashFlowProfit;
     if (newTotalCost < 0) newTotalCost = 0;
     var newBuyPrice = newQty > 0 ? (newTotalCost / newQty) : 0;
@@ -1237,11 +1247,7 @@ function clearHolding(params) {
     newBuyPrice = Math.round(newBuyPrice * 1000) / 1000;
     hSheet.getRange(holdingRow, 5).setValue(newQty);
     hSheet.getRange(holdingRow, 7).setValue(newBuyPrice);
-    return { success: true, tradeId: tradeId, wasPartial: true, newQuantity: newQty, newBuyPrice: newBuyPrice };
-  } else {
-    // 全部清仓：删除持仓（不再标记做T为已完结，前端按tIndex过滤统计）
-    hSheet.deleteRow(holdingRow);
-    return { success: true, tradeId: tradeId, wasPartial: false };
+    return { success: true, wasPartial: true, newQuantity: newQty, newBuyPrice: newBuyPrice };
   }
 }
 
@@ -1258,7 +1264,6 @@ function doT(params) {
   var holdingId = params.id;
   var amount = parseFloat(params.amount) || 0; // 差价法展示盈亏（不等量时）
   var tNote = params.note || '';
-  var tIndex = parseInt(params.tIndex) || 1;
   var doTQty = parseInt(params.quantity) || 0;
   var fees = parseFloat(params.fees) || 0;
 
@@ -1274,7 +1279,7 @@ function doT(params) {
   var lastRow = hSheet.getLastRow();
   if (lastRow < 2) return { success: false, error: '持仓记录不存在' };
 
-  var hData = hSheet.getRange(2, 1, lastRow - 1, 8).getValues();
+  var hData = hSheet.getRange(2, 1, lastRow - 1, 11).getValues();
   var holding = null;
   var holdingRow = -1;
 
@@ -1288,7 +1293,8 @@ function doT(params) {
         quantity: parseInt(hData[i][4]) || 0,
         note: String(hData[i][5] || ''),
         buyPrice: parseFloat(hData[i][6]) || 0,
-        accountType: String(hData[i][7] || 'normal')
+        accountType: String(hData[i][7] || 'normal'),
+        doTCount: parseInt(hData[i][10]) || 0
       };
       holdingRow = i + 2;
       break;
@@ -1305,26 +1311,16 @@ function doT(params) {
     if (doTQty > holding.quantity) doTQty = holding.quantity;
   }
 
-  // 2. 添加到交易记录，标记T序号和未完结状态
-  var tradeId = String(new Date().getTime());
-  var tradeSheet = getSheet();
-  var today = new Date();
-  var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  // 保存撤销快照
+  // 维护做T序号计数（doTCount 列，上限5）；不写交易记录，盈亏通过现金流法冲减藏入剩余持仓成本
+  var newDoTCount = Math.min((holding.doTCount || 0) + 1, 5);
+
+  // 保存撤销快照（仅持仓 beforeState + doTCount，不写交易记录）
   saveHistory('doT', '做T ' + holding.code + ' ' + (isUnequal ? (sellQty+'卖/'+buyQty+'买') : (doTQty+'股')), {
     holdingId: String(holding.id),
-    tradeId: tradeId,
     oldQty: holding.quantity,
-    oldBuyPrice: holding.buyPrice
+    oldBuyPrice: holding.buyPrice,
+    oldDoTCount: holding.doTCount
   });
-
-  // 先 appendRow 创建行，再设文本格式，最后以文本重写 date/code
-  tradeSheet.appendRow([tradeId, todayStr, holding.code, holding.tag, doTQty, amount, tNote, tIndex, 'open', 'doT', fees, 0]);
-  var tLastRow = tradeSheet.getLastRow();
-  tradeSheet.getRange(tLastRow, 2).setNumberFormat('@'); // date 列
-  tradeSheet.getRange(tLastRow, 3).setNumberFormat('@'); // code 列
-  tradeSheet.getRange(tLastRow, 2).setValue(todayStr); // 以文本重写，双保险确保前导0不丢
-  tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
 
   // 3. 更新持仓
   if (isUnequal) {
@@ -1342,14 +1338,16 @@ function doT(params) {
       if (newBuyPrice < 0) newBuyPrice = 0;
       newBuyPrice = Math.round(newBuyPrice * 1000) / 1000;
 
-      // 更新持仓量（第5列）和成本价（第7列）
+      // 更新持仓量（第5列）、成本价（第7列）、doTCount（第11列）
       hSheet.getRange(holdingRow, 5).setValue(newQuantity);
       hSheet.getRange(holdingRow, 7).setValue(newBuyPrice);
-      return { success: true, tradeId: tradeId, newBuyPrice: newBuyPrice, newQuantity: newQuantity };
+      hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
+      return { success: true, newBuyPrice: newBuyPrice, newQuantity: newQuantity, doTCount: newDoTCount };
     } else {
-      // 只更新持仓量
+      // 只更新持仓量 + doTCount
       hSheet.getRange(holdingRow, 5).setValue(newQuantity);
-      return { success: true, tradeId: tradeId, newQuantity: newQuantity };
+      hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
+      return { success: true, newQuantity: newQuantity, doTCount: newDoTCount };
     }
   } else {
     // ===== 等量做T：原有逻辑 =====
@@ -1361,10 +1359,12 @@ function doT(params) {
       // 成本价不能为负
       if (newBuyPrice < 0) newBuyPrice = 0;
       hSheet.getRange(holdingRow, 7).setValue(Math.round(newBuyPrice * 1000) / 1000); // 保留3位小数
-      return { success: true, tradeId: tradeId, newBuyPrice: newBuyPrice };
+      hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
+      return { success: true, newBuyPrice: newBuyPrice, doTCount: newDoTCount };
     }
 
-    return { success: true, tradeId: tradeId };
+    hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
+    return { success: true, doTCount: newDoTCount };
   }
 }
 

@@ -383,17 +383,5 @@ function renderHoldingsAnalysis() {
   });
 }
 
-// JSONP 辅助函数
-function fetchJsonp(url, callback) {
-  var callbackName = 'jsonp_callback_' + Date.now();
-  var script = document.createElement('script');
-  script.src = url.replace('callback=?', 'callback=' + callbackName);
-  window[callbackName] = function(data) {
-    delete window[callbackName];
-    document.body.removeChild(script);
-    callback(data);
-  };
-  document.body.appendChild(script);
-}
 
 
