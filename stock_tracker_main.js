@@ -1,5 +1,6 @@
 
 // ===== 版本记录 =====
+// 2026-08-01 F5 持仓空白修复：将持仓本地缓存渲染从 loadHoldings(GAS 回调内)提前到 loadAll 同步阶段。新增 loadHoldingsCache() 只渲染缓存、不发 GAS；loadAll 在 loadTrades 之前先调一次 loadHoldingsCache()，消除刷新后持仓短暂空白（GAS 串行调用逻辑不变）。
 // 2026-07-21 持仓止损告警灯：新增「告警」列；现价跌破成本价≥3%亮💡(黄)、≥5%亮🚨(红)；悬停显示「已跌 -X%（成本价 Y，现价 Z）」。仅桌面持仓表，移动端不加。
 
 // ===== 配置 =====
@@ -592,6 +593,8 @@ function apiCall(params, callback, _retries){
 
 function loadAll(){
   _tradesLoaded=false; _holdingsLoaded=false;
+  // 立即渲染本地持仓缓存，消除 F5 刷新时持仓短暂空白（GAS 串行调用不变）
+  loadHoldingsCache();
   // 串行加载：先 list 让 GAS 实例变热，再 listHoldings，避免两个并发请求同时撞冷启动而超时
   loadTrades(function(){ loadHoldings(); });
 }
@@ -741,8 +744,8 @@ function loadTrades(onDone){
   });
 }
 
-function loadHoldings(onDone){
-  // 第一步：立即显示缓存数据
+// 仅读取本地持仓缓存并立即渲染（用于 F5 刷新时消除持仓短暂空白）
+function loadHoldingsCache(){
   var cached = localStorage.getItem('stock_holdings_cache');
   if(cached){
     try {
@@ -750,6 +753,11 @@ function loadHoldings(onDone){
       renderHoldings();
     } catch(e) { /* ignore */ }
   }
+}
+
+function loadHoldings(onDone){
+  // 第一步：立即显示缓存数据
+  loadHoldingsCache();
   
   // 第二步：后台静默同步GAS
   isLoadingHoldings = true;
