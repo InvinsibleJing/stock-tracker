@@ -1,5 +1,7 @@
 
 // ===== 版本记录 =====
+// 2026-08-03 其余写操作幂等去重配套：clearHolding/doT(×2)/deleteHolding 调用新增 clientOpId('clr_'/'dot_'/'del_'+时间戳+随机数)，与后端 v5.7 对应，避免超时重试时重复清仓/做T/删持仓。
+// 2026-08-03 addHolding 幂等去重配套：前端 addHolding 调用新增 clientOpId('addh_'+时间戳+随机数)，使 GAS 在 apiCall 超时自动重试时可识别同一笔请求、避免重复写入持仓（后端 v5.6 对应）。
 // 2026-08-01 F5 持仓空白修复：将持仓本地缓存渲染从 loadHoldings(GAS 回调内)提前到 loadAll 同步阶段。新增 loadHoldingsCache() 只渲染缓存、不发 GAS；loadAll 在 loadTrades 之前先调一次 loadHoldingsCache()，消除刷新后持仓短暂空白（GAS 串行调用逻辑不变）。
 // 2026-07-21 持仓止损告警灯：新增「告警」列；现价跌破成本价≥3%亮💡(黄)、≥5%亮🚨(红)；悬停显示「已跌 -X%（成本价 Y，现价 Z）」。仅桌面持仓表，移动端不加。
 
@@ -2241,7 +2243,7 @@ function submitAddHolding(){
     fetchStockPrices();
     showStatus('ok','✅ 持仓已添加（成本价含买入手续费' + buyFees.total.toFixed(2) + '元）');
 
-    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType,lastAddDate:date,lastAddQty:quantity}, function(res){
+    apiCall({action:'addHolding',date:date,code:code,tag:tag,quantity:quantity,note:note,buyPrice:buyPrice,accountType:selectedAccountType,lastAddDate:date,lastAddQty:quantity,clientOpId:'addh_'+Date.now()+'_'+Math.floor(Math.random()*1e9)}, function(res){
       if(res&&res.success){
         for(var i=0;i<holdings.length;i++){
           if(holdings[i].id===tmpId){ holdings[i].id=res.id; break; }
@@ -2847,7 +2849,7 @@ function submitClearHolding(){
   showStatus('ok','✅ 清仓成功，' + actualQty + '股已记录');
 
   // 后台同步
-  apiCall({action:'clearHolding',id:id,amount:amount,note:finalNote,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal,sellPrice:sellPrice}, function(res){
+  apiCall({action:'clearHolding',id:id,amount:amount,note:finalNote,quantity:actualQty,isPartial:isPartial?1:0,fees:feesTotal,sellPrice:sellPrice,clientOpId:'clr_'+Date.now()+'_'+Math.random()}, function(res){
     if(res&&res.success){
       if(res.tradeId && tmpTradeId){
         for(var j=0;j<trades.length;j++){
@@ -3075,7 +3077,7 @@ function submitDoT(){
 
     // 后台同步：传sellQty/buyQty/sellPrice/buyPrice，后端用现金流法冲减
     apiCall({action:'doT',id:id,amount:amount,note:uDoTNote,tIndex:selectedTIndex,quantity:uSellQtyActual,fees:uDoTFees,
-             sellQty:uSellQtyActual,buyQty:uBuyQtyActual,sellPrice:uSellPriceActual,buyPrice:uBuyPriceActual}, function(res){
+             sellQty:uSellQtyActual,buyQty:uBuyQtyActual,sellPrice:uSellPriceActual,buyPrice:uBuyPriceActual,clientOpId:'dot_'+Date.now()+'_'+Math.random()}, function(res){
       if(res&&res.success){
         // 同步后端返回的成本价/量 + doTCount
         for(var k=0;k<holdings.length;k++){
@@ -3140,7 +3142,7 @@ function submitDoT(){
   showStatus('ok','✅ 做T'+selectedTIndex+'已完成（'+actualQty+'股；未记入交易记录）');
 
   // 后台同步（等量做T：buyQty=quantity）
-  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty,buyQty:actualQty,fees:doTFees}, function(res){
+  apiCall({action:'doT',id:id,amount:amount,note:doTNote,tIndex:selectedTIndex,quantity:actualQty,buyQty:actualQty,fees:doTFees,clientOpId:'dot_'+Date.now()+'_'+Math.random()}, function(res){
     if(res&&res.success){
       // 同步后端返回的成本价 + doTCount
       for(var k=0;k<holdings.length;k++){
@@ -3185,7 +3187,7 @@ function submitDeleteHolding(){
   showStatus('ok','✅ 持仓已删除');
 
   // 后台同步
-  apiCall({action:'deleteHolding',id:id}, function(res){
+  apiCall({action:'deleteHolding',id:id,clientOpId:'del_'+Date.now()+'_'+Math.random()}, function(res){
     if(!res||!res.success){
       holdings = savedHoldings;
       refreshUI();

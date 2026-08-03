@@ -44,6 +44,19 @@
  *   - 新增「持仓明细」sheet：id/holdingId/date/action/qty/price 6 列
  *   - addHolding 自动写入建仓明细；updateHoldingBatch 检测 addPrice 自动写入补仓明细
  *   - 新增 listPositionDetails(holdingId) 接口 + doGet 路由
+ *
+ * v5.6 (2026-08-03) addHolding 幂等去重（修复超时重试导致重复插入持仓）  ★本次改动
+ *   - 新增 _getOpResult/_setOpResult：用 ScriptProperties 缓存每个 clientOpId 的首次返回结果（含持仓 id），保留最近 100 条
+ *   - addHolding 入口先查缓存，命中则直接返回首次结果，不再 appendRow；避免网络抖动/GAS冷启动触发 apiCall 自动重试时写入两次
+ *   - 前端 addHolding 调用携带 clientOpId('addh_' 前缀)，重试时复用同一 opId 使后端可识别
+ *   - 历史重复持仓需手动在页面删除其中一条（云端确有两条独立记录）
+ *
+ * v5.7 (2026-08-03) 补齐其余写操作幂等去重（清仓/做T/添加交易/删除持仓）  ★本次改动
+ *   - clearHolding / doT / addTrade / deleteHolding 入口均先查 _getOpResult(clientOpId)，命中直接返回首次结果
+ *   - 四个函数首个成功 return 前调用 _setOpResult 缓存结果，避免超时重试时重复写入/删持仓/冲减成本/级联清历史
+ *   - 前端 clearHolding(do'T'×2)/deleteHolding 调用携带 clientOpId('clr_'/'dot_'/'del_' 前缀)，重试复用同一 opId
+ *   - deleteHolding 函数签名改为 (id, clientOpId)，doGet 分发时透传 e.parameter.clientOpId
+ *   - 至此所有写操作（addHolding/updateHoldingBatch/clearHolding/doT/addTrade/deleteHolding）均具备幂等保护
  * ───────────────────────────────────────────────────────────────────────
  */
 
@@ -295,7 +308,7 @@ function doGet(e) {
         result = addHolding(e.parameter);
         break;
       case 'deleteHolding':
-        result = deleteHolding(e.parameter.id);
+        result = deleteHolding(e.parameter.id, e.parameter.clientOpId);
         break;
       case 'updateHolding':
         result = updateHolding(e.parameter);
@@ -393,6 +406,12 @@ function listTrades() {
 
 // 添加记录
 function addTrade(params) {
+  // 幂等去重：前端给每个网络请求一个 clientOpId，重试时 GAS 直接返回首次结果（含 id），不再重复写入
+  var opId = String(params.clientOpId || '');
+  if (opId) {
+    var _cached = _getOpResult(opId);
+    if (_cached) return _cached;
+  }
   var sheet = getSheet(); // 自动检测并迁移
   var id = String(new Date().getTime());
   var date = params.date || '';
@@ -416,7 +435,9 @@ function addTrade(params) {
   sheet.getRange(lastRow, 2).setValue(date); // 以文本重写，双保险确保前导0不丢
   sheet.getRange(lastRow, 3).setValue(code);
 
-  return { success: true, id: id };
+  var _result = { success: true, id: id };
+  if (opId) _setOpResult(opId, _result);
+  return _result;
 }
 
 // 删除记录
@@ -556,6 +577,12 @@ function listHoldings() {
 
 // 添加持仓
 function addHolding(params) {
+  // 幂等去重：前端给每个网络请求一个 clientOpId，重试时 GAS 直接返回首次结果（含 id），不再重复写入
+  var opId = String(params.clientOpId || '');
+  if (opId) {
+    var _cached = _getOpResult(opId);
+    if (_cached) return _cached;
+  }
   var sheet = getHoldingSheet();
   var id = String(new Date().getTime());
   var date = params.date || '';
@@ -585,11 +612,19 @@ function addHolding(params) {
   sheet.getRange(lastRow, 2).setValue(date); // 以文本重写，双保险确保前导0不丢
   sheet.getRange(lastRow, 3).setValue(code);
 
-  return { success: true, id: id };
+  var _result = { success: true, id: id };
+  if (opId) _setOpResult(opId, _result);
+  return _result;
 }
 
 // 删除持仓
-function deleteHolding(id) {
+function deleteHolding(id, clientOpId) {
+  // 幂等去重：前端给每个网络请求一个 clientOpId，重试时直接返回首次结果，不再重复级联清历史
+  var opId = String(clientOpId || '');
+  if (opId) {
+    var _cached = _getOpResult(opId);
+    if (_cached) return _cached;
+  }
   var sheet = getHoldingSheet();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return { success: true };
@@ -625,7 +660,9 @@ function deleteHolding(id) {
       if (cleared > 0) Logger.log('删除持仓后级联清除了 ' + cleared + ' 条关联可撤销记录');
     }
   }
-  return { success: true };
+  var _result = { success: true };
+  if (opId) _setOpResult(opId, _result);
+  return _result;
 }
 
 // ============================================================
@@ -1125,8 +1162,38 @@ function _isDuplicateOp(opId) {
   return false;
 }
 
+// 幂等结果缓存：为"后端生成 id"的写操作记住首次返回结果，重试时直接返回，避免重复写入 Sheet
+function _getOpResult(opId) {
+  if (!opId) return null;
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty('op_results') || '{}';
+  var map;
+  try { map = JSON.parse(raw); } catch(e) { map = {}; }
+  return map[opId] || null;
+}
+function _setOpResult(opId, result) {
+  if (!opId) return;
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty('op_results') || '{}';
+  var map;
+  try { map = JSON.parse(raw); } catch(e) { map = {}; }
+  map[opId] = result;
+  var keys = Object.keys(map);
+  if (keys.length > 100) {
+    var drop = keys.slice(0, keys.length - 100);
+    for (var d = 0; d < drop.length; d++) delete map[drop[d]];
+  }
+  props.setProperty('op_results', JSON.stringify(map));
+}
+
 // 清仓：将持仓转为交易记录，然后删除该持仓
 function clearHolding(params) {
+  // 幂等去重：前端给每个网络请求一个 clientOpId，重试时直接返回首次结果（含 tradeId），不再重复写入/删持仓
+  var opId = String(params.clientOpId || '');
+  if (opId) {
+    var _cached = _getOpResult(opId);
+    if (_cached) return _cached;
+  }
   var holdingId = params.id;
   var amount = parseFloat(params.amount) || 0;
   var tradeNote = params.note || '';
@@ -1232,7 +1299,9 @@ function clearHolding(params) {
     tradeSheet.getRange(tLastRow, 3).setValue(holding.code);
     // 全部清仓：删除持仓（不再标记做T为已完结，前端按tIndex过滤统计）
     hSheet.deleteRow(holdingRow);
-    return { success: true, tradeId: tradeId, wasPartial: false };
+    var _result = { success: true, tradeId: tradeId, wasPartial: false };
+    if (opId) _setOpResult(opId, _result);
+    return _result;
   } else {
     // 部分清仓：不写交易记录，仅现金流法冲减成本 + 减数量
     var newQty = holding.quantity - clearQty;
@@ -1247,7 +1316,9 @@ function clearHolding(params) {
     newBuyPrice = Math.round(newBuyPrice * 1000) / 1000;
     hSheet.getRange(holdingRow, 5).setValue(newQty);
     hSheet.getRange(holdingRow, 7).setValue(newBuyPrice);
-    return { success: true, wasPartial: true, newQuantity: newQty, newBuyPrice: newBuyPrice };
+    var _result = { success: true, wasPartial: true, newQuantity: newQty, newBuyPrice: newBuyPrice };
+    if (opId) _setOpResult(opId, _result);
+    return _result;
   }
 }
 
@@ -1261,6 +1332,12 @@ function clearHolding(params) {
 // 等量做T（不传sellQty/buyQty 或 sellQty=0）：
 //   - 走原逻辑，amount直接冲减成本，持仓量不变
 function doT(params) {
+  // 幂等去重：前端给每个网络请求一个 clientOpId，重试时直接返回首次结果，不再重复冲减成本/更新持仓
+  var opId = String(params.clientOpId || '');
+  if (opId) {
+    var _cached = _getOpResult(opId);
+    if (_cached) return _cached;
+  }
   var holdingId = params.id;
   var amount = parseFloat(params.amount) || 0; // 差价法展示盈亏（不等量时）
   var tNote = params.note || '';
@@ -1342,12 +1419,16 @@ function doT(params) {
       hSheet.getRange(holdingRow, 5).setValue(newQuantity);
       hSheet.getRange(holdingRow, 7).setValue(newBuyPrice);
       hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
-      return { success: true, newBuyPrice: newBuyPrice, newQuantity: newQuantity, doTCount: newDoTCount };
+      var _result = { success: true, newBuyPrice: newBuyPrice, newQuantity: newQuantity, doTCount: newDoTCount };
+      if (opId) _setOpResult(opId, _result);
+      return _result;
     } else {
       // 只更新持仓量 + doTCount
       hSheet.getRange(holdingRow, 5).setValue(newQuantity);
       hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
-      return { success: true, newQuantity: newQuantity, doTCount: newDoTCount };
+      var _result = { success: true, newQuantity: newQuantity, doTCount: newDoTCount };
+      if (opId) _setOpResult(opId, _result);
+      return _result;
     }
   } else {
     // ===== 等量做T：原有逻辑 =====
@@ -1360,11 +1441,15 @@ function doT(params) {
       if (newBuyPrice < 0) newBuyPrice = 0;
       hSheet.getRange(holdingRow, 7).setValue(Math.round(newBuyPrice * 1000) / 1000); // 保留3位小数
       hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
-      return { success: true, newBuyPrice: newBuyPrice, doTCount: newDoTCount };
+      var _result = { success: true, newBuyPrice: newBuyPrice, doTCount: newDoTCount };
+      if (opId) _setOpResult(opId, _result);
+      return _result;
     }
 
     hSheet.getRange(holdingRow, 11).setValue(newDoTCount);
-    return { success: true, doTCount: newDoTCount };
+    var _result = { success: true, doTCount: newDoTCount };
+    if (opId) _setOpResult(opId, _result);
+    return _result;
   }
 }
 
